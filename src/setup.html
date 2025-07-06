@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sheet DB セットアップ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"], input[type="url"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .google-sheets-btn {
+            background-color: #4285f4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .google-sheets-btn:hover {
+            background-color: #3367d6;
+        }
+        .save-btn {
+            background-color: #34a853;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .save-btn:hover {
+            background-color: #2d8f47;
+        }
+        .info {
+            background-color: #e8f0fe;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .selected-sheet {
+            background-color: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sheet DB セットアップ</h1>
+        
+        <div class="section">
+            <h2>1. Googleスプレッドシート選択</h2>
+            <div class="info">
+                <p>Sheet DBで使用するGoogleスプレッドシートを選択してください。</p>
+            </div>
+            
+            <button class="google-sheets-btn" onclick="selectGoogleSheet()">
+                📊 Googleスプレッドシートを選択
+            </button>
+            
+            <div id="selected-sheet" class="selected-sheet" style="display: none;">
+                <p><strong>選択されたスプレッドシート:</strong></p>
+                <p id="sheet-name"></p>
+                <p><strong>URL:</strong> <span id="sheet-url"></span></p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. Auth0 認証設定</h2>
+            <div class="info">
+                <p>Auth0アカウントの認証情報を設定してください。</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="auth0-domain">Auth0 ドメイン:</label>
+                <input type="text" id="auth0-domain" placeholder="your-tenant.auth0.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="auth0-client-id">Client ID:</label>
+                <input type="text" id="auth0-client-id" placeholder="あなたのAuth0 Client ID">
+            </div>
+            
+            <div class="form-group">
+                <label for="auth0-client-secret">Client Secret:</label>
+                <input type="text" id="auth0-client-secret" placeholder="あなたのAuth0 Client Secret">
+            </div>
+            
+            <div class="form-group">
+                <label for="auth0-audience">Audience (オプション):</label>
+                <input type="text" id="auth0-audience" placeholder="API識別子">
+            </div>
+        </div>
+        
+        <button class="save-btn" onclick="saveConfiguration()">
+            💾 設定を保存
+        </button>
+    </div>
+
+    <script>
+        let selectedSheet = null;
+        
+        function selectGoogleSheet() {
+            // Google Picker APIを使用してスプレッドシートを選択
+            // 実際の実装では、Google Picker APIを初期化して使用する
+            alert('Google Picker APIの実装が必要です。デモ用にダミーデータを設定します。');
+            
+            // デモ用のダミーデータ
+            selectedSheet = {
+                id: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+                name: 'サンプルスプレッドシート',
+                url: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit'
+            };
+            
+            document.getElementById('selected-sheet').style.display = 'block';
+            document.getElementById('sheet-name').textContent = selectedSheet.name;
+            document.getElementById('sheet-url').textContent = selectedSheet.url;
+        }
+        
+        function saveConfiguration() {
+            if (!selectedSheet) {
+                alert('Googleスプレッドシートを選択してください。');
+                return;
+            }
+            
+            const config = {
+                spreadsheetId: selectedSheet.id,
+                spreadsheetName: selectedSheet.name,
+                spreadsheetUrl: selectedSheet.url,
+                auth0Domain: document.getElementById('auth0-domain').value,
+                auth0ClientId: document.getElementById('auth0-client-id').value,
+                auth0ClientSecret: document.getElementById('auth0-client-secret').value,
+                auth0Audience: document.getElementById('auth0-audience').value
+            };
+            
+            // 必須フィールドのチェック
+            if (!config.auth0Domain || !config.auth0ClientId || !config.auth0ClientSecret) {
+                alert('Auth0の必須フィールドをすべて入力してください。');
+                return;
+            }
+            
+            // 設定をサーバーに送信
+            fetch('/api/setup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('設定が保存されました！');
+                    window.location.href = '/';
+                } else {
+                    alert('設定の保存に失敗しました: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('エラーが発生しました: ' + error.message);
+            });
+        }
+    </script>
+</body>
+</html>
