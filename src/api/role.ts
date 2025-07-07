@@ -1,4 +1,5 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
+import { drizzle } from 'drizzle-orm/d1';
 import {
   getGoogleCredentials,
   saveGoogleTokens,
@@ -52,7 +53,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// POST /api/roles - ロール作成 (OpenAPI)
 	app.openapi(createRoleRoute, async (c) => {
 		try {
-			const db = c.env.DB;
+			const db = drizzle(c.env.DB);
 			
 			// 認証ヘッダーからセッションIDを取得
 			const authHeader = c.req.valid('header').authorization;
@@ -168,7 +169,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// PUT /api/roles/:roleName - ロール更新 (OpenAPI)
 	app.openapi(updateRoleRoute, async (c) => {
 		try {
-			const db = c.env.DB;
+			const db = drizzle(c.env.DB);
 			
 			// 認証ヘッダーからセッションIDを取得
 			const authHeader = c.req.valid('header').authorization;
@@ -318,7 +319,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// DELETE /api/roles/:roleName - ロール削除 (OpenAPI)
 	app.openapi(deleteRoleRoute, async (c) => {
 		try {
-			const db = c.env.DB;
+			const db = drizzle(c.env.DB);
 			
 			// 認証ヘッダーからセッションIDを取得
 			const authHeader = c.req.valid('header').authorization;

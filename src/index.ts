@@ -8,6 +8,7 @@ import { registerSwaggerUI, registerOpenAPISpec } from './api/openapi';
 import { registerRoleRoutes } from './api/role';
 import { registerUserRoutes } from './api/user';
 import { registerSheetRoutes } from './api/sheet';
+import { playgroundHTML } from './playground-html';
 
 type Bindings = {
 	DB: D1Database;
@@ -41,6 +42,11 @@ app.get('/', async (c) => {
 // Health check endpoint
 app.get('/health', (c) => {
 	return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Playground endpoint
+app.get('/playground', (c) => {
+	return c.html(playgroundHTML);
 });
 
 // Register all route modules

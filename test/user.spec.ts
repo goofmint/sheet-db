@@ -114,6 +114,32 @@ vi.mock('../src/api/auth', () => ({
 	})
 }));
 
+// Mock shared sheet helpers
+vi.mock('../src/utils/sheet-helpers', () => ({
+	getUserFromSheet: vi.fn(async (userId: string, spreadsheetId: string, accessToken: string) => {
+		if (userId === 'user123') {
+			return {
+				id: 'user123',
+				email: 'user@example.com',
+				name: 'Test User',
+				given_name: 'Test',
+				family_name: 'User',
+				nickname: 'testuser',
+				picture: 'https://example.com/avatar.jpg',
+				email_verified: true,
+				locale: 'en',
+				roles: ['admin'],
+				created_at: '2023-01-01T00:00:00Z',
+				updated_at: '2023-01-01T00:00:00Z',
+				last_login: '2023-01-01T00:00:00Z'
+			};
+		}
+		return null;
+	}),
+	getMultipleConfigsFromSheet: vi.fn(async () => ({})),
+	getConfigFromSheet: vi.fn(async () => null)
+}));
+
 describe('User API', () => {
 	let app: OpenAPIHono<{ Bindings: Bindings }>;
 

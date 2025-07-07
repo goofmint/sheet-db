@@ -147,6 +147,43 @@ vi.mock('../src/api/auth', () => ({
 	})
 }));
 
+// Mock shared sheet helpers
+vi.mock('../src/utils/sheet-helpers', () => ({
+	getUserFromSheet: vi.fn(async (userId: string, spreadsheetId: string, accessToken: string) => {
+		if (userId === 'user123') {
+			return {
+				id: 'user123',
+				email: 'user@example.com',
+				name: 'Test User',
+				given_name: 'Test',
+				family_name: 'User',
+				nickname: 'testuser',
+				picture: 'https://example.com/avatar.jpg',
+				email_verified: true,
+				locale: 'en',
+				roles: ['admin'],
+				created_at: '2023-01-01T00:00:00Z',
+				updated_at: '2023-01-01T00:00:00Z',
+				last_login: '2023-01-01T00:00:00Z'
+			};
+		}
+		return null;
+	}),
+	getMultipleConfigsFromSheet: vi.fn(async (keys: string[], spreadsheetId: string, accessToken: string) => {
+		return {
+			'CREATE_SHEET_BY_API': 'true',
+			'CREATE_SHEET_USER': '["user123"]',
+			'CREATE_SHEET_ROLE': '["admin"]'
+		};
+	}),
+	getConfigFromSheet: vi.fn(async (key: string) => {
+		if (key === 'CREATE_SHEET_BY_API') return 'true';
+		if (key === 'CREATE_SHEET_USER') return '["user123"]';
+		if (key === 'CREATE_SHEET_ROLE') return '["admin"]';
+		return null;
+	})
+}));
+
 describe('Sheet API', () => {
 	let app: OpenAPIHono<{ Bindings: Bindings }>;
 
@@ -159,13 +196,13 @@ describe('Sheet API', () => {
 	describe('POST /api/sheets', () => {
 		it('should create a new sheet with valid data and permissions', async () => {
 			const createData = {
-				sheetName: 'TestSheet',
-				columns: {
-					title: 'string',
-					description: 'string',
-					count: 'number',
-					active: 'boolean'
-				}
+				name: 'TestSheet',
+				public_read: true,
+				public_write: false,
+				role_read: [],
+				role_write: ['admin'],
+				user_read: [],
+				user_write: ['user123']
 			};
 
 			const req = new Request('http://localhost/api/sheets', {
@@ -182,17 +219,20 @@ describe('Sheet API', () => {
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
-			expect(data.data).toHaveProperty('sheetName', 'TestSheet');
+			expect(data.data).toHaveProperty('name', 'TestSheet');
 			expect(data.data).toHaveProperty('sheetId', 12345);
-			expect(data.data).toHaveProperty('columns', createData.columns);
-			expect(data.data).toHaveProperty('totalColumns', 13); // 9 default + 4 user columns
+			expect(data.data).toHaveProperty('public_read', true);
+			expect(data.data).toHaveProperty('public_write', false);
+			expect(data.data).toHaveProperty('role_read', []);
+			expect(data.data).toHaveProperty('role_write', ['admin']);
+			expect(data.data).toHaveProperty('user_read', []);
+			expect(data.data).toHaveProperty('user_write', ['user123']);
 			expect(data.data.message).toContain('created successfully');
 		});
 
 		it('should return 401 for unauthenticated request', async () => {
 			const createData = {
-				sheetName: 'TestSheet',
-				columns: { title: 'string' }
+				name: 'TestSheet'
 			};
 
 			const req = new Request('http://localhost/api/sheets', {
@@ -212,13 +252,9 @@ describe('Sheet API', () => {
 			expect(data.error).toBeDefined();
 		});
 
-		it('should return 400 for reserved column names', async () => {
+		it('should use default user_write when not provided', async () => {
 			const createData = {
-				sheetName: 'TestSheet',
-				columns: {
-					id: 'string', // Reserved column name
-					title: 'string'
-				}
+				name: 'TestSheet'
 			};
 
 			const req = new Request('http://localhost/api/sheets', {
@@ -231,35 +267,27 @@ describe('Sheet API', () => {
 			});
 
 			const res = await app.request(req, mockEnv, {});
+			const data = await res.json();
 
-			expect(res.status).toBe(400); // Should fail validation due to reserved column name
+			expect(res.status).toBe(200);
+			expect(data.success).toBe(true);
+			expect(data.data).toHaveProperty('name', 'TestSheet');
+			expect(data.data).toHaveProperty('public_read', true); // Default value
+			expect(data.data).toHaveProperty('public_write', false); // Default value
+			expect(data.data).toHaveProperty('user_write', ['user123']); // Default to creator
 		});
 
 		it('should return 403 when sheet creation is disabled', async () => {
 			// Mock config to return false for CREATE_SHEET_BY_API
-			const originalFetch = global.fetch;
-			global.fetch = vi.fn(async (url: string, options?: any) => {
-				const urlStr = url.toString();
-				
-				if (urlStr.includes('_Config!A:B')) {
-					return new Response(JSON.stringify({
-						values: [
-							['key', 'value'],
-							['CREATE_SHEET_BY_API', 'false']
-						]
-					}), { status: 200 });
-				}
-				
-				if (urlStr.includes('_User!A:N')) {
-					return new Response(JSON.stringify(mockUserSheetData), { status: 200 });
-				}
-				
-				return originalFetch(url, options);
+			const originalMock = await import('../src/utils/sheet-helpers');
+			vi.mocked(originalMock.getMultipleConfigsFromSheet).mockResolvedValueOnce({
+				'CREATE_SHEET_BY_API': 'false',
+				'CREATE_SHEET_USER': '["user123"]',
+				'CREATE_SHEET_ROLE': '["admin"]'
 			});
 
 			const createData = {
-				sheetName: 'TestSheet',
-				columns: { title: 'string' }
+				name: 'TestSheet'
 			};
 
 			const req = new Request('http://localhost/api/sheets', {
@@ -277,37 +305,19 @@ describe('Sheet API', () => {
 			expect(res.status).toBe(403);
 			expect(data.success).toBe(false);
 			expect(data.error).toContain('disabled');
-
-			// Restore original fetch
-			global.fetch = originalFetch;
 		});
 
 		it('should return 403 when user lacks required role', async () => {
 			// Mock config to require different role
-			const originalFetch = global.fetch;
-			global.fetch = vi.fn(async (url: string, options?: any) => {
-				const urlStr = url.toString();
-				
-				if (urlStr.includes('_Config!A:B')) {
-					return new Response(JSON.stringify({
-						values: [
-							['key', 'value'],
-							['CREATE_SHEET_BY_API', 'true'],
-							['CREATE_SHEET_ROLE', '["super_admin"]'] // Different role required
-						]
-					}), { status: 200 });
-				}
-				
-				if (urlStr.includes('_User!A:N')) {
-					return new Response(JSON.stringify(mockUserSheetData), { status: 200 });
-				}
-				
-				return originalFetch(url, options);
+			const originalMock = await import('../src/utils/sheet-helpers');
+			vi.mocked(originalMock.getMultipleConfigsFromSheet).mockResolvedValueOnce({
+				'CREATE_SHEET_BY_API': 'true',
+				'CREATE_SHEET_USER': '["user123"]',
+				'CREATE_SHEET_ROLE': '["super_admin"]' // Different role required
 			});
 
 			const createData = {
-				sheetName: 'TestSheet',
-				columns: { title: 'string' }
+				name: 'TestSheet'
 			};
 
 			const req = new Request('http://localhost/api/sheets', {
@@ -325,23 +335,17 @@ describe('Sheet API', () => {
 			expect(res.status).toBe(403);
 			expect(data.success).toBe(false);
 			expect(data.error).toContain('role not authorized');
-
-			// Restore original fetch
-			global.fetch = originalFetch;
 		});
 
-		it('should handle various column types correctly', async () => {
+		it('should create sheet with custom permissions', async () => {
 			const createData = {
-				sheetName: 'ComplexSheet',
-				columns: {
-					title: 'string',
-					price: 'number',
-					published_at: 'datetime',
-					is_active: 'boolean',
-					tags: 'array',
-					metadata: 'object',
-					author_ref: 'pointer'
-				}
+				name: 'PermissionTestSheet',
+				public_read: false,
+				public_write: true,
+				role_read: ['viewer'],
+				role_write: ['editor', 'admin'],
+				user_read: ['user456'],
+				user_write: ['user789']
 			};
 
 			const req = new Request('http://localhost/api/sheets', {
@@ -358,8 +362,13 @@ describe('Sheet API', () => {
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
-			expect(data.data.columns).toEqual(createData.columns);
-			expect(data.data.totalColumns).toBe(16); // 9 default + 7 user columns
+			expect(data.data).toHaveProperty('name', 'PermissionTestSheet');
+			expect(data.data).toHaveProperty('public_read', false);
+			expect(data.data).toHaveProperty('public_write', true);
+			expect(data.data).toHaveProperty('role_read', ['viewer']);
+			expect(data.data).toHaveProperty('role_write', ['editor', 'admin']);
+			expect(data.data).toHaveProperty('user_read', ['user456']);
+			expect(data.data).toHaveProperty('user_write', ['user789']);
 		});
 	});
 });

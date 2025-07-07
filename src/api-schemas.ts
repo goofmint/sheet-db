@@ -194,29 +194,58 @@ export const DeleteUserResponseSchema = z.object({
 export const ColumnTypeEnum = z.enum(['string', 'number', 'datetime', 'boolean', 'pointer', 'array', 'object']);
 
 export const CreateSheetRequestSchema = z.object({
-	sheetName: z.string().min(1, "Sheet name is required").max(100, "Sheet name must be 100 characters or less"),
-	columns: z.record(z.string().min(1), ColumnTypeEnum).refine(
-		(columns) => Object.keys(columns).length > 0,
-		{ message: "At least one column must be specified" }
-	).refine(
-		(columns) => {
-			// Check for reserved column names
-			const reservedColumns = ['id', 'created_at', 'updated_at', 'public_read', 'public_write', 'role_read', 'role_write', 'user_read', 'user_write'];
-			const userColumns = Object.keys(columns);
-			const conflicts = userColumns.filter(col => reservedColumns.includes(col));
-			return conflicts.length === 0;
-		},
-		{ message: "Cannot use reserved column names: id, created_at, updated_at, public_read, public_write, role_read, role_write, user_read, user_write" }
-	)
+	name: z.string().min(1, "Sheet name is required").max(100, "Sheet name must be 100 characters or less"),
+	public_read: z.boolean().default(true),
+	public_write: z.boolean().default(false),
+	role_read: z.array(z.string()).default([]),
+	role_write: z.array(z.string()).default([]),
+	user_read: z.array(z.string()).default([]),
+	user_write: z.array(z.string()).default([])
 });
 
 export const CreateSheetResponseSchema = z.object({
 	success: z.literal(true),
 	data: z.object({
-		sheetName: z.string(),
+		name: z.string(),
 		sheetId: z.number(),
-		columns: z.record(z.string(), ColumnTypeEnum),
-		totalColumns: z.number(),
+		public_read: z.boolean(),
+		public_write: z.boolean(),
+		role_read: z.array(z.string()),
+		role_write: z.array(z.string()),
+		user_read: z.array(z.string()),
+		user_write: z.array(z.string()),
 		message: z.string()
 	})
+});
+
+// Sheet update schemas
+export const UpdateSheetRequestSchema = z.object({
+	name: z.string().min(1, "Sheet name is required").max(100, "Sheet name must be 100 characters or less").optional(),
+	public_read: z.boolean().optional(),
+	public_write: z.boolean().optional(),
+	role_read: z.array(z.string()).optional(),
+	role_write: z.array(z.string()).optional(),
+	user_read: z.array(z.string()).optional(),
+	user_write: z.array(z.string()).optional()
+}).refine(data => Object.keys(data).length > 0, {
+	message: "At least one field must be provided for update"
+});
+
+export const UpdateSheetResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		name: z.string(),
+		sheetId: z.number(),
+		public_read: z.boolean(),
+		public_write: z.boolean(),
+		role_read: z.array(z.string()),
+		role_write: z.array(z.string()),
+		user_read: z.array(z.string()),
+		user_write: z.array(z.string()),
+		message: z.string()
+	})
+});
+
+export const SheetIdParamSchema = z.object({
+	id: z.string().min(1, "Sheet ID is required")
 });

@@ -1,4 +1,5 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
+import { drizzle } from 'drizzle-orm/d1';
 import {
   getGoogleCredentials,
   saveGoogleTokens,
@@ -182,7 +183,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// GET /api/users/me - 認証されたユーザーの情報を取得 (OpenAPI)
 	app.openapi(getUserMeRoute, async (c) => {
 		try {
-			const db = c.env.DB;
+			const db = drizzle(c.env.DB);
 			
 			// 認証ヘッダーからセッションIDを取得
 			const authHeader = c.req.valid('header').authorization;
@@ -248,7 +249,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// PUT /api/users/:id - ユーザー情報更新 (OpenAPI)
 	app.openapi(updateUserRoute, async (c) => {
 		try {
-			const db = c.env.DB;
+			const db = drizzle(c.env.DB);
 			
 			// 認証ヘッダーからセッションIDを取得
 			const authHeader = c.req.valid('header').authorization;
@@ -449,7 +450,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// DELETE /api/users/:id - ユーザー情報削除 (OpenAPI)
 	app.openapi(deleteUserRoute, async (c) => {
 		try {
-			const db = c.env.DB;
+			const db = drizzle(c.env.DB);
 			
 			// 認証ヘッダーからセッションIDを取得
 			const authHeader = c.req.valid('header').authorization;

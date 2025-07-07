@@ -594,8 +594,8 @@ export const setupHtml = `<!DOCTYPE html>
                 }
             }
             
-            // POST /connects にリクエストしてOAuth URLを取得
-            fetch('/connects', {
+            // POST /api/setup/auth にリクエストしてOAuth URLを取得
+            fetch('/api/setup/auth', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

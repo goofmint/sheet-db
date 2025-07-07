@@ -54,6 +54,8 @@ export async function getConfigFromSheet(key: string, spreadsheetId: string, acc
 // ユーザー情報をGoogle Sheetsから取得するヘルパー関数
 export async function getUserFromSheet(userId: string, spreadsheetId: string, accessToken: string): Promise<any | null> {
 	try {
+		console.log(`[getUserFromSheet] Searching for user ID: "${userId}"`);
+		
 		// _Userシートからユーザー情報を取得
 		const response = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:N`,
@@ -73,13 +75,51 @@ export async function getUserFromSheet(userId: string, spreadsheetId: string, ac
 		const data = await response.json() as any;
 		const rows = data.values || [];
 		
+		console.log(`[getUserFromSheet] Total rows in _User sheet: ${rows.length}`);
+		console.log(`[getUserFromSheet] Header row (row 0):`, rows[0]);
+		console.log(`[getUserFromSheet] Type row (row 1):`, rows[1]);
+		
+		// 3行目以降（データ行）の最初の数行をログ出力
+		for (let i = 2; i < Math.min(rows.length, 7); i++) {
+			console.log(`[getUserFromSheet] Data row ${i} (sheet row ${i+1}):`, rows[i]);
+			if (rows[i] && rows[i][0]) {
+				console.log(`[getUserFromSheet] Row ${i} ID: "${rows[i][0]}" (comparing with "${userId}")`);
+				console.log(`[getUserFromSheet] ID comparison result: ${rows[i][0] === userId}`);
+			}
+		}
+		
 		// ヘッダー行（1行目）と型定義行（2行目）をスキップして、3行目以降からユーザーを検索
 		const userRow = rows.find((row: string[], index: number) => 
 			index >= 2 && row[0] === userId
 		);
 
 		if (!userRow) {
+			console.log(`[getUserFromSheet] User not found. Total data rows searched: ${rows.length - 2}`);
 			return null;
+		}
+		
+		console.log(`[getUserFromSheet] User found:`, userRow);
+
+		// rolesフィールドの安全なパース
+		let roles: string[] = [];
+		if (userRow[9]) {
+			try {
+				console.log(`[getUserFromSheet] Raw roles value: "${userRow[9]}"`);
+				roles = JSON.parse(userRow[9]);
+				if (!Array.isArray(roles)) {
+					console.warn(`[getUserFromSheet] Roles is not an array, converting to array:`, roles);
+					roles = [roles];
+				}
+			} catch (parseError) {
+				console.error(`[getUserFromSheet] Failed to parse roles JSON: "${userRow[9]}"`, parseError);
+				// JSON形式でない場合、文字列として扱う
+				if (typeof userRow[9] === 'string' && userRow[9].trim()) {
+					// カンマ区切りの文字列として扱う
+					roles = userRow[9].split(',').map(role => role.trim()).filter(role => role.length > 0);
+				} else {
+					roles = [];
+				}
+			}
 		}
 
 		// _Userシートのスキーマに基づいてユーザー情報を構築
@@ -95,7 +135,7 @@ export async function getUserFromSheet(userId: string, spreadsheetId: string, ac
 			picture: userRow[6] || undefined,
 			email_verified: userRow[7] === 'TRUE' || undefined,
 			locale: userRow[8] || undefined,
-			roles: userRow[9] ? JSON.parse(userRow[9]) : [],
+			roles: roles,
 			created_at: userRow[10] || '',
 			updated_at: userRow[11] || '',
 			last_login: userRow[12] || undefined

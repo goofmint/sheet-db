@@ -1,4 +1,5 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
+import { drizzle } from 'drizzle-orm/d1';
 import {
   getGoogleCredentials,
   saveGoogleTokens,
@@ -7,7 +8,7 @@ import {
   refreshAccessToken,
   isTokenValid,
 } from '../google-auth';
-import { createSheetRoute } from '../api-routes';
+import { createSheetRoute, updateSheetRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -80,33 +81,203 @@ async function checkSheetCreationPermission(
 	}
 }
 
+// シート更新権限をチェックするヘルパー関数（シート固有の権限をチェック）
+async function checkSheetUpdatePermission(
+	userId: string,
+	userRoles: string[],
+	sheetMetadata: any
+): Promise<{ allowed: boolean; error?: string }> {
+	try {
+		// シートのメタデータから権限情報を取得
+		const { public_write, role_write, user_write } = sheetMetadata;
+
+		// 1. public_write = true の場合、誰でも更新可能
+		if (public_write === true) {
+			return { allowed: true };
+		}
+
+		// 2. user_writeに該当ユーザーIDが含まれている場合
+		if (user_write && Array.isArray(user_write) && user_write.includes(userId)) {
+			return { allowed: true };
+		}
+
+		// 3. role_writeに該当ユーザーのロールが含まれている場合
+		if (role_write && Array.isArray(role_write) && userRoles) {
+			const hasRequiredRole = userRoles.some(role => role_write.includes(role));
+			if (hasRequiredRole) {
+				return { allowed: true };
+			}
+		}
+
+		return { allowed: false, error: 'No write permission for this sheet' };
+	} catch (error) {
+		console.error('Error checking sheet update permission:', error);
+		return { allowed: false, error: 'Failed to check permissions' };
+	}
+}
+
+// シート情報を取得するヘルパー関数
+async function getSheetInfo(
+	sheetId: string,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ sheetName?: string; columns?: Record<string, string>; metadata?: any; error?: string }> {
+	try {
+		// スプレッドシートのメタデータを取得してシート名を確認
+		const metadataResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		if (!metadataResponse.ok) {
+			return { error: 'Failed to fetch spreadsheet metadata' };
+		}
+
+		const metadata = await metadataResponse.json() as any;
+		const sheet = metadata.sheets?.find((s: any) => s.properties.sheetId.toString() === sheetId);
+		
+		if (!sheet) {
+			return { error: 'Sheet not found' };
+		}
+
+		const sheetName = sheet.properties.title;
+
+		// シートの列情報を取得（1行目：ヘッダー、2行目：型定義）
+		const valuesResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:ZZ2`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		if (!valuesResponse.ok) {
+			return { error: 'Failed to fetch sheet data' };
+		}
+
+		const valuesData = await valuesResponse.json() as any;
+		const rows = valuesData.values || [];
+		
+		if (rows.length < 2) {
+			return { error: 'Invalid sheet structure' };
+		}
+
+		const headers = rows[0] || [];
+		const types = rows[1] || [];
+		
+		// 列名と型のマッピングを作成
+		const columns: Record<string, string> = {};
+		for (let i = 0; i < headers.length; i++) {
+			if (headers[i] && types[i]) {
+				columns[headers[i]] = types[i];
+			}
+		}
+
+		// シートの最初のデータ行からメタデータを取得（3行目以降）
+		const dataResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A3:ZZ3`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		let sheetMetadata: any = {
+			public_read: true,
+			public_write: false,
+			role_read: [],
+			role_write: [],
+			user_read: [],
+			user_write: []
+		};
+
+		if (dataResponse.ok) {
+			const dataResult = await dataResponse.json() as any;
+			const dataRows = dataResult.values || [];
+			
+			if (dataRows.length > 0 && dataRows[0]) {
+				const dataRow = dataRows[0];
+				// データ行から権限情報を取得（各列の順序に従って）
+				const headerIndexes: Record<string, number> = {};
+				headers.forEach((header: string, index: number) => {
+					headerIndexes[header] = index;
+				});
+
+				if (headerIndexes['public_read'] !== undefined && dataRow[headerIndexes['public_read']]) {
+					sheetMetadata.public_read = dataRow[headerIndexes['public_read']].toLowerCase() === 'true';
+				}
+				if (headerIndexes['public_write'] !== undefined && dataRow[headerIndexes['public_write']]) {
+					sheetMetadata.public_write = dataRow[headerIndexes['public_write']].toLowerCase() === 'true';
+				}
+				if (headerIndexes['role_read'] !== undefined && dataRow[headerIndexes['role_read']]) {
+					try {
+						sheetMetadata.role_read = JSON.parse(dataRow[headerIndexes['role_read']]);
+					} catch (e) {
+						sheetMetadata.role_read = [];
+					}
+				}
+				if (headerIndexes['role_write'] !== undefined && dataRow[headerIndexes['role_write']]) {
+					try {
+						sheetMetadata.role_write = JSON.parse(dataRow[headerIndexes['role_write']]);
+					} catch (e) {
+						sheetMetadata.role_write = [];
+					}
+				}
+				if (headerIndexes['user_read'] !== undefined && dataRow[headerIndexes['user_read']]) {
+					try {
+						sheetMetadata.user_read = JSON.parse(dataRow[headerIndexes['user_read']]);
+					} catch (e) {
+						sheetMetadata.user_read = [];
+					}
+				}
+				if (headerIndexes['user_write'] !== undefined && dataRow[headerIndexes['user_write']]) {
+					try {
+						sheetMetadata.user_write = JSON.parse(dataRow[headerIndexes['user_write']]);
+					} catch (e) {
+						sheetMetadata.user_write = [];
+					}
+				}
+			}
+		}
+
+		return { sheetName, columns, metadata: sheetMetadata };
+	} catch (error) {
+		console.error('Error getting sheet info:', error);
+		return { error: 'Failed to get sheet information' };
+	}
+}
+
 // 新しいシートを作成するヘルパー関数
 async function createGoogleSheet(
 	sheetName: string,
-	columns: Record<string, string>,
 	spreadsheetId: string,
 	accessToken: string
 ): Promise<{ success: boolean; sheetId?: number; error?: string }> {
 	try {
 		// デフォルトカラムを定義
 		const defaultColumns = [
-			'id', 'created_at', 'updated_at', 'public_read', 'public_write', 
+			'id', 'name', 'created_at', 'updated_at', 'public_read', 'public_write', 
 			'role_read', 'role_write', 'user_read', 'user_write'
 		];
 		
 		// デフォルトカラムの型を定義
 		const defaultColumnTypes = [
-			'string', 'datetime', 'datetime', 'boolean', 'boolean',
+			'string', 'string', 'datetime', 'datetime', 'boolean', 'boolean',
 			'array', 'array', 'array', 'array'
 		];
 
-		// ユーザー定義カラムを追加
-		const userColumnNames = Object.keys(columns);
-		const userColumnTypes = Object.values(columns);
-
 		// 全カラム名と型を結合
-		const allColumnNames = [...defaultColumns, ...userColumnNames];
-		const allColumnTypes = [...defaultColumnTypes, ...userColumnTypes];
+		const allColumnNames = [...defaultColumns];
+		const allColumnTypes = [...defaultColumnTypes];
 
 		// 新しいシートを作成
 		const createSheetResponse = await fetch(
@@ -192,12 +363,142 @@ async function createGoogleSheet(
 	}
 }
 
+// シートを更新するヘルパー関数
+async function updateGoogleSheet(
+	sheetId: string,
+	sheetName: string,
+	updateData: any,
+	currentMetadata: any,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ success: boolean; updatedMetadata?: any; error?: string }> {
+	try {
+		let requests: any[] = [];
+		const newSheetName = updateData.name || sheetName;
+
+		// シート名の変更
+		if (updateData.name && updateData.name !== sheetName) {
+			requests.push({
+				updateSheetProperties: {
+					properties: {
+						sheetId: parseInt(sheetId),
+						title: updateData.name
+					},
+					fields: 'title'
+				}
+			});
+		}
+
+		// 更新されたメタデータを作成
+		const updatedMetadata = {
+			public_read: updateData.public_read !== undefined ? updateData.public_read : currentMetadata.public_read,
+			public_write: updateData.public_write !== undefined ? updateData.public_write : currentMetadata.public_write,
+			role_read: updateData.role_read !== undefined ? updateData.role_read : currentMetadata.role_read,
+			role_write: updateData.role_write !== undefined ? updateData.role_write : currentMetadata.role_write,
+			user_read: updateData.user_read !== undefined ? updateData.user_read : currentMetadata.user_read,
+			user_write: updateData.user_write !== undefined ? updateData.user_write : currentMetadata.user_write
+		};
+
+		// 権限データを3行目の適切な位置に更新
+		// まず列のヘッダー情報を取得
+		const headersResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${newSheetName}!A1:ZZ1`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		if (headersResponse.ok) {
+			const headersData = await headersResponse.json() as any;
+			const headers = headersData.values?.[0] || [];
+			
+			// ヘッダーのインデックスマップを作成
+			const headerIndexes: Record<string, number> = {};
+			headers.forEach((header: string, index: number) => {
+				headerIndexes[header] = index;
+			});
+
+			// 3行目のデータを更新
+			const rowData: string[] = new Array(headers.length).fill('');
+			
+			// 各権限フィールドを適切な位置に設定
+			if (headerIndexes['public_read'] !== undefined) {
+				rowData[headerIndexes['public_read']] = updatedMetadata.public_read.toString();
+			}
+			if (headerIndexes['public_write'] !== undefined) {
+				rowData[headerIndexes['public_write']] = updatedMetadata.public_write.toString();
+			}
+			if (headerIndexes['role_read'] !== undefined) {
+				rowData[headerIndexes['role_read']] = JSON.stringify(updatedMetadata.role_read);
+			}
+			if (headerIndexes['role_write'] !== undefined) {
+				rowData[headerIndexes['role_write']] = JSON.stringify(updatedMetadata.role_write);
+			}
+			if (headerIndexes['user_read'] !== undefined) {
+				rowData[headerIndexes['user_read']] = JSON.stringify(updatedMetadata.user_read);
+			}
+			if (headerIndexes['user_write'] !== undefined) {
+				rowData[headerIndexes['user_write']] = JSON.stringify(updatedMetadata.user_write);
+			}
+
+			// セルの更新をリクエストに追加
+			requests.push({
+				updateCells: {
+					range: {
+						sheetId: parseInt(sheetId),
+						startRowIndex: 2, // 3行目（0ベースで2）
+						endRowIndex: 3,
+						startColumnIndex: 0,
+						endColumnIndex: rowData.length
+					},
+					rows: [{
+						values: rowData.map(value => ({
+							userEnteredValue: { stringValue: value }
+						}))
+					}],
+					fields: 'userEnteredValue'
+				}
+			});
+		}
+
+		// すべての更新をバッチで実行
+		if (requests.length > 0) {
+			const batchUpdateResponse = await fetch(
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+				{
+					method: 'POST',
+					headers: {
+						'Authorization': `Bearer ${accessToken}`,
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({ requests })
+				}
+			);
+
+			if (!batchUpdateResponse.ok) {
+				const errorText = await batchUpdateResponse.text();
+				console.error('Failed to update sheet:', batchUpdateResponse.status, errorText);
+				return { success: false, error: `Failed to update sheet: ${batchUpdateResponse.status}` };
+			}
+		}
+
+		console.log('Sheet updated successfully:', sheetId);
+		return { success: true, updatedMetadata };
+	} catch (error) {
+		console.error('Error updating Google sheet:', error);
+		return { success: false, error: 'Failed to update sheet' };
+	}
+}
+
 // Sheet management endpoints
 export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// POST /api/sheets - 新しいシートを作成 (OpenAPI)
 	app.openapi(createSheetRoute, async (c) => {
 		try {
-			const db = c.env.DB;
+			const db = drizzle(c.env.DB);
 			
 			// 認証ヘッダーからセッションIDを取得
 			const authHeader = c.req.valid('header').authorization;
@@ -215,7 +516,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			}
 			
 			const requestData = c.req.valid('json');
-			const { sheetName, columns } = requestData;
+			const { name, public_read, public_write, role_read, role_write, user_read, user_write } = requestData;
 			
 			// Google Sheetsの設定を取得
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
@@ -262,10 +563,12 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}, 403);
 			}
 			
+			// user_writeのデフォルト値を設定（作成したユーザIDを含む）
+			const finalUserWrite = user_write.length > 0 ? user_write : [userId];
+			
 			// 新しいシートを作成
 			const createResult = await createGoogleSheet(
-				sheetName,
-				columns,
+				name,
 				spreadsheetId,
 				tokens.access_token
 			);
@@ -277,25 +580,151 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}, 500);
 			}
 			
-			console.log('Sheet created successfully:', sheetName);
-			
-			// デフォルトカラム数（9個）とユーザー定義カラム数を合計
-			const totalColumns = 9 + Object.keys(columns).length;
+			console.log('Sheet created successfully:', name);
 			
 			// 成功レスポンスを返す
 			return c.json({
 				success: true as true,
 				data: {
-					sheetName,
+					name,
 					sheetId: createResult.sheetId!,
-					columns,
-					totalColumns,
-					message: `Sheet '${sheetName}' created successfully with ${totalColumns} columns`
+					public_read,
+					public_write,
+					role_read,
+					role_write,
+					user_read,
+					user_write: finalUserWrite,
+					message: `Sheet '${name}' created successfully with default columns`
 				}
 			});
 			
 		} catch (error) {
 			console.error('Error in POST /api/sheets:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// PUT /api/sheets/:id - シートを更新 (OpenAPI)
+	app.openapi(updateSheetRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// 認証ヘッダーからセッションIDを取得
+			const authHeader = c.req.valid('header').authorization;
+			const sessionId = authHeader.replace('Bearer ', '');
+			
+			// セッション認証
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+			}
+			
+			const userId = authResult.userId;
+			if (!userId) {
+				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+			}
+			
+			const { id: sheetId } = c.req.valid('param');
+			const updateData = c.req.valid('json');
+			
+			// Google Sheetsの設定を取得
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// 有効なGoogleトークンを取得
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// ユーザー情報を取得（権限チェック用）
+			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+			if (!user) {
+				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+			}
+			
+			// 現在のシート情報を取得
+			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { sheetName, metadata } = sheetInfo;
+			if (!sheetName || !metadata) {
+				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+			}
+			
+			// シート更新権限をチェック
+			const permissionCheck = await checkSheetUpdatePermission(
+				userId,
+				user.roles || [],
+				metadata
+			);
+			
+			if (!permissionCheck.allowed) {
+				return c.json({ 
+					success: false as false, 
+					error: permissionCheck.error || 'Permission denied' 
+				}, 403);
+			}
+			
+			// シートを更新
+			const updateResult = await updateGoogleSheet(
+				sheetId,
+				sheetName,
+				updateData,
+				metadata,
+				spreadsheetId,
+				tokens.access_token
+			);
+			
+			if (!updateResult.success) {
+				return c.json({ 
+					success: false as false, 
+					error: updateResult.error || 'Failed to update sheet' 
+				}, 500);
+			}
+			
+			console.log('Sheet updated successfully:', sheetId);
+			
+			const finalMetadata = updateResult.updatedMetadata || metadata;
+			
+			// 成功レスポンスを返す
+			return c.json({
+				success: true as true,
+				data: {
+					name: updateData.name || sheetName,
+					sheetId: parseInt(sheetId),
+					public_read: finalMetadata.public_read,
+					public_write: finalMetadata.public_write,
+					role_read: finalMetadata.role_read,
+					role_write: finalMetadata.role_write,
+					user_read: finalMetadata.user_read,
+					user_write: finalMetadata.user_write,
+					message: `Sheet '${updateData.name || sheetName}' updated successfully`
+				}
+			});
+			
+		} catch (error) {
+			console.error('Error in PUT /api/sheets/:id:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}

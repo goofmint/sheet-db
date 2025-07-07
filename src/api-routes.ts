@@ -25,7 +25,10 @@ import {
   UserIdParamSchema,
   DeleteUserResponseSchema,
   CreateSheetRequestSchema,
-  CreateSheetResponseSchema
+  CreateSheetResponseSchema,
+  UpdateSheetRequestSchema,
+  UpdateSheetResponseSchema,
+  SheetIdParamSchema
 } from './api-schemas';
 
 // POST /api/roles - Create a new role
@@ -523,7 +526,7 @@ export const createSheetRoute = createRoute({
   method: 'post',
   path: '/api/sheets',
   summary: 'Create a new sheet',
-  description: 'Creates a new sheet in the spreadsheet with specified columns and types. Requires CREATE_SHEET_BY_API permission and user/role authorization.',
+  description: 'Creates a new sheet in the spreadsheet with default columns and permission settings. Requires CREATE_SHEET_BY_API permission and user/role authorization.',
   tags: ['Sheets'],
   security: [{ BearerAuth: [] }],
   request: {
@@ -553,7 +556,7 @@ export const createSheetRoute = createRoute({
           schema: ValidationErrorSchema,
         },
       },
-      description: 'Invalid request data or reserved column names used',
+      description: 'Invalid request data',
     },
     401: {
       content: {
@@ -570,6 +573,79 @@ export const createSheetRoute = createRoute({
         },
       },
       description: 'Permission denied - sheet creation not allowed for this user/role',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// PUT /api/sheets/:id - Update an existing sheet
+export const updateSheetRoute = createRoute({
+  method: 'put',
+  path: '/api/sheets/{id}',
+  summary: 'Update an existing sheet',
+  description: 'Updates an existing sheet name and permission settings. Requires write access to the sheet (public_write=true, user in role_write, or user in user_write).',
+  tags: ['Sheets'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    headers: z.object({
+      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
+    }),
+    params: SheetIdParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateSheetRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: UpdateSheetResponseSchema,
+        },
+      },
+      description: 'Sheet updated successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+      description: 'Invalid request data',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no write access to this sheet',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet not found',
     },
     500: {
       content: {
