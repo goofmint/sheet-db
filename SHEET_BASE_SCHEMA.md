@@ -81,6 +81,10 @@
 
 - name
   string
+- users
+  array
+- roles
+  array
 - created_at
   datetime
 - updated_at

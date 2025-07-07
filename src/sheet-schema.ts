@@ -62,7 +62,9 @@ export const BASE_SCHEMAS: SheetSchema[] = [
   {
     name: '_Role',
     columns: [
-      { name: 'name', type: 'string' },
+      { name: 'name', type: 'string' }, // UNIQUE: ロール名は一意である必要があります
+      { name: 'users', type: 'array' },
+      { name: 'roles', type: 'array' },
       { name: 'created_at', type: 'datetime' },
       { name: 'updated_at', type: 'datetime' },
       { name: 'public_read', type: 'boolean' },
