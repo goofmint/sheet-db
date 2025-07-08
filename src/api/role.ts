@@ -10,10 +10,42 @@ import {
 } from '../google-auth';
 import { createRoleRoute, updateRoleRoute, deleteRoleRoute } from '../api-routes';
 import { authenticateSession } from './auth';
+import { getUserFromSheet } from '../utils/sheet-helpers';
 
 type Bindings = {
 	DB: D1Database;
 };
+
+// ロールの書き込み権限をチェックするヘルパー関数
+async function checkRoleWritePermission(
+	roleRow: string[],
+	userId: string,
+	userRoles: string[]
+): Promise<boolean> {
+	try {
+		// public_writeがtrueの場合
+		if (roleRow[6] === 'TRUE') {
+			return true;
+		}
+
+		// role_writeに現在のユーザーのロールが含まれているかチェック
+		const roleWrite = roleRow[8] ? JSON.parse(roleRow[8]) : [];
+		if (Array.isArray(roleWrite) && userRoles.some(role => roleWrite.includes(role))) {
+			return true;
+		}
+
+		// user_writeに現在のユーザーIDが含まれているかチェック
+		const userWrite = roleRow[10] ? JSON.parse(roleRow[10]) : [];
+		if (Array.isArray(userWrite) && userWrite.includes(userId)) {
+			return true;
+		}
+
+		return false;
+	} catch (error) {
+		console.error('Error checking role write permission:', error);
+		return false;
+	}
+}
 
 // 既存のロール名を取得するヘルパー関数
 async function getExistingRoleNames(spreadsheetId: string, accessToken: string): Promise<string[]> {
@@ -65,6 +97,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false, error: authResult.error || 'Authentication failed' }, 401);
 			}
 			
+			const userId = authResult.userId!;
 			const { name, public_read = false, public_write = false } = c.req.valid('json');
 			
 			// Google Sheetsの設定を取得
@@ -114,8 +147,8 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				public_write ? 'TRUE' : 'FALSE', // public_write
 				'[]',                    // role_read (array)
 				'[]',                    // role_write (array)
-				'[]',                    // user_read (array)
-				'[]'                     // user_write (array)
+				JSON.stringify([userId]), // user_read: 作成者のみ読み取り可能
+				JSON.stringify([userId])  // user_write: 作成者のみ書き込み可能
 			];
 			
 			// _Roleシートにデータを追加
@@ -154,8 +187,8 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					public_write: public_write,
 					role_read: [],
 					role_write: [],
-					user_read: [],
-					user_write: []
+					user_read: [userId],
+					user_write: [userId]
 				}
 			});
 			
@@ -181,6 +214,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false, error: authResult.error || 'Authentication failed' }, 401);
 			}
 			
+			const userId = authResult.userId!;
 			const { roleName } = c.req.valid('param');
 			const requestData = c.req.valid('json');
 			
@@ -238,8 +272,25 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const roleRow = roles[roleRowIndex];
 			const targetRowNumber = roleRowIndex + 1; // シート行番号に変換
 			
-			// TODO: 権限チェック - 実際のアプリケーションでは、ユーザーがこのロールを編集する権限があるかチェックする
-			// 今回は簡易実装として、認証されたユーザーは全てのロールを編集可能とする
+			// 現在のユーザー情報を取得（権限チェック用）
+			const currentUser = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+			if (!currentUser) {
+				return c.json({ success: false, error: 'Current user not found' }, 401);
+			}
+			
+			// 権限チェック
+			const hasPermission = await checkRoleWritePermission(
+				roleRow,
+				userId,
+				currentUser.roles || []
+			);
+			
+			if (!hasPermission) {
+				return c.json({ 
+					success: false, 
+					error: 'Permission denied - no write access to this role' 
+				}, 403);
+			}
 			
 			// 新しい名前が指定されている場合、一意性をチェック
 			if (requestData.name && requestData.name !== roleName) {
@@ -328,21 +379,31 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// セッション認証
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({}, 401);
+				return c.json({
+					success: false,
+					error: authResult.error || 'Authentication failed'
+				}, 401);
 			}
 			
+			const userId = authResult.userId!;
 			const { roleName } = c.req.valid('param');
 			
 			// Google Sheetsの設定を取得
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({}, 500);
+				return c.json({
+					success: false,
+					error: 'No spreadsheet selected'
+				}, 500);
 			}
 			
 			// 有効なGoogleトークンを取得
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({}, 500);
+				return c.json({
+					success: false,
+					error: 'No valid Google token found'
+				}, 500);
 			}
 			
 			// トークンの有効性を確認し、必要に応じてリフレッシュ
@@ -353,7 +414,10 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({}, 500);
+					return c.json({
+						success: false,
+						error: 'Failed to refresh Google token'
+					}, 500);
 				}
 			}
 			
@@ -369,7 +433,10 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (!roleResponse.ok) {
-				return c.json({}, 500);
+				return c.json({
+					success: false,
+					error: 'Failed to fetch role data'
+				}, 500);
 			}
 			
 			const roleData = await roleResponse.json() as any;
@@ -381,50 +448,80 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (roleRowIndex === -1) {
-				return c.json({}, 404);
+				return c.json({
+					success: false,
+					error: 'Role not found'
+				}, 404);
 			}
 			
+			const roleRow = roles[roleRowIndex];
 			const targetRowNumber = roleRowIndex + 1; // シート行番号に変換
 			
-			// TODO: 権限チェック - 実際のアプリケーションでは、ユーザーがこのロールを削除する権限があるかチェックする
-			// 今回は簡易実装として、認証されたユーザーは全てのロールを削除可能とする
+			// 現在のユーザー情報を取得（権限チェック用）
+			const currentUser = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+			if (!currentUser) {
+				return c.json({
+					success: false,
+					error: 'Current user not found'
+				}, 401);
+			}
 			
-			// Google Sheets APIで行を削除
-			const deleteResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+			// 権限チェック
+			const hasPermission = await checkRoleWritePermission(
+				roleRow,
+				userId,
+				currentUser.roles || []
+			);
+			
+			if (!hasPermission) {
+				return c.json({
+					success: false,
+					error: 'Permission denied - no write access to this role'
+				}, 403);
+			}
+			
+			// コンフリクト防止のため、行削除ではなくデータクリアを実行
+			// 全列を空文字で上書きする（ヘッダー行の列数に合わせる）
+			const headerRow = roles[0] || [];
+			const emptyData = new Array(headerRow.length).fill('');
+			
+			// データをクリア（行は残す）
+			const clearResponse = await fetch(
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_Role!A${targetRowNumber}:K${targetRowNumber}?valueInputOption=RAW`,
 				{
-					method: 'POST',
+					method: 'PUT',
 					headers: {
 						'Authorization': `Bearer ${tokens.access_token}`,
 						'Content-Type': 'application/json',
 					},
 					body: JSON.stringify({
-						requests: [{
-							deleteDimension: {
-								range: {
-									sheetId: 0, // _Roleシートのシート ID（実際の値は動的に取得すべき）
-									dimension: 'ROWS',
-									startIndex: targetRowNumber - 1, // 0-based index
-									endIndex: targetRowNumber
-								}
-							}
-						}]
+						values: [emptyData]
 					})
 				}
 			);
 			
-			if (!deleteResponse.ok) {
-				const errorText = await deleteResponse.text();
-				console.error('Failed to delete role:', deleteResponse.status, errorText);
-				return c.json({}, 500);
+			if (!clearResponse.ok) {
+				const errorText = await clearResponse.text();
+				console.error('Failed to clear role data:', clearResponse.status, errorText);
+				return c.json({
+					success: false,
+					error: `Failed to delete role: ${clearResponse.status}`
+				}, 500);
 			}
 			
-			console.log('Role deleted successfully:', roleName);
-			return c.json({});
+			console.log('Role data cleared successfully:', roleName);
+			return c.json({
+				success: true,
+				message: `Role '${roleName}' has been successfully deleted`
+			});
 			
 		} catch (error) {
 			console.error('Error in DELETE /api/roles/:roleName:', error);
-			return c.json({}, 500);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({
+				success: false,
+				error: errorMessage
+			}, 500);
 		}
 	});
 }

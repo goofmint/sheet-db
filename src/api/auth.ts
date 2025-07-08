@@ -261,8 +261,9 @@ async function saveUserToSheet(db: any, userInfo: any): Promise<any> {
 		const now = new Date().toISOString();
 		
 		// ユーザーデータを準備（_Userシートのスキーマに合わせる）
+		const userId = userInfo.sub || '';
 		const userData = [
-			userInfo.sub || '',                    // id
+			userId,                                // id
 			userInfo.name || '',                   // name
 			userInfo.email || '',                  // email
 			userInfo.given_name || '',             // given_name
@@ -277,13 +278,13 @@ async function saveUserToSheet(db: any, userInfo: any): Promise<any> {
 			'FALSE',                               // public_write
 			'[]',                                  // role_read
 			'[]',                                  // role_write
-			'[]',                                  // user_read
-			'[]'                                   // user_write
+			JSON.stringify([userId]),              // user_read: 自分だけ読み取り可能
+			JSON.stringify([userId])               // user_write: 自分だけ書き込み可能
 		];
 		
-		// 既存ユーザーをチェック
+		// 既存ユーザーをチェック（全列を取得）
 		const existingUserResponse = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:A`,
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
 			{
 				headers: {
 					'Authorization': `Bearer ${tokens.access_token}`,
@@ -305,7 +306,17 @@ async function saveUserToSheet(db: any, userInfo: any): Promise<any> {
 			
 			if (userRowIndex !== -1) {
 				targetRow = userRowIndex + 1; // シート行番号に変換
-				userData[9] = values[userRowIndex][9] || now; // created_atは保持（インデックス9に変更）
+				const existingRow = values[userRowIndex];
+				
+				// 既存ユーザーの場合、権限設定と作成日時を保持
+				userData[9] = existingRow[9] || now;  // created_at保持
+				userData[11] = existingRow[11] || 'FALSE';  // public_read保持
+				userData[12] = existingRow[12] || 'FALSE';  // public_write保持
+				userData[13] = existingRow[13] || '[]';     // role_read保持
+				userData[14] = existingRow[14] || '[]';     // role_write保持
+				userData[15] = existingRow[15] || JSON.stringify([userId]);  // user_read保持（なければデフォルト）
+				userData[16] = existingRow[16] || JSON.stringify([userId]);  // user_write保持（なければデフォルト）
+				
 				console.log('Updating existing user at row:', targetRow);
 			} else {
 				// 新規ユーザーの場合、最後の行に追加
@@ -339,7 +350,7 @@ async function saveUserToSheet(db: any, userInfo: any): Promise<any> {
 		
 		// 保存されたユーザー情報を返す
 		return {
-			id: userInfo.sub || '',
+			id: userId,
 			name: userInfo.name || '',
 			email: userInfo.email || '',
 			given_name: userInfo.given_name || '',
@@ -350,12 +361,12 @@ async function saveUserToSheet(db: any, userInfo: any): Promise<any> {
 			locale: userInfo.locale || '',
 			created_at: userData[9], // created_at
 			updated_at: userData[10], // updated_at
-			public_read: false,
-			public_write: false,
-			role_read: [],
-			role_write: [],
-			user_read: [],
-			user_write: []
+			public_read: userData[11] === 'TRUE',
+			public_write: userData[12] === 'TRUE',
+			role_read: JSON.parse(userData[13]),
+			role_write: JSON.parse(userData[14]),
+			user_read: JSON.parse(userData[15]),   // 自分だけ読み取り可能（デフォルト）
+			user_write: JSON.parse(userData[16])   // 自分だけ書き込み可能（デフォルト）
 		};
 		
 	} catch (error) {

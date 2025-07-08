@@ -1,6 +1,14 @@
 export interface SheetColumn {
   name: string;
-  type: 'string' | 'number' | 'datetime' | 'boolean' | 'array' | 'object';
+  type: 'string' | 'number' | 'datetime' | 'boolean' | 'array' | 'object' | 'json';
+  required?: boolean;
+  unique?: boolean;
+  pattern?: string;
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  default?: any;
 }
 
 export interface SheetSchema {
@@ -13,17 +21,17 @@ export const BASE_SCHEMAS: SheetSchema[] = [
   {
     name: '_User',
     columns: [
-      { name: 'id', type: 'string' },
-      { name: 'name', type: 'string' },
-      { name: 'email', type: 'string' },
+      { name: 'id', type: 'string', required: true, unique: true },
+      { name: 'name', type: 'string', required: true },
+      { name: 'email', type: 'string', required: true, unique: true, pattern: '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$' },
       { name: 'given_name', type: 'string' },
       { name: 'family_name', type: 'string' },
       { name: 'nickname', type: 'string' },
       { name: 'picture', type: 'string' },
       { name: 'email_verified', type: 'boolean' },
       { name: 'locale', type: 'string' },
-      { name: 'created_at', type: 'datetime' },
-      { name: 'updated_at', type: 'datetime' },
+      { name: 'created_at', type: 'datetime', required: true },
+      { name: 'updated_at', type: 'datetime', required: true },
       { name: 'public_read', type: 'boolean' },
       { name: 'public_write', type: 'boolean' },
       { name: 'role_read', type: 'array' },
@@ -35,22 +43,22 @@ export const BASE_SCHEMAS: SheetSchema[] = [
   {
     name: '_Session',
     columns: [
-      { name: 'id', type: 'string' },
-      { name: 'user_id', type: 'string' },
-      { name: 'token', type: 'string' },
-      { name: 'expires_at', type: 'datetime' },
-      { name: 'created_at', type: 'datetime' },
-      { name: 'updated_at', type: 'datetime' }
+      { name: 'id', type: 'string', required: true, unique: true },
+      { name: 'user_id', type: 'string', required: true },
+      { name: 'token', type: 'string', required: true },
+      { name: 'expires_at', type: 'datetime', required: true },
+      { name: 'created_at', type: 'datetime', required: true },
+      { name: 'updated_at', type: 'datetime', required: true }
     ]
   },
   {
     name: '_Config',
     columns: [
-      { name: 'id', type: 'string' },
-      { name: 'name', type: 'string' },
-      { name: 'value', type: 'string' },
-      { name: 'created_at', type: 'datetime' },
-      { name: 'updated_at', type: 'datetime' },
+      { name: 'id', type: 'string', required: true, unique: true },
+      { name: 'name', type: 'string', required: true, unique: true },
+      { name: 'value', type: 'string', required: true },
+      { name: 'created_at', type: 'datetime', required: true },
+      { name: 'updated_at', type: 'datetime', required: true },
       { name: 'public_read', type: 'boolean' },
       { name: 'public_write', type: 'boolean' },
       { name: 'role_read', type: 'array' },
@@ -62,11 +70,11 @@ export const BASE_SCHEMAS: SheetSchema[] = [
   {
     name: '_Role',
     columns: [
-      { name: 'name', type: 'string' }, // UNIQUE: ロール名は一意である必要があります
+      { name: 'name', type: 'string', required: true, unique: true },
       { name: 'users', type: 'array' },
       { name: 'roles', type: 'array' },
-      { name: 'created_at', type: 'datetime' },
-      { name: 'updated_at', type: 'datetime' },
+      { name: 'created_at', type: 'datetime', required: true },
+      { name: 'updated_at', type: 'datetime', required: true },
       { name: 'public_read', type: 'boolean' },
       { name: 'public_write', type: 'boolean' },
       { name: 'role_read', type: 'array' },
@@ -280,14 +288,37 @@ export class SheetsSetupManager {
     console.log('Sheet created successfully:', sheetName);
   }
   
+  private formatColumnSchema(column: SheetColumn): string {
+    // シンプルな型のみの場合は文字列として返す
+    if (!column.required && !column.unique && !column.pattern && 
+        column.minLength === undefined && column.maxLength === undefined &&
+        column.min === undefined && column.max === undefined && 
+        column.default === undefined) {
+      return column.type;
+    }
+    
+    // メタデータがある場合はJSON形式で返す
+    const schemaObj: any = { type: column.type };
+    if (column.required) schemaObj.required = true;
+    if (column.unique) schemaObj.unique = true;
+    if (column.pattern) schemaObj.pattern = column.pattern;
+    if (column.minLength !== undefined) schemaObj.minLength = column.minLength;
+    if (column.maxLength !== undefined) schemaObj.maxLength = column.maxLength;
+    if (column.min !== undefined) schemaObj.min = column.min;
+    if (column.max !== undefined) schemaObj.max = column.max;
+    if (column.default !== undefined) schemaObj.default = column.default;
+    
+    return JSON.stringify(schemaObj);
+  }
+
   private async setupSheetHeaders(schema: SheetSchema): Promise<void> {
     console.log('Setting up headers for sheet:', schema.name);
     
     // ヘッダー行（1行目）のデータを準備
     const headers = schema.columns.map(col => col.name);
     
-    // 型行（2行目）のデータを準備
-    const types = schema.columns.map(col => col.type);
+    // 型行（2行目）のデータを準備 - JSON形式のスキーマ定義
+    const types = schema.columns.map(col => this.formatColumnSchema(col));
     
     console.log('Headers:', headers);
     console.log('Types:', types);
@@ -314,7 +345,7 @@ export class SheetsSetupManager {
       
       // 型行をチェック・更新
       if (!existingData || !existingData.values || !existingData.values[1] || 
-          !this.arraysEqual(existingData.values[1], types)) {
+          !this.schemaRowsEqual(existingData.values[1], types)) {
         console.log('Types need update');
         updates.push({
           range: `${schema.name}!A2:${this.getColumnLetter(types.length)}2`,
@@ -406,6 +437,103 @@ export class SheetsSetupManager {
   private arraysEqual(a: any[], b: any[]): boolean {
     if (a.length !== b.length) return false;
     return a.every((val, index) => val === b[index]);
+  }
+
+  private deepEquals(a: any, b: any): boolean {
+    if (a === b) return true;
+    
+    if (a === null || b === null) return false;
+    if (a === undefined || b === undefined) return false;
+    
+    if (typeof a !== 'object' || typeof b !== 'object') {
+      return false;
+    }
+    
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      return a.every((val, index) => this.deepEquals(val, b[index]));
+    }
+    
+    if (Array.isArray(a) || Array.isArray(b)) {
+      return false;
+    }
+    
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    
+    if (keysA.length !== keysB.length) return false;
+    
+    return keysA.every(key => {
+      if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
+      return this.deepEquals(a[key], b[key]);
+    });
+  }
+  
+  private isValidJSON(str: string): boolean {
+    if (typeof str !== 'string') return false;
+    if (!str.trim()) return false;
+    
+    const trimmed = str.trim();
+    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return false;
+    
+    try {
+      JSON.parse(trimmed);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private safeJSONParse(str: string): any | null {
+    if (!this.isValidJSON(str)) return null;
+    
+    try {
+      const parsed = JSON.parse(str);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private schemaRowsEqual(a: any[], b: any[]): boolean {
+    if (a.length !== b.length) return false;
+    return a.every((val, index) => {
+      const aVal = val || '';
+      const bVal = b[index] || '';
+      
+      // 両方が同じ文字列の場合
+      if (aVal === bVal) return true;
+      
+      // JSON形式の比較
+      const aIsJSON = typeof aVal === 'string' && aVal.trim().startsWith('{');
+      const bIsJSON = typeof bVal === 'string' && bVal.trim().startsWith('{');
+      
+      if (aIsJSON || bIsJSON) {
+        const aParsed = aIsJSON ? this.safeJSONParse(aVal) : null;
+        const bParsed = bIsJSON ? this.safeJSONParse(bVal) : null;
+        
+        if (aParsed && bParsed) {
+          return this.deepEquals(aParsed, bParsed);
+        }
+        
+        // 片方がJSON、片方が文字列の場合
+        if ((aParsed && !bParsed) || (!aParsed && bParsed)) {
+          const aObj = aParsed || { type: aVal };
+          const bObj = bParsed || { type: bVal };
+          
+          // 単純な型定義の場合は等価とみなす
+          if (Object.keys(aObj).length === 1 && Object.keys(bObj).length === 1 &&
+              aObj.type === bObj.type) {
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    });
   }
   
   private async freezeHeaderRows(sheetName: string, frozenRowCount: number): Promise<void> {

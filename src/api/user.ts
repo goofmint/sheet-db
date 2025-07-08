@@ -11,6 +11,7 @@ import {
 import { getUserMeRoute, updateUserRoute, deleteUserRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getUserFromSheet } from '../utils/sheet-helpers';
+import { parseColumnSchema, validateValue } from '../utils/schema-parser';
 
 type Bindings = {
 	DB: D1Database;
@@ -33,7 +34,7 @@ async function checkUserWritePermission(
 
 		// _Userシートから対象ユーザーの権限設定を取得
 		const response = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:N`,
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
 			{
 				headers: {
 					'Authorization': `Bearer ${accessToken}`,
@@ -64,19 +65,19 @@ async function checkUserWritePermission(
 		// 実際のシート構造に合わせて調整が必要
 		
 		// public_writeがtrueの場合
-		const publicWrite = targetUserRow[13] === 'TRUE'; // 仮の列位置
+		const publicWrite = targetUserRow[12] === 'TRUE'; // public_write列
 		if (publicWrite) {
 			return true;
 		}
 
 		// role_writeに現在のユーザーのロールが含まれているかチェック
-		const roleWrite = targetUserRow[14] ? JSON.parse(targetUserRow[14]) : []; // 仮の列位置
+		const roleWrite = targetUserRow[14] ? JSON.parse(targetUserRow[14]) : []; // role_write列
 		if (Array.isArray(roleWrite) && currentUserRoles.some(role => roleWrite.includes(role))) {
 			return true;
 		}
 
 		// user_writeに現在のユーザーIDが含まれているかチェック
-		const userWrite = targetUserRow[15] ? JSON.parse(targetUserRow[15]) : []; // 仮の列位置
+		const userWrite = targetUserRow[16] ? JSON.parse(targetUserRow[16]) : []; // user_write列
 		if (Array.isArray(userWrite) && userWrite.includes(currentUserId)) {
 			return true;
 		}
@@ -88,16 +89,17 @@ async function checkUserWritePermission(
 	}
 }
 
-// スキーマ検証用のヘルパー関数
+// スキーマ検証用のヘルパー関数（ユニーク制約のチェックを含む）
 async function validateUpdateDataAgainstSchema(
 	updateData: any,
 	spreadsheetId: string,
-	accessToken: string
+	accessToken: string,
+	targetUserId?: string
 ): Promise<{ valid: boolean; error?: string }> {
 	try {
 		// _Userシートの2行目（型定義行）を取得
 		const response = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A2:N2`,
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A2:Q2`,
 			{
 				headers: {
 					'Authorization': `Bearer ${accessToken}`,
@@ -116,19 +118,26 @@ async function validateUpdateDataAgainstSchema(
 		// 列のマッピング（_Userシートの構造に基づく）
 		const columnMapping = {
 			id: 0,
-			email: 1,
-			name: 2,
+			name: 1,
+			email: 2,
 			given_name: 3,
 			family_name: 4,
 			nickname: 5,
 			picture: 6,
 			email_verified: 7,
 			locale: 8,
-			roles: 9,
-			created_at: 10,
-			updated_at: 11,
-			last_login: 12
+			created_at: 9,
+			updated_at: 10,
+			public_read: 11,
+			public_write: 12,
+			role_read: 13,
+			role_write: 14,
+			user_read: 15,
+			user_write: 16
 		};
+
+		// ユニーク制約のチェックが必要なフィールドを収集
+		const uniqueFields: { field: string; value: any; columnIndex: number }[] = [];
 
 		// 各フィールドの型チェック
 		for (const [field, value] of Object.entries(updateData)) {
@@ -139,35 +148,56 @@ async function validateUpdateDataAgainstSchema(
 				return { valid: false, error: `Unknown field: ${field}` };
 			}
 
-			const schemaType = schemaRow[columnIndex] || '';
+			// スキーマ定義をパース
+			const schemaDefinition = schemaRow[columnIndex] || 'string';
+			const schema = parseColumnSchema(schemaDefinition);
 
-			// 型チェックの実装
-			switch (schemaType.toLowerCase()) {
-				case 'string':
-					if (typeof value !== 'string') {
-						return { valid: false, error: `Field ${field} must be a string` };
+			// 値の検証
+			const validation = validateValue(value, schema);
+			if (!validation.valid) {
+				return { valid: false, error: `Field ${field}: ${validation.error}` };
+			}
+
+			// ユニーク制約のチェックが必要な場合
+			if (schema.unique && value !== '') {
+				uniqueFields.push({ field, value, columnIndex });
+			}
+		}
+
+		// ユニーク制約のチェック
+		if (uniqueFields.length > 0) {
+			// 全ユーザーデータを取得
+			const usersResponse = await fetch(
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
+				{
+					headers: {
+						'Authorization': `Bearer ${accessToken}`,
+						'Content-Type': 'application/json',
 					}
-					break;
-				case 'email':
-					if (typeof value !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-						return { valid: false, error: `Field ${field} must be a valid email address` };
-					}
-					break;
-				case 'array':
-					if (!Array.isArray(value)) {
-						return { valid: false, error: `Field ${field} must be an array` };
-					}
-					break;
-				case 'boolean':
-					if (typeof value !== 'boolean') {
-						return { valid: false, error: `Field ${field} must be a boolean` };
-					}
-					break;
-				case 'datetime':
-					if (typeof value !== 'string' || isNaN(Date.parse(value))) {
-						return { valid: false, error: `Field ${field} must be a valid datetime string` };
-					}
-					break;
+				}
+			);
+
+			if (!usersResponse.ok) {
+				return { valid: false, error: 'Failed to check unique constraints' };
+			}
+
+			const usersData = await usersResponse.json() as any;
+			const users = usersData.values || [];
+
+			// 各ユニークフィールドをチェック（3行目以降）
+			for (const { field, value, columnIndex } of uniqueFields) {
+				const duplicate = users.find((row: string[], index: number) => {
+					// ヘッダー行と型定義行をスキップ
+					if (index < 2) return false;
+					// 自分自身は除外（更新の場合）
+					if (targetUserId && row[0] === targetUserId) return false;
+					// 値が一致するかチェック
+					return row[columnIndex] === value;
+				});
+
+				if (duplicate) {
+					return { valid: false, error: `Field ${field} must be unique. Value '${value}' already exists.` };
+				}
 			}
 		}
 
@@ -332,11 +362,12 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}, 403);
 			}
 			
-			// スキーマ検証
+			// スキーマ検証（ターゲットユーザーIDを渡してユニーク制約チェックで自分自身を除外）
 			const schemaValidation = await validateUpdateDataAgainstSchema(
 				updateData,
 				spreadsheetId,
-				tokens.access_token
+				tokens.access_token,
+				targetUserId
 			);
 			
 			if (!schemaValidation.valid) {
@@ -348,7 +379,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// 現在のユーザーデータを取得して更新
 			const userResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:N`,
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
 				{
 					headers: {
 						'Authorization': `Bearer ${tokens.access_token}`,
@@ -380,8 +411,8 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const now = new Date().toISOString();
 			const updatedUserData = [
 				targetUserId, // id（変更不可）
-				updateData.email !== undefined ? updateData.email : userRow[1], // email
-				updateData.name !== undefined ? updateData.name : userRow[2], // name
+				updateData.name !== undefined ? updateData.name : userRow[1], // name
+				updateData.email !== undefined ? updateData.email : userRow[2], // email
 				updateData.given_name !== undefined ? updateData.given_name : userRow[3], // given_name
 				updateData.family_name !== undefined ? updateData.family_name : userRow[4], // family_name
 				updateData.nickname !== undefined ? updateData.nickname : userRow[5], // nickname
@@ -389,15 +420,19 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				// emailが更新された場合はemail_verifiedをfalseに、そうでなければ現在の値を保持
 				updateData.email !== undefined ? 'FALSE' : (userRow[7] || 'FALSE'), // email_verified
 				updateData.locale !== undefined ? updateData.locale : userRow[8], // locale
-				updateData.roles !== undefined ? JSON.stringify(updateData.roles) : (userRow[9] || '[]'), // roles
-				userRow[10] || now, // created_at（保持）
+				userRow[9] || now, // created_at（保持）
 				now, // updated_at（更新）
-				updateData.last_login !== undefined ? updateData.last_login : userRow[12] // last_login
+				updateData.public_read !== undefined ? (updateData.public_read ? 'TRUE' : 'FALSE') : (userRow[11] || 'FALSE'), // public_read
+				updateData.public_write !== undefined ? (updateData.public_write ? 'TRUE' : 'FALSE') : (userRow[12] || 'FALSE'), // public_write
+				updateData.role_read !== undefined ? JSON.stringify(updateData.role_read) : (userRow[13] || '[]'), // role_read
+				updateData.role_write !== undefined ? JSON.stringify(updateData.role_write) : (userRow[14] || '[]'), // role_write
+				updateData.user_read !== undefined ? JSON.stringify(updateData.user_read) : (userRow[15] || '[]'), // user_read
+				updateData.user_write !== undefined ? JSON.stringify(updateData.user_write) : (userRow[16] || '[]') // user_write
 			];
 			
 			// データを更新
 			const updateResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:N${targetRowNumber}?valueInputOption=RAW`,
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:Q${targetRowNumber}?valueInputOption=RAW`,
 				{
 					method: 'PUT',
 					headers: {
@@ -421,18 +456,22 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// 更新されたユーザー情報を返す
 			const updatedUser = {
 				id: updatedUserData[0],
-				email: updatedUserData[1],
-				name: updatedUserData[2] || undefined,
+				name: updatedUserData[1],
+				email: updatedUserData[2],
 				given_name: updatedUserData[3] || undefined,
 				family_name: updatedUserData[4] || undefined,
 				nickname: updatedUserData[5] || undefined,
 				picture: updatedUserData[6] || undefined,
-				email_verified: updatedUserData[7] === 'TRUE' || undefined,
+				email_verified: updatedUserData[7] === 'TRUE',
 				locale: updatedUserData[8] || undefined,
-				roles: JSON.parse(updatedUserData[9]),
-				created_at: updatedUserData[10],
-				updated_at: updatedUserData[11],
-				last_login: updatedUserData[12] || undefined
+				created_at: updatedUserData[9],
+				updated_at: updatedUserData[10],
+				public_read: updatedUserData[11] === 'TRUE',
+				public_write: updatedUserData[12] === 'TRUE',
+				role_read: JSON.parse(updatedUserData[13]),
+				role_write: JSON.parse(updatedUserData[14]),
+				user_read: JSON.parse(updatedUserData[15]),
+				user_write: JSON.parse(updatedUserData[16])
 			};
 			
 			return c.json({
@@ -523,7 +562,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// 現在のユーザーデータを取得して行位置を特定
 			const userResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:N`,
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
 				{
 					headers: {
 						'Authorization': `Bearer ${tokens.access_token}`,
@@ -557,7 +596,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// データをクリア（行は残す）
 			const clearResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:N${targetRowNumber}?valueInputOption=RAW`,
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:Q${targetRowNumber}?valueInputOption=RAW`,
 				{
 					method: 'PUT',
 					headers: {
