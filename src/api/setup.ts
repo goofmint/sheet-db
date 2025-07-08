@@ -72,7 +72,7 @@ export function registerSetupMainRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 									}
 								})
 								.catch(error => {
-									alert('エラーが発生しました: ' + error.message);
+									alert('An error occurred: ' + error.message);
 								});
 							}
 						}
@@ -162,8 +162,8 @@ export function registerSetupConnectRoute(app: OpenAPIHono<{ Bindings: Bindings 
 				console.error('OAuth error:', error);
 				return c.html(`
 					<div style="max-width: 600px; margin: 50px auto; padding: 20px; font-family: Arial, sans-serif;">
-						<h1 style="color: #333;">❌ 認証エラー</h1>
-						<p>Google認証中にエラーが発生しました: ${error}</p>
+						<h1 style="color: #333;">❌ Authentication Error</h1>
+						<p>An error occurred during Google authentication: ${error}</p>
 						<a href="/setup" style="color: #1a73e8; text-decoration: none;">← セットアップページに戻る</a>
 					</div>
 				`);
@@ -217,9 +217,9 @@ export function registerSetupConnectRoute(app: OpenAPIHono<{ Bindings: Bindings 
 					console.error('Error exchanging code for tokens:', exchangeError);
 					return c.html(`
 						<div style="max-width: 600px; margin: 50px auto; padding: 20px; font-family: Arial, sans-serif;">
-							<h1 style="color: #333;">❌ 認証処理エラー</h1>
-							<p>認証コードの処理中にエラーが発生しました。</p>
-							<p style="color: #666; font-size: 14px;">エラー: ${exchangeError instanceof Error ? exchangeError.message : '不明なエラー'}</p>
+							<h1 style="color: #333;">❌ Authentication Processing Error</h1>
+							<p>An error occurred while processing the authentication code.</p>
+							<p style="color: #666; font-size: 14px;">Error: ${exchangeError instanceof Error ? exchangeError.message : 'Unknown error'}</p>
 							<a href="/setup" style="color: #1a73e8; text-decoration: none;">← セットアップページに戻る</a>
 						</div>
 					`);
@@ -279,8 +279,8 @@ export function registerSetupConnectRoute(app: OpenAPIHono<{ Bindings: Bindings 
 			console.error('Error in /setup/connect:', error);
 			return c.html(`
 				<div style="max-width: 600px; margin: 50px auto; padding: 20px; font-family: Arial, sans-serif;">
-					<h1 style="color: #333;">❌ エラーが発生しました</h1>
-					<p>スプレッドシート選択ページの読み込み中にエラーが発生しました。</p>
+					<h1 style="color: #333;">❌ An Error Occurred</h1>
+					<p>An error occurred while loading the spreadsheet selection page.</p>
 					<a href="/setup" style="color: #1a73e8; text-decoration: none;">← セットアップページに戻る</a>
 				</div>
 			`);
@@ -893,7 +893,7 @@ async function setupSheetsAsync(spreadsheetId: string, accessToken: string, db: 
 		console.error('Error in setupSheetsAsync:', error);
 		await setConfig(db, 'sheet_setup_status', 'error');
 
-		const errorMessage = error instanceof Error ? error.message : '不明なエラー';
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const currentProgress = await getConfig(db, 'sheet_setup_progress');
 		let currentState: any = {
 			completedSheets: [],
@@ -913,7 +913,7 @@ async function setupSheetsAsync(spreadsheetId: string, accessToken: string, db: 
 
 		await setConfig(db, 'sheet_setup_progress', JSON.stringify({
 			currentSheet: currentState.currentSheet || '',
-			currentStep: 'エラーが発生しました',
+			currentStep: 'An error occurred',
 			completedSheets: currentState.completedSheets || [],
 			totalSheets: 4,
 			progress: currentState.progress || 0,

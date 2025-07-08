@@ -16,7 +16,7 @@ export interface SheetSchema {
   columns: SheetColumn[];
 }
 
-// SHEET_BASE_SCHEMA.mdに基づく基本スキーマ定義
+// Base schema definitions based on SHEET_BASE_SCHEMA.md
 export const BASE_SCHEMAS: SheetSchema[] = [
   {
     name: '_User',
@@ -115,7 +115,7 @@ export class SheetsSetupManager {
     let completedSheets: string[] = [];
     
     try {
-      // 既存のシートを取得
+      // Get existing sheets
       const existingSheets = await this.getExistingSheets();
       
       for (let i = 0; i < BASE_SCHEMAS.length; i++) {
@@ -124,7 +124,7 @@ export class SheetsSetupManager {
         
         const progress: SetupProgress = {
           currentSheet: schema.name,
-          currentStep: 'シートの確認中...',
+          currentStep: 'Checking sheet...',
           completedSheets: [...completedSheets],
           totalSheets,
           progress: Math.round((i / totalSheets) * 100),
@@ -136,32 +136,32 @@ export class SheetsSetupManager {
         }
         
         try {
-          // シートの存在確認
+          // Check if sheet exists
           const existingSheet = existingSheets.find(sheet => sheet.properties?.title === schema.name);
           console.log('Existing sheet found:', !!existingSheet);
           
           if (!existingSheet) {
-            // シートを作成
-            progress.currentStep = 'シートを作成中...';
+            // Create sheet
+            progress.currentStep = 'Creating sheet...';
             if (progressCallback) progressCallback(progress);
             
             await this.createSheet(schema.name);
           }
           
-          // ヘッダー行の確認・設定
-          progress.currentStep = 'ヘッダー行を確認中...';
+          // Check and setup header rows
+          progress.currentStep = 'Checking header rows...';
           if (progressCallback) progressCallback(progress);
           
           await this.setupSheetHeaders(schema);
           
-          // ヘッダー行を固定（2行目まで）
-          progress.currentStep = 'ヘッダー行を固定中...';
+          // Freeze header rows (up to row 2)
+          progress.currentStep = 'Freezing header rows...';
           if (progressCallback) progressCallback(progress);
           
           await this.freezeHeaderRows(schema.name, 2);
           
-          // ヘッダー行のスタイリング
-          progress.currentStep = 'ヘッダー行をスタイリング中...';
+          // Style header rows
+          progress.currentStep = 'Styling header rows...';
           if (progressCallback) progressCallback(progress);
           
           await this.styleHeaderRows(schema);
@@ -169,10 +169,10 @@ export class SheetsSetupManager {
           completedSheets.push(schema.name);
           console.log('Schema processed successfully:', schema.name);
           
-          // 中間進行状況を更新
+          // Update intermediate progress
           const intermediateProgress: SetupProgress = {
             currentSheet: schema.name,
-            currentStep: '完了',
+            currentStep: 'Completed',
             completedSheets: [...completedSheets],
             totalSheets,
             progress: Math.round((completedSheets.length / totalSheets) * 100),
@@ -183,7 +183,7 @@ export class SheetsSetupManager {
             progressCallback(intermediateProgress);
           }
           
-          // 短い待機時間を追加（レート制限対策）
+          // Add short wait time (rate limiting prevention)
           await new Promise(resolve => setTimeout(resolve, 200));
           
         } catch (schemaError) {
@@ -194,7 +194,7 @@ export class SheetsSetupManager {
       
       const finalProgress: SetupProgress = {
         currentSheet: '',
-        currentStep: '完了',
+        currentStep: 'Completed',
         completedSheets,
         totalSheets,
         progress: 100,
@@ -204,7 +204,7 @@ export class SheetsSetupManager {
       console.log('Sending final completion progress:', finalProgress);
       if (progressCallback) {
         progressCallback(finalProgress);
-        // 最終的な完了状態を確実に保存するため短い待機
+        // Short wait to ensure final completion state is saved
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
@@ -214,12 +214,12 @@ export class SheetsSetupManager {
     } catch (error) {
       const errorProgress: SetupProgress = {
         currentSheet: '',
-        currentStep: 'エラーが発生しました',
+        currentStep: 'An error occurred',
         completedSheets,
         totalSheets,
         progress: Math.round((completedSheets.length / totalSheets) * 100),
         status: 'error',
-        error: error instanceof Error ? error.message : '不明なエラー'
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
       
       if (progressCallback) {
@@ -289,7 +289,7 @@ export class SheetsSetupManager {
   }
   
   private formatColumnSchema(column: SheetColumn): string {
-    // シンプルな型のみの場合は文字列として返す
+    // Return as string for simple types only
     if (!column.required && !column.unique && !column.pattern && 
         column.minLength === undefined && column.maxLength === undefined &&
         column.min === undefined && column.max === undefined && 
@@ -297,7 +297,7 @@ export class SheetsSetupManager {
       return column.type;
     }
     
-    // メタデータがある場合はJSON形式で返す
+    // Return as JSON format when metadata exists
     const schemaObj: any = { type: column.type };
     if (column.required) schemaObj.required = true;
     if (column.unique) schemaObj.unique = true;
@@ -314,24 +314,24 @@ export class SheetsSetupManager {
   private async setupSheetHeaders(schema: SheetSchema): Promise<void> {
     console.log('Setting up headers for sheet:', schema.name);
     
-    // ヘッダー行（1行目）のデータを準備
+    // Prepare header row (1st row) data
     const headers = schema.columns.map(col => col.name);
     
-    // 型行（2行目）のデータを準備 - JSON形式のスキーマ定義
+    // Prepare type row (2nd row) data - JSON format schema definitions
     const types = schema.columns.map(col => this.formatColumnSchema(col));
     
     console.log('Headers:', headers);
     console.log('Types:', types);
     
     try {
-      // 既存のデータを確認
+      // Check existing data
       console.log('Getting existing sheet data for:', schema.name);
       const existingData = await this.getSheetData(schema.name, 'A1:Z2');
       console.log('Existing data:', existingData);
       
       const updates: any[] = [];
       
-      // ヘッダー行をチェック・更新
+      // Check and update header row
       if (!existingData || !existingData.values || !existingData.values[0] || 
           !this.arraysEqual(existingData.values[0], headers)) {
         console.log('Headers need update');
@@ -343,7 +343,7 @@ export class SheetsSetupManager {
         console.log('Headers are up to date');
       }
       
-      // 型行をチェック・更新
+      // Check and update type row
       if (!existingData || !existingData.values || !existingData.values[1] || 
           !this.schemaRowsEqual(existingData.values[1], types)) {
         console.log('Types need update');
@@ -355,7 +355,7 @@ export class SheetsSetupManager {
         console.log('Types are up to date');
       }
       
-      // 更新が必要な場合のみ実行
+      // Execute only when update is needed
       if (updates.length > 0) {
         console.log('Updating sheet data:', updates);
         await this.updateSheetData(updates);
@@ -382,7 +382,7 @@ export class SheetsSetupManager {
     
     if (response.status === 404) {
       console.log('Sheet not found (404):', sheetName);
-      return null; // シートが存在しない
+      return null; // Sheet does not exist
     }
     
     if (!response.ok) {
@@ -504,10 +504,10 @@ export class SheetsSetupManager {
       const aVal = val || '';
       const bVal = b[index] || '';
       
-      // 両方が同じ文字列の場合
+      // Both are the same string
       if (aVal === bVal) return true;
       
-      // JSON形式の比較
+      // JSON format comparison
       const aIsJSON = typeof aVal === 'string' && aVal.trim().startsWith('{');
       const bIsJSON = typeof bVal === 'string' && bVal.trim().startsWith('{');
       
@@ -519,12 +519,12 @@ export class SheetsSetupManager {
           return this.deepEquals(aParsed, bParsed);
         }
         
-        // 片方がJSON、片方が文字列の場合
+        // One is JSON, one is string
         if ((aParsed && !bParsed) || (!aParsed && bParsed)) {
           const aObj = aParsed || { type: aVal };
           const bObj = bParsed || { type: bVal };
           
-          // 単純な型定義の場合は等価とみなす
+          // Consider equivalent for simple type definitions
           if (Object.keys(aObj).length === 1 && Object.keys(bObj).length === 1 &&
               aObj.type === bObj.type) {
             return true;
@@ -540,7 +540,7 @@ export class SheetsSetupManager {
     console.log(`Freezing header rows for sheet: ${sheetName}, rows: ${frozenRowCount}`);
     
     try {
-      // まず、シートIDを取得
+      // First, get sheet ID
       const sheetId = await this.getSheetId(sheetName);
       
       const response = await fetch(
@@ -579,7 +579,7 @@ export class SheetsSetupManager {
       
     } catch (error) {
       console.error('Error freezing header rows for sheet:', sheetName, error);
-      // ヘッダー固定のエラーは警告として扱い、セットアップを継続
+      // Treat header freeze errors as warnings and continue setup
       console.warn('Continuing setup despite header freeze error');
     }
   }
@@ -636,7 +636,7 @@ export class SheetsSetupManager {
           },
           body: JSON.stringify({
             requests: [
-              // 1行目（カラム名）のスタイリング
+              // 1st row (column names) styling
               {
                 repeatCell: {
                   range: {
@@ -663,7 +663,7 @@ export class SheetsSetupManager {
                   fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'
                 }
               },
-              // 2行目（データ型）のスタイリング
+              // 2nd row (data types) styling
               {
                 repeatCell: {
                   range: {
@@ -705,7 +705,7 @@ export class SheetsSetupManager {
       
     } catch (error) {
       console.error('Error styling header rows for sheet:', schema.name, error);
-      // スタイリングのエラーは警告として扱い、セットアップを継続
+      // Treat styling errors as warnings and continue setup
       console.warn('Continuing setup despite header styling error');
     }
   }

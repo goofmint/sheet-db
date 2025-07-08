@@ -3,7 +3,7 @@ export const setupHtml = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sheet DB セットアップ</title>
+    <title>Sheet DB Setup</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -118,15 +118,15 @@ export const setupHtml = `<!DOCTYPE html>
 </head>
 <body>
     <div class="container">
-        <h1>Sheet DB セットアップ</h1>
+        <h1>Sheet DB Setup</h1>
         
         <div class="section">
-            <h2>1. Google Cloud Console セットアップ</h2>
+            <h2>1. Google Cloud Console Setup</h2>
             <div class="info">
-                <p>まず、Google Cloud Consoleで必要なAPIとOAuth設定を行います。</p>
+                <p>First, set up the required APIs and OAuth configuration in Google Cloud Console.</p>
             </div>
             
-            <h3>📋 Google Cloud Setup 手順</h3>
+            <h3>📋 Google Cloud Setup Steps</h3>
             <ol style="margin-left: 20px; line-height: 1.6;">
                 <li><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> にアクセス</li>
                 <li>新しいプロジェクトを作成または既存プロジェクトを選択</li>

@@ -18,7 +18,7 @@ type Bindings = {
 };
 
 
-// 権限チェック用のヘルパー関数
+// Helper function for permission checking
 async function checkUserWritePermission(
 	currentUserId: string,
 	targetUserId: string,
@@ -27,12 +27,12 @@ async function checkUserWritePermission(
 	accessToken: string
 ): Promise<boolean> {
 	try {
-		// 自分自身の場合は常に編集可能
+		// Always allow editing for self
 		if (currentUserId === targetUserId) {
 			return true;
 		}
 
-		// _Userシートから対象ユーザーの権限設定を取得
+		// Get target user's permission settings from _User sheet
 		const response = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
 			{
@@ -51,7 +51,7 @@ async function checkUserWritePermission(
 		const data = await response.json() as any;
 		const rows = data.values || [];
 		
-		// 対象ユーザーを検索（3行目以降から）
+		// Search for target user (from row 3 onwards)
 		const targetUserRow = rows.find((row: string[], index: number) => 
 			index >= 2 && row[0] === targetUserId
 		);
@@ -60,24 +60,24 @@ async function checkUserWritePermission(
 			return false;
 		}
 
-		// 権限チェック（_Userシートの権限設定を確認）
-		// 仮定: _Userシートにpublic_write, role_write, user_writeの列があるとします
-		// 実際のシート構造に合わせて調整が必要
+		// Permission check (verify _User sheet permission settings)
+		// Assumes _User sheet has public_write, role_write, user_write columns
+		// Needs adjustment to match actual sheet structure
 		
-		// public_writeがtrueの場合
-		const publicWrite = targetUserRow[12] === 'TRUE'; // public_write列
+		// If public_write is true
+		const publicWrite = targetUserRow[12] === 'TRUE'; // public_write column
 		if (publicWrite) {
 			return true;
 		}
 
-		// role_writeに現在のユーザーのロールが含まれているかチェック
-		const roleWrite = targetUserRow[14] ? JSON.parse(targetUserRow[14]) : []; // role_write列
+		// Check if current user's roles are included in role_write
+		const roleWrite = targetUserRow[14] ? JSON.parse(targetUserRow[14]) : []; // role_write column
 		if (Array.isArray(roleWrite) && currentUserRoles.some(role => roleWrite.includes(role))) {
 			return true;
 		}
 
-		// user_writeに現在のユーザーIDが含まれているかチェック
-		const userWrite = targetUserRow[16] ? JSON.parse(targetUserRow[16]) : []; // user_write列
+		// Check if current user ID is included in user_write
+		const userWrite = targetUserRow[16] ? JSON.parse(targetUserRow[16]) : []; // user_write column
 		if (Array.isArray(userWrite) && userWrite.includes(currentUserId)) {
 			return true;
 		}
@@ -89,7 +89,7 @@ async function checkUserWritePermission(
 	}
 }
 
-// スキーマ検証用のヘルパー関数（ユニーク制約のチェックを含む）
+// Helper function for schema validation (including unique constraint checking)
 async function validateUpdateDataAgainstSchema(
 	updateData: any,
 	spreadsheetId: string,
@@ -97,7 +97,7 @@ async function validateUpdateDataAgainstSchema(
 	targetUserId?: string
 ): Promise<{ valid: boolean; error?: string }> {
 	try {
-		// _Userシートの2行目（型定義行）を取得
+		// Get row 2 (type definition row) from _User sheet
 		const response = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A2:Q2`,
 			{
@@ -115,7 +115,7 @@ async function validateUpdateDataAgainstSchema(
 		const data = await response.json() as any;
 		const schemaRow = data.values?.[0] || [];
 		
-		// 列のマッピング（_Userシートの構造に基づく）
+		// Column mapping (based on _User sheet structure)
 		const columnMapping = {
 			id: 0,
 			name: 1,
@@ -136,10 +136,10 @@ async function validateUpdateDataAgainstSchema(
 			user_write: 16
 		};
 
-		// ユニーク制約のチェックが必要なフィールドを収集
+		// Collect fields that need unique constraint checking
 		const uniqueFields: { field: string; value: any; columnIndex: number }[] = [];
 
-		// 各フィールドの型チェック
+		// Type check for each field
 		for (const [field, value] of Object.entries(updateData)) {
 			if (value === undefined) continue;
 
@@ -148,23 +148,23 @@ async function validateUpdateDataAgainstSchema(
 				return { valid: false, error: `Unknown field: ${field}` };
 			}
 
-			// スキーマ定義をパース
+			// Parse schema definition
 			const schemaDefinition = schemaRow[columnIndex] || 'string';
 			const schema = parseColumnSchema(schemaDefinition);
 
-			// 値の検証
+			// Validate value
 			const validation = validateValue(value, schema);
 			if (!validation.valid) {
 				return { valid: false, error: `Field ${field}: ${validation.error}` };
 			}
 
-			// ユニーク制約のチェックが必要な場合
+			// If unique constraint checking is needed
 			if (schema.unique && value !== '') {
 				uniqueFields.push({ field, value, columnIndex });
 			}
 		}
 
-		// ユニーク制約のチェック
+		// Check unique constraints
 		if (uniqueFields.length > 0) {
 			// 全ユーザーデータを取得
 			const usersResponse = await fetch(
