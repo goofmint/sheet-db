@@ -94,6 +94,13 @@
         button.success:hover {
             background: #218838;
         }
+        button.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        button.warning:hover {
+            background: #e0a800;
+        }
         .result {
             margin-top: 20px;
             padding: 15px;
@@ -444,6 +451,41 @@
                 <p><small>💡 Available types: string, number, datetime, boolean, pointer, array, object</small></p>
             </div>
             <button onclick="addColumns()" class="success">Add Columns</button>
+
+            <h3>Modify Column</h3>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="modifyColumnSheetId">Sheet ID or Name:</label>
+                        <input type="text" id="modifyColumnSheetId" placeholder="e.g., 12345 or UserData">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="modifyColumnId">Column ID (current name):</label>
+                        <input type="text" id="modifyColumnId" placeholder="e.g., age">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="array-input">
+                <label>Column Modification (JSON format):</label>
+                <div class="form-group">
+                    <label for="modifyColumnData">Modification JSON:</label>
+                    <textarea id="modifyColumnData" placeholder='{
+  "name": "user_age",
+  "pattern": "^[0-9]+$",
+  "minLength": 1,
+  "maxLength": 3,
+  "min": 0,
+  "max": 150,
+  "default": 18
+}' style="height: 120px;"></textarea>
+                </div>
+                <p><small>💡 Modifiable properties: name, pattern, minLength, maxLength, min, max, default</small></p>
+                <p><small>⚠️ Type changes are not allowed and will return an error</small></p>
+            </div>
+            <button onclick="modifyColumn()" class="warning">Modify Column</button>
 
             <div id="sheetsResult" class="result" style="display: none;"></div>
         </div>
@@ -897,6 +939,52 @@
                 if (data.success) {
                     document.getElementById('addColumnsSheetId').value = '';
                     document.getElementById('addColumnsData').value = '';
+                }
+            } catch (error) {
+                showResult('sheetsResult', { error: error.message }, true);
+            }
+        }
+
+        async function modifyColumn() {
+            try {
+                const headers = getAuthHeaders();
+                const sheetId = document.getElementById('modifyColumnSheetId').value.trim();
+                const columnId = document.getElementById('modifyColumnId').value.trim();
+                const modifyData = document.getElementById('modifyColumnData').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('Sheet ID is required');
+                }
+                
+                if (!columnId) {
+                    throw new Error('Column ID is required');
+                }
+                
+                if (!modifyData) {
+                    throw new Error('Modification JSON is required');
+                }
+
+                let body;
+                try {
+                    body = JSON.parse(modifyData);
+                } catch (parseError) {
+                    throw new Error('Invalid JSON format for modification data');
+                }
+
+                const response = await fetch(`/api/sheets/${encodeURIComponent(sheetId)}/columns/${encodeURIComponent(columnId)}`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+                
+                showResult('sheetsResult', data, !data.success);
+                
+                // Clear form on success
+                if (data.success) {
+                    document.getElementById('modifyColumnSheetId').value = '';
+                    document.getElementById('modifyColumnId').value = '';
+                    document.getElementById('modifyColumnData').value = '';
                 }
             } catch (error) {
                 showResult('sheetsResult', { error: error.message }, true);

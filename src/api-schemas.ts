@@ -339,3 +339,41 @@ export const AddColumnsResponseSchema = z.object({
 		message: z.string()
 	})
 });
+
+// Column modification schemas
+export const ColumnIdParamSchema = z.object({
+	columnId: z.string().min(1, "Column ID is required")
+});
+
+export const ModifyColumnRequestSchema = z.object({
+	name: z.string().min(1, "Column name is required").optional(),
+	pattern: z.string().optional(),
+	minLength: z.number().int().min(0).optional(),
+	maxLength: z.number().int().min(0).optional(),
+	min: z.number().optional(),
+	max: z.number().optional(),
+	default: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
+}).refine(data => Object.keys(data).length > 0, {
+	message: "At least one field must be provided for update"
+});
+
+export const ModifyColumnResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		sheetId: z.number(),
+		name: z.string(),
+		columnId: z.string(),
+		modifiedColumn: z.object({
+			name: z.string(),
+			type: ColumnTypeEnum,
+			unique: z.boolean().optional(),
+			pattern: z.string().optional(),
+			minLength: z.number().optional(),
+			maxLength: z.number().optional(),
+			min: z.number().optional(),
+			max: z.number().optional(),
+			default: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
+		}),
+		message: z.string()
+	})
+});
