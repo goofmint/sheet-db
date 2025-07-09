@@ -723,7 +723,7 @@ export class SheetsSetupManager {
     
     try {
       // Check if data already exists
-      const existingData = await this.getSheetData('_Config', 'A3:C8');
+      const existingData = await this.getSheetData('_Config', 'A3:K8');
       if (existingData?.values && existingData.values.length > 0) {
         console.log('Configuration data already exists, skipping initialization');
         return;
