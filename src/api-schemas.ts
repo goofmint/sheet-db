@@ -255,3 +255,16 @@ export const DeleteSheetResponseSchema = z.object({
 	success: z.literal(true),
 	data: z.object({})
 });
+
+// Sheet list schema
+export const SheetListItemSchema = z.object({
+	sheetId: z.number(),
+	name: z.string()
+});
+
+export const GetSheetsResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		sheets: z.array(SheetListItemSchema)
+	})
+});

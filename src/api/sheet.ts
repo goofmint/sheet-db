@@ -9,7 +9,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { createSheetRoute, updateSheetRoute, deleteSheetRoute } from '../api-routes';
+import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -537,6 +537,99 @@ async function deleteGoogleSheet(
 
 // Sheet management endpoints
 export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
+	// GET /api/sheets - シート一覧を取得 (OpenAPI)
+	app.openapi(getSheetsRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// 認証ヘッダーからセッションIDを取得
+			const authHeader = c.req.valid('header').authorization;
+			const sessionId = authHeader.replace('Bearer ', '');
+			
+			// セッション認証
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+			}
+			
+			const userId = authResult.userId;
+			if (!userId) {
+				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+			}
+			
+			// Google Sheetsの設定を取得
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// 有効なGoogleトークンを取得
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// スプレッドシートのメタデータを取得してシート一覧を取得
+			try {
+				const metadataResponse = await fetch(
+					`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
+					{
+						headers: {
+							'Authorization': `Bearer ${tokens.access_token}`,
+							'Content-Type': 'application/json',
+						}
+					}
+				);
+
+				if (!metadataResponse.ok) {
+					return c.json({ success: false as false, error: 'Failed to fetch spreadsheet metadata' }, 500);
+				}
+
+				const metadata = await metadataResponse.json() as any;
+				const sheets = metadata.sheets || [];
+				
+				// システムシート（_で始まるシート）を除外してシート一覧を作成
+				const sheetList = sheets
+					.filter((sheet: any) => !sheet.properties.title.startsWith('_'))
+					.map((sheet: any) => ({
+						sheetId: sheet.properties.sheetId,
+						name: sheet.properties.title
+					}));
+				
+				console.log('Sheets retrieved successfully:', sheetList.length);
+				
+				// 成功レスポンスを返す
+				return c.json({
+					success: true as true,
+					data: {
+						sheets: sheetList
+					}
+				});
+				
+			} catch (error) {
+				console.error('Error fetching sheets:', error);
+				return c.json({ success: false as false, error: 'Failed to fetch sheet list' }, 500);
+			}
+			
+		} catch (error) {
+			console.error('Error in GET /api/sheets:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
 	// POST /api/sheets - 新しいシートを作成 (OpenAPI)
 	app.openapi(createSheetRoute, async (c) => {
 		try {
