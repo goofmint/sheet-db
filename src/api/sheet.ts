@@ -9,7 +9,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute } from '../api-routes';
+import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -118,12 +118,52 @@ async function checkSheetUpdatePermission(
 	}
 }
 
-// シート情報を取得するヘルパー関数
+// シート読み取り権限をチェックするヘルパー関数
+async function checkSheetReadPermission(
+	userId: string | null,
+	userRoles: string[],
+	sheetMetadata: any
+): Promise<{ allowed: boolean; error?: string }> {
+	try {
+		// シートのメタデータから権限情報を取得
+		const { public_read, role_read, user_read } = sheetMetadata;
+
+		// 1. public_read = true の場合、誰でも読み取り可能
+		if (public_read === true) {
+			return { allowed: true };
+		}
+
+		// 認証されていないユーザーは public_read = false の場合アクセス不可
+		if (!userId) {
+			return { allowed: false, error: 'Authentication required for this sheet' };
+		}
+
+		// 2. user_readに該当ユーザーIDが含まれている場合
+		if (user_read && Array.isArray(user_read) && user_read.includes(userId)) {
+			return { allowed: true };
+		}
+
+		// 3. role_readに該当ユーザーのロールが含まれている場合
+		if (role_read && Array.isArray(role_read) && userRoles) {
+			const hasRequiredRole = userRoles.some(role => role_read.includes(role));
+			if (hasRequiredRole) {
+				return { allowed: true };
+			}
+		}
+
+		return { allowed: false, error: 'No read permission for this sheet' };
+	} catch (error) {
+		console.error('Error checking sheet read permission:', error);
+		return { allowed: false, error: 'Failed to check permissions' };
+	}
+}
+
+// シート情報を取得するヘルパー関数（シートIDまたはシート名で検索）
 async function getSheetInfo(
-	sheetId: string,
+	sheetIdOrName: string,
 	spreadsheetId: string,
 	accessToken: string
-): Promise<{ sheetName?: string; columns?: Record<string, string>; metadata?: any; error?: string }> {
+): Promise<{ sheetName?: string; sheetId?: number; columns?: Record<string, string>; metadata?: any; error?: string }> {
 	try {
 		// スプレッドシートのメタデータを取得してシート名を確認
 		const metadataResponse = await fetch(
@@ -141,13 +181,25 @@ async function getSheetInfo(
 		}
 
 		const metadata = await metadataResponse.json() as any;
-		const sheet = metadata.sheets?.find((s: any) => s.properties.sheetId.toString() === sheetId);
+		
+		// シートIDまたはシート名で検索
+		let sheet;
+		const isNumeric = /^\d+$/.test(sheetIdOrName);
+		
+		if (isNumeric) {
+			// 数値の場合はシートIDとして検索
+			sheet = metadata.sheets?.find((s: any) => s.properties.sheetId.toString() === sheetIdOrName);
+		} else {
+			// 文字列の場合はシート名として検索
+			sheet = metadata.sheets?.find((s: any) => s.properties.title === sheetIdOrName);
+		}
 		
 		if (!sheet) {
 			return { error: 'Sheet not found' };
 		}
 
 		const sheetName = sheet.properties.title;
+		const sheetId = sheet.properties.sheetId;
 
 		// シートの列情報を取得（1行目：ヘッダー、2行目：型定義）
 		const valuesResponse = await fetch(
@@ -251,7 +303,7 @@ async function getSheetInfo(
 			}
 		}
 
-		return { sheetName, columns, metadata: sheetMetadata };
+		return { sheetName, sheetId, columns, metadata: sheetMetadata };
 	} catch (error) {
 		console.error('Error getting sheet info:', error);
 		return { error: 'Failed to get sheet information' };
@@ -802,8 +854,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: sheetInfo.error }, 500);
 			}
 			
-			const { sheetName, metadata } = sheetInfo;
-			if (!sheetName || !metadata) {
+			const { sheetName, sheetId: actualSheetId, metadata } = sheetInfo;
+			if (!sheetName || !actualSheetId || !metadata) {
 				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
 			}
 			
@@ -823,7 +875,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// シートを更新
 			const updateResult = await updateGoogleSheet(
-				sheetId,
+				actualSheetId.toString(),
 				sheetName,
 				updateData,
 				metadata,
@@ -847,7 +899,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				success: true as true,
 				data: {
 					name: updateData.name || sheetName,
-					sheetId: parseInt(sheetId),
+					sheetId: actualSheetId,
 					public_read: finalMetadata.public_read,
 					public_write: finalMetadata.public_write,
 					role_read: finalMetadata.role_read,
@@ -926,8 +978,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: sheetInfo.error }, 500);
 			}
 			
-			const { sheetName, metadata } = sheetInfo;
-			if (!sheetName || !metadata) {
+			const { sheetName, sheetId: actualSheetId, metadata } = sheetInfo;
+			if (!sheetName || !actualSheetId || !metadata) {
 				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
 			}
 			
@@ -947,7 +999,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// シートを削除
 			const deleteResult = await deleteGoogleSheet(
-				sheetId,
+				actualSheetId.toString(),
 				spreadsheetId,
 				tokens.access_token
 			);
@@ -969,6 +1021,115 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in DELETE /api/sheets/:id:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// GET /api/sheets/:id - シートメタデータを取得 (OpenAPI)
+	app.openapi(getSheetMetadataRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			const { id: sheetIdOrName } = c.req.valid('param');
+			
+			// オプション認証の実装
+			const authHeader = c.req.header('authorization');
+			let userId: string | null = null;
+			let userRoles: string[] = [];
+			let isAuthenticated = false;
+			
+			// 認証ヘッダーが提供されている場合のみ認証を試行
+			if (authHeader) {
+				const sessionId = authHeader.replace('Bearer ', '');
+				const authResult = await authenticateSession(db, sessionId);
+				if (authResult.valid && authResult.userId) {
+					userId = authResult.userId;
+					isAuthenticated = true;
+				}
+			}
+			
+			// Google Sheetsの設定を取得
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// 有効なGoogleトークンを取得
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// 認証されている場合、ユーザー情報を取得
+			if (isAuthenticated && userId) {
+				const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+				if (user) {
+					userRoles = user.roles || [];
+				}
+			}
+			
+			// シート情報を取得（IDまたは名前で検索）
+			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { sheetName, sheetId, columns, metadata } = sheetInfo;
+			if (!sheetName || !sheetId || !columns || !metadata) {
+				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+			}
+			
+			// シート読み取り権限をチェック
+			const permissionCheck = await checkSheetReadPermission(userId, userRoles, metadata);
+			if (!permissionCheck.allowed) {
+				if (permissionCheck.error === 'Authentication required for this sheet') {
+					return c.json({ success: false as false, error: permissionCheck.error }, 401);
+				}
+				return c.json({ success: false as false, error: permissionCheck.error || 'Permission denied' }, 403);
+			}
+			
+			// カラム情報を変換（名前、型、必須フラグ）
+			const formattedColumns = Object.entries(columns).map(([name, type]) => ({
+				name,
+				type: type as 'string' | 'number' | 'datetime' | 'boolean' | 'pointer' | 'array' | 'object',
+				required: ['id', 'created_at', 'updated_at'].includes(name) // デフォルトで必須フィールドを設定
+			}));
+			
+			console.log('Sheet metadata retrieved successfully:', sheetIdOrName, sheetName, sheetId);
+			
+			// 成功レスポンスを返す
+			return c.json({
+				success: true as true,
+				data: {
+					sheetId: sheetId,
+					name: sheetName,
+					columns: formattedColumns,
+					public_read: metadata.public_read,
+					public_write: metadata.public_write,
+					role_read: metadata.role_read,
+					role_write: metadata.role_write,
+					user_read: metadata.user_read,
+					user_write: metadata.user_write
+				}
+			});
+			
+		} catch (error) {
+			console.error('Error in GET /api/sheets/:id:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}
