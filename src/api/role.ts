@@ -184,34 +184,66 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				const rolesData = await rolesResponse.json() as any;
 				const rows = rolesData.values || [];
 				
-				const accessibleRoles = [];
-				
+				// まず、全てのロールデータをパースして配列に変換
+				const allRoles = [];
 				for (const row of rows) {
-					// Skip empty rows
 					if (!row || !row[0]) continue;
+					try {
+						const role = {
+							name: row[0],
+							created_at: row[1] || '',
+							updated_at: row[2] || '',
+							public_read: row[5] === 'TRUE',
+							public_write: row[6] === 'TRUE',
+							role_read: row[7] ? JSON.parse(row[7]) : [],
+							role_write: row[8] ? JSON.parse(row[8]) : [],
+							user_read: row[9] ? JSON.parse(row[9]) : [],
+							user_write: row[10] ? JSON.parse(row[10]) : [],
+							_row: row // 内部処理用に元の行データも保持
+						};
+						allRoles.push(role);
+					} catch (parseError) {
+						console.error('Error parsing role data:', parseError, row);
+						continue;
+					}
+				}
+
+				// ユーザーが直接アクセス可能なロール名を取得
+				const directAccessibleRoleNames = new Set<string>();
+				for (const role of allRoles) {
+					if (await checkRoleReadPermission(role._row, userId, user.roles || [])) {
+						directAccessibleRoleNames.add(role.name);
+					}
+				}
+
+				// 再帰的に、アクセス可能なロール名を拡張
+				let previousSize = 0;
+				while (directAccessibleRoleNames.size !== previousSize) {
+					previousSize = directAccessibleRoleNames.size;
 					
-					// Check if user has read permission for this role
-					if (await checkRoleReadPermission(row, userId, user.roles || [])) {
-						try {
-							const role = {
-								name: row[0],
-								created_at: row[1] || '',
-								updated_at: row[2] || '',
-								public_read: row[5] === 'TRUE',
-								public_write: row[6] === 'TRUE',
-								role_read: row[7] ? JSON.parse(row[7]) : [],
-								role_write: row[8] ? JSON.parse(row[8]) : [],
-								user_read: row[9] ? JSON.parse(row[9]) : [],
-								user_write: row[10] ? JSON.parse(row[10]) : []
-							};
-							accessibleRoles.push(role);
-						} catch (parseError) {
-							console.error('Error parsing role data:', parseError, row);
-							// Skip invalid role data
-							continue;
+					for (const role of allRoles) {
+						// すでにアクセス可能な場合はスキップ
+						if (directAccessibleRoleNames.has(role.name)) continue;
+						
+						// role_readに含まれるロールのいずれかにアクセス可能な場合
+						const hasAccessThroughRoles = role.role_read.some((roleName: string) => 
+							directAccessibleRoleNames.has(roleName)
+						);
+						
+						if (hasAccessThroughRoles) {
+							directAccessibleRoleNames.add(role.name);
 						}
 					}
 				}
+
+				// 最終的にアクセス可能なロールを結果配列に追加
+				const accessibleRoles = allRoles
+					.filter(role => directAccessibleRoleNames.has(role.name))
+					.map(role => {
+						// 内部処理用の_rowプロパティを除外
+						const { _row, ...cleanRole } = role;
+						return cleanRole;
+					});
 				
 				console.log('Accessible roles retrieved successfully:', accessibleRoles.length);
 				
