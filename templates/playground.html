@@ -205,6 +205,9 @@
         <div class="section roles-section">
             <h2>👥 Role Management</h2>
             
+            <h3>Get Roles List</h3>
+            <button onclick="getRolesList()" class="success">Get Roles List</button>
+            
             <h3>Create Role</h3>
             <div class="row">
                 <div class="col">
@@ -474,6 +477,31 @@
         }
 
         // Role functions
+        async function getRolesList() {
+            try {
+                // Get auth headers if token is available, otherwise use empty headers
+                let headers = { 'Content-Type': 'application/json' };
+                try {
+                    const token = document.getElementById('sessionToken').value.trim();
+                    if (token) {
+                        headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+                    }
+                } catch (authError) {
+                    // Continue without authentication
+                }
+                
+                const response = await fetch('/api/roles', {
+                    method: 'GET',
+                    headers
+                });
+                const data = await response.json();
+                
+                showResult('rolesResult', data, !data.success);
+            } catch (error) {
+                showResult('rolesResult', { error: error.message }, true);
+            }
+        }
+
         async function createRole() {
             try {
                 const headers = getAuthHeaders();

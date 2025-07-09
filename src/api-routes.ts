@@ -6,6 +6,7 @@ import {
   UpdateRoleRequestSchema,
   UpdateRoleResponseSchema,
   DeleteRoleResponseSchema,
+  GetRolesResponseSchema,
   RoleNameParamSchema,
   UnauthorizedErrorSchema,
   ForbiddenErrorSchema,
@@ -32,6 +33,42 @@ import {
   DeleteSheetResponseSchema,
   GetSheetsResponseSchema
 } from './api-schemas';
+
+// GET /api/roles - Get list of roles
+export const getRolesRoute = createRoute({
+  method: 'get',
+  path: '/api/roles',
+  summary: 'Get list of roles',
+  description: 'Returns a list of roles. If authenticated, returns roles the user can read (public_read=true, user_read contains user ID, or role_read contains user\'s roles). If not authenticated, returns only public_read=true roles.',
+  tags: ['Roles'],
+  request: {},
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: GetRolesResponseSchema,
+        },
+      },
+      description: 'Role list retrieved successfully',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
 
 // POST /api/roles - Create a new role
 export const createRoleRoute = createRoute({

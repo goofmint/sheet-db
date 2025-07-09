@@ -57,12 +57,20 @@ export const UpdateRoleResponseSchema = z.object({
 
 export const DeleteRoleResponseSchema = z.object({});
 
-// パラメータスキーマ
+// Role list schema
+export const GetRolesResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		roles: z.array(RoleSchema)
+	})
+});
+
+// Parameter schemas
 export const RoleNameParamSchema = z.object({
 	roleName: z.string().min(1, "Role name is required")
 });
 
-// エラーレスポンスの種類
+// Error response schemas
 export const UnauthorizedErrorSchema = z.object({
 	success: z.literal(false),
 	error: z.string().describe("Authentication failed or token invalid")
@@ -93,7 +101,7 @@ export const ServerErrorSchema = z.object({
 	error: z.string().describe("Internal server error")
 });
 
-// Authentication関連のスキーマ
+// Authentication schemas
 export const AuthStartRequestSchema = z.object({
 	code: z.string().optional().describe("Authorization code from Auth0 callback"),
 	error: z.string().optional().describe("Error from Auth0 callback")
@@ -140,7 +148,7 @@ export const AuthErrorResponseSchema = z.object({
 	error: z.string().describe("Authentication error message")
 });
 
-// User関連のスキーマ
+// User schemas
 export const UserSchema = z.object({
 	id: z.string(),
 	email: z.string().email(),
