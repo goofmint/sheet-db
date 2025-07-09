@@ -6,8 +6,7 @@ import {
   getConfig,
   getGoogleTokens,
   refreshAccessToken,
-  isTokenValid,
-  type DatabaseConnection
+  isTokenValid
 } from '../google-auth';
 import { getUserMeRoute, updateUserRoute, deleteUserRoute } from '../api-routes';
 import { authenticateSession } from './auth';

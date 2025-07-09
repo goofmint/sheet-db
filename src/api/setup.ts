@@ -29,7 +29,7 @@ export function registerSetupMainRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 
 			// Check setup completion
 			const setupCompleted = await isSetupCompleted(db);
-			
+
 			if (setupCompleted) {
 				// If accessing /setup-page?reset=true, show the reset page
 				if (c.req.query('reset') === 'true') {
@@ -49,7 +49,7 @@ export function registerSetupMainRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 			const configs = await getConfig(db, [
 				'google_auth_completed',
 				'auth0_domain',
-				'auth0_client_id', 
+				'auth0_client_id',
 				'auth0_client_secret',
 				'auth0_audience',
 				'reset_token',
@@ -193,8 +193,8 @@ export function registerSetupConnectRoute(app: OpenAPIHono<{ Bindings: Bindings 
 				const credentials = await getGoogleCredentials(db);
 
 				if (!currentTokens?.refresh_token || !credentials) {
-					const html = await loadTemplateWithVariables(c.env.ASSETS, 'auth-invalid.html', { 
-						message: 'Token is invalid and no refresh token available. Please perform Google authentication again.' 
+					const html = await loadTemplateWithVariables(c.env.ASSETS, 'auth-invalid.html', {
+						message: 'Token is invalid and no refresh token available. Please perform Google authentication again.'
 					});
 					return c.html(html);
 				}
@@ -206,7 +206,7 @@ export function registerSetupConnectRoute(app: OpenAPIHono<{ Bindings: Bindings 
 				} catch (refreshError) {
 					console.error('Failed to refresh token in /setup/connect:', refreshError);
 					const errorMessage = refreshError instanceof Error ? refreshError.message : 'Unknown error';
-					const html = await loadTemplateWithVariables(c.env.ASSETS, 'auth-invalid.html', { 
+					const html = await loadTemplateWithVariables(c.env.ASSETS, 'auth-invalid.html', {
 						message: 'Token refresh failed. Please perform Google authentication again.',
 						error: errorMessage
 					});
@@ -220,8 +220,8 @@ export function registerSetupConnectRoute(app: OpenAPIHono<{ Bindings: Bindings 
 
 		} catch (error) {
 			console.error('Error in /setup/connect:', error);
-			const html = await loadTemplateWithVariables(c.env.ASSETS, 'generic-error.html', { 
-				message: 'An error occurred while loading the spreadsheet selection page.' 
+			const html = await loadTemplateWithVariables(c.env.ASSETS, 'generic-error.html', {
+				message: 'An error occurred while loading the spreadsheet selection page.'
 			});
 			return c.html(html);
 		}

@@ -641,14 +641,9 @@
                 const newName = document.getElementById('updateSheetName').value.trim();
                 if (newName) body.name = newName;
                 
-                // Note: For checkboxes, we only include them if they're checked
-                // This allows users to explicitly set permissions
-                if (document.getElementById('updateSheetPublicRead').checked) {
-                    body.public_read = true;
-                }
-                if (document.getElementById('updateSheetPublicWrite').checked) {
-                    body.public_write = true;
-                }
+                // Always include checkbox values to allow unsetting permissions
+                body.public_read = document.getElementById('updateSheetPublicRead').checked;
+                body.public_write = document.getElementById('updateSheetPublicWrite').checked;
                 
                 const roleRead = parseJsonArray(document.getElementById('updateSheetRoleRead').value);
                 if (roleRead !== undefined) body.role_read = roleRead;

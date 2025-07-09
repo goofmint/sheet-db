@@ -53,11 +53,6 @@ app.get('/health', (c) => {
 	return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Redirect /setup to /setup-page to handle ASSETS conflict
-app.get('/setup', (c) => {
-	return c.redirect('/setup-page');
-});
-
 // Playground endpoint
 app.get('/playground', async (c) => {
 	const html = await loadTemplate(c.env.ASSETS, 'playground.html');
