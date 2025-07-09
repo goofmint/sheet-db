@@ -317,13 +317,16 @@ async function createGoogleSheet(
 	accessToken: string
 ): Promise<{ success: boolean; sheetId?: number; error?: string }> {
 	try {
-		// デフォルトカラムを定義
+		// Define default columns for new sheets
+		// These are the core system columns required for sheet functionality
+		// Note: 'name' column was removed (previously at index 1) to allow more flexible sheet structures
 		const defaultColumns = [
 			'id', 'created_at', 'updated_at', 'public_read', 'public_write', 
 			'role_read', 'role_write', 'user_read', 'user_write'
 		];
 		
-		// デフォルトカラムの型を定義
+		// Define the data types for each default column
+		// These correspond to the columns above in the same order
 		const defaultColumnTypes = [
 			'string', 'datetime', 'datetime', 'boolean', 'boolean',
 			'array', 'array', 'array', 'array'
