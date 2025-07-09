@@ -445,6 +445,62 @@
             </div>
             <button onclick="addColumns()" class="success">Add Columns</button>
 
+            <h3>Modify Column</h3>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="modifyColumnSheetId">Sheet ID or Name:</label>
+                        <input type="text" id="modifyColumnSheetId" placeholder="e.g., 12345 or UserData">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="modifyColumnId">Column ID:</label>
+                        <input type="text" id="modifyColumnId" placeholder="e.g., name, email, age">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="array-input">
+                <label>Column Properties (leave blank to keep existing value):</label>
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="modifyColumnName">Name:</label>
+                            <input type="text" id="modifyColumnName" placeholder="New column name">
+                        </div>
+                        <div class="form-group">
+                            <label for="modifyColumnPattern">Pattern (regex):</label>
+                            <input type="text" id="modifyColumnPattern" placeholder="^[a-zA-Z0-9]+$">
+                        </div>
+                        <div class="form-group">
+                            <label for="modifyColumnMinLength">Min Length:</label>
+                            <input type="number" id="modifyColumnMinLength" placeholder="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="modifyColumnMaxLength">Max Length:</label>
+                            <input type="number" id="modifyColumnMaxLength" placeholder="100" min="0">
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label for="modifyColumnMin">Min Value:</label>
+                            <input type="number" id="modifyColumnMin" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="modifyColumnMax">Max Value:</label>
+                            <input type="number" id="modifyColumnMax" placeholder="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="modifyColumnDefault">Default Value:</label>
+                            <input type="text" id="modifyColumnDefault" placeholder="default value">
+                        </div>
+                    </div>
+                </div>
+                <p><small>💡 Note: Column type cannot be changed. At least one field must be provided for update.</small></p>
+            </div>
+            <button onclick="modifyColumn()" class="success">Modify Column</button>
+
             <div id="sheetsResult" class="result" style="display: none;"></div>
         </div>
     </div>
@@ -897,6 +953,87 @@
                 if (data.success) {
                     document.getElementById('addColumnsSheetId').value = '';
                     document.getElementById('addColumnsData').value = '';
+                }
+            } catch (error) {
+                showResult('sheetsResult', { error: error.message }, true);
+            }
+        }
+
+        async function modifyColumn() {
+            try {
+                const headers = getAuthHeaders();
+                const sheetId = document.getElementById('modifyColumnSheetId').value.trim();
+                const columnId = document.getElementById('modifyColumnId').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('Sheet ID is required');
+                }
+                
+                if (!columnId) {
+                    throw new Error('Column ID is required');
+                }
+
+                const body = {};
+                
+                // Add properties only if they have values
+                const name = document.getElementById('modifyColumnName').value.trim();
+                if (name) body.name = name;
+                
+                const pattern = document.getElementById('modifyColumnPattern').value.trim();
+                if (pattern) body.pattern = pattern;
+                
+                const minLength = document.getElementById('modifyColumnMinLength').value.trim();
+                if (minLength) body.minLength = parseInt(minLength);
+                
+                const maxLength = document.getElementById('modifyColumnMaxLength').value.trim();
+                if (maxLength) body.maxLength = parseInt(maxLength);
+                
+                const min = document.getElementById('modifyColumnMin').value.trim();
+                if (min) body.min = parseFloat(min);
+                
+                const max = document.getElementById('modifyColumnMax').value.trim();
+                if (max) body.max = parseFloat(max);
+                
+                const defaultValue = document.getElementById('modifyColumnDefault').value.trim();
+                if (defaultValue) {
+                    // Try to parse as number or boolean, otherwise keep as string
+                    if (defaultValue === 'true') {
+                        body.default = true;
+                    } else if (defaultValue === 'false') {
+                        body.default = false;
+                    } else if (defaultValue === 'null') {
+                        body.default = null;
+                    } else if (!isNaN(defaultValue) && defaultValue !== '') {
+                        body.default = parseFloat(defaultValue);
+                    } else {
+                        body.default = defaultValue;
+                    }
+                }
+
+                if (Object.keys(body).length === 0) {
+                    throw new Error('At least one field must be provided for update');
+                }
+
+                const response = await fetch(`/api/sheets/${encodeURIComponent(sheetId)}/columns/${encodeURIComponent(columnId)}`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+                
+                showResult('sheetsResult', data, !data.success);
+                
+                // Clear form on success
+                if (data.success) {
+                    document.getElementById('modifyColumnSheetId').value = '';
+                    document.getElementById('modifyColumnId').value = '';
+                    document.getElementById('modifyColumnName').value = '';
+                    document.getElementById('modifyColumnPattern').value = '';
+                    document.getElementById('modifyColumnMinLength').value = '';
+                    document.getElementById('modifyColumnMaxLength').value = '';
+                    document.getElementById('modifyColumnMin').value = '';
+                    document.getElementById('modifyColumnMax').value = '';
+                    document.getElementById('modifyColumnDefault').value = '';
                 }
             } catch (error) {
                 showResult('sheetsResult', { error: error.message }, true);
