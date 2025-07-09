@@ -445,6 +445,24 @@
             </div>
             <button onclick="addColumns()" class="success">Add Columns</button>
 
+            <h3>Delete Column from Sheet</h3>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="deleteColumnSheetId">Sheet ID or Name:</label>
+                        <input type="text" id="deleteColumnSheetId" placeholder="e.g., 12345 or UserData">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="deleteColumnName">Column Name:</label>
+                        <input type="text" id="deleteColumnName" placeholder="e.g., email">
+                    </div>
+                </div>
+            </div>
+            <button onclick="deleteColumn()" class="danger">Delete Column</button>
+            <p><small>⚠️ Warning: Column data will be cleared to prevent data misalignment during concurrent operations. System columns (id, created_at, etc.) cannot be deleted.</small></p>
+
             <div id="sheetsResult" class="result" style="display: none;"></div>
         </div>
     </div>
@@ -897,6 +915,42 @@
                 if (data.success) {
                     document.getElementById('addColumnsSheetId').value = '';
                     document.getElementById('addColumnsData').value = '';
+                }
+            } catch (error) {
+                showResult('sheetsResult', { error: error.message }, true);
+            }
+        }
+
+        async function deleteColumn() {
+            try {
+                const headers = getAuthHeaders();
+                const sheetId = document.getElementById('deleteColumnSheetId').value.trim();
+                const columnName = document.getElementById('deleteColumnName').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('Sheet ID is required');
+                }
+                
+                if (!columnName) {
+                    throw new Error('Column name is required');
+                }
+
+                if (!confirm(`Delete column "${columnName}" from sheet "${sheetId}"?\n\nWarning: This will clear all data in the column to prevent data misalignment during concurrent operations.`)) {
+                    return;
+                }
+
+                const response = await fetch(`/api/sheets/${encodeURIComponent(sheetId)}/columns/${encodeURIComponent(columnName)}`, {
+                    method: 'DELETE',
+                    headers
+                });
+                const data = await response.json();
+                
+                showResult('sheetsResult', data, !data.success);
+                
+                // Clear form on success
+                if (data.success) {
+                    document.getElementById('deleteColumnSheetId').value = '';
+                    document.getElementById('deleteColumnName').value = '';
                 }
             } catch (error) {
                 showResult('sheetsResult', { error: error.message }, true);
