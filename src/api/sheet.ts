@@ -1460,6 +1460,22 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const db = drizzle(c.env.DB);
 			const { id: sheetIdOrName, columnId } = c.req.valid('param');
 			
+			// Optional authentication implementation
+			const authHeader = c.req.header('authorization');
+			let userId: string | null = null;
+			let userRoles: string[] = [];
+			let isAuthenticated = false;
+			
+			// Try authentication if header is provided
+			if (authHeader) {
+				const sessionId = authHeader.replace('Bearer ', '');
+				const authResult = await authenticateSession(db, sessionId);
+				if (authResult.valid && authResult.userId) {
+					userId = authResult.userId;
+					isAuthenticated = true;
+				}
+			}
+			
 			// Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
@@ -1484,6 +1500,14 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
+			// Get user roles if authenticated
+			if (isAuthenticated && userId) {
+				const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+				if (user) {
+					userRoles = user.roles || [];
+				}
+			}
+			
 			// Get sheet information
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
 			if (sheetInfo.error) {
@@ -1493,9 +1517,18 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: sheetInfo.error }, 500);
 			}
 			
-			const { columns } = sheetInfo;
+			const { columns, metadata } = sheetInfo;
 			if (!columns) {
 				return c.json({ success: false as false, error: 'Failed to get sheet columns' }, 500);
+			}
+			
+			// Check sheet read permission
+			const permissionCheck = await checkSheetReadPermission(userId, userRoles, metadata);
+			if (!permissionCheck.allowed) {
+				if (permissionCheck.error === 'Authentication required for this sheet') {
+					return c.json({ success: false as false, error: permissionCheck.error }, 401);
+				}
+				return c.json({ success: false as false, error: permissionCheck.error || 'Permission denied' }, 403);
 			}
 			
 			// Find the column
