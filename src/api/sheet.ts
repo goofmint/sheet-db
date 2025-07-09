@@ -319,13 +319,13 @@ async function createGoogleSheet(
 	try {
 		// デフォルトカラムを定義
 		const defaultColumns = [
-			'id', 'name', 'created_at', 'updated_at', 'public_read', 'public_write', 
+			'id', 'created_at', 'updated_at', 'public_read', 'public_write', 
 			'role_read', 'role_write', 'user_read', 'user_write'
 		];
 		
 		// デフォルトカラムの型を定義
 		const defaultColumnTypes = [
-			'string', 'string', 'datetime', 'datetime', 'boolean', 'boolean',
+			'string', 'datetime', 'datetime', 'boolean', 'boolean',
 			'array', 'array', 'array', 'array'
 		];
 
