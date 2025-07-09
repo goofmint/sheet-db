@@ -550,6 +550,17 @@ async function updateGoogleSheet(
 	}
 }
 
+// Convert column number to Excel-style letter (A, B, ..., Z, AA, AB, ...)
+function getColumnLetter(columnNumber: number): string {
+	let letter = '';
+	while (columnNumber > 0) {
+		const remainder = (columnNumber - 1) % 26;
+		letter = String.fromCharCode(65 + remainder) + letter;
+		columnNumber = Math.floor((columnNumber - 1) / 26);
+	}
+	return letter;
+}
+
 // シートに列を追加するヘルパー関数
 async function addColumnsToGoogleSheet(
 	sheetId: string,
@@ -600,7 +611,7 @@ async function addColumnsToGoogleSheet(
 
 		// ヘッダー行を更新
 		const headerUpdateResponse = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:${String.fromCharCode(64 + newHeaders.length)}1?valueInputOption=RAW`,
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:${getColumnLetter(newHeaders.length)}1?valueInputOption=RAW`,
 			{
 				method: 'PUT',
 				headers: {
@@ -621,7 +632,7 @@ async function addColumnsToGoogleSheet(
 
 		// 型行を更新
 		const typeUpdateResponse = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2:${String.fromCharCode(64 + newTypes.length)}2?valueInputOption=RAW`,
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2:${getColumnLetter(newTypes.length)}2?valueInputOption=RAW`,
 			{
 				method: 'PUT',
 				headers: {
