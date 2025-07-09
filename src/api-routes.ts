@@ -39,14 +39,9 @@ export const getRolesRoute = createRoute({
   method: 'get',
   path: '/api/roles',
   summary: 'Get list of roles',
-  description: 'Returns a list of roles that the authenticated user can read (public_read=true, user_read contains user ID, or role_read contains user\'s roles)',
+  description: 'Returns a list of roles. If authenticated, returns roles the user can read (public_read=true, user_read contains user ID, or role_read contains user\'s roles). If not authenticated, returns only public_read=true roles.',
   tags: ['Roles'],
-  security: [{ BearerAuth: [] }],
-  request: {
-    headers: z.object({
-      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
-    }),
-  },
+  request: {},
   responses: {
     200: {
       content: {
