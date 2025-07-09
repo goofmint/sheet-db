@@ -803,6 +803,21 @@ async function updateColumnInGoogleSheet(
 			return { success: false, error: 'Column type not found' };
 		}
 
+		// Parse current type definition to get existing metadata
+		const { parseColumnSchema } = await import('../utils/schema-parser');
+		const currentSchema = parseColumnSchema(currentType);
+		
+		// Merge existing metadata with new metadata (only non-undefined values)
+		const updatedSchema = {
+			...currentSchema,
+			...(updateData.pattern !== undefined && { pattern: updateData.pattern }),
+			...(updateData.minLength !== undefined && { minLength: updateData.minLength }),
+			...(updateData.maxLength !== undefined && { maxLength: updateData.maxLength }),
+			...(updateData.min !== undefined && { min: updateData.min }),
+			...(updateData.max !== undefined && { max: updateData.max }),
+			...(updateData.default !== undefined && { default: updateData.default })
+		};
+
 		// Update column name if provided
 		if (updateData.name && updateData.name !== columnName) {
 			// Check if new name already exists
@@ -836,19 +851,53 @@ async function updateColumnInGoogleSheet(
 			}
 		}
 
-		// Currently, we only support updating column names
-		// Other metadata like pattern, minLength, etc. would need to be stored in additional metadata rows
-		// For now, we'll just return success with the current implementation
+		// Update type definition in row 2 with new metadata
+		const hasMetadata = updatedSchema.pattern || updatedSchema.minLength !== undefined || 
+			updatedSchema.maxLength !== undefined || updatedSchema.min !== undefined || 
+			updatedSchema.max !== undefined || updatedSchema.default !== undefined || 
+			updatedSchema.required !== undefined || updatedSchema.unique !== undefined;
+
+		let typeDefinition: string;
+		if (hasMetadata) {
+			// Store as JSON object with full metadata
+			typeDefinition = JSON.stringify(updatedSchema);
+		} else {
+			// Store as simple type string
+			typeDefinition = updatedSchema.type;
+		}
+
+		const newTypes = [...currentTypes];
+		newTypes[columnIndex] = typeDefinition;
+
+		const typeUpdateResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2:${getColumnLetter(newTypes.length)}2?valueInputOption=RAW`,
+			{
+				method: 'PUT',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					values: [newTypes]
+				})
+			}
+		);
+
+		if (!typeUpdateResponse.ok) {
+			const errorText = await typeUpdateResponse.text();
+			console.error('Failed to update types:', typeUpdateResponse.status, errorText);
+			return { success: false, error: `Failed to update types: ${typeUpdateResponse.status}` };
+		}
 		
 		const updatedColumn = {
 			name: updateData.name || columnName,
-			type: currentType,
-			pattern: updateData.pattern,
-			minLength: updateData.minLength,
-			maxLength: updateData.maxLength,
-			min: updateData.min,
-			max: updateData.max,
-			default: updateData.default
+			type: updatedSchema.type,
+			pattern: updatedSchema.pattern,
+			minLength: updatedSchema.minLength,
+			maxLength: updatedSchema.maxLength,
+			min: updatedSchema.min,
+			max: updatedSchema.max,
+			default: updatedSchema.default
 		};
 
 		console.log('Column updated successfully:', updateData.name || columnName);
