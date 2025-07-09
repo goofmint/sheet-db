@@ -166,6 +166,14 @@ export class SheetsSetupManager {
           
           await this.styleHeaderRows(schema);
           
+          // Add initial data for _Config sheet
+          if (schema.name === '_Config') {
+            progress.currentStep = 'Adding initial configuration...';
+            if (progressCallback) progressCallback(progress);
+            
+            await this.addInitialConfigData();
+          }
+          
           completedSheets.push(schema.name);
           console.log('Schema processed successfully:', schema.name);
           
@@ -707,6 +715,42 @@ export class SheetsSetupManager {
       console.error('Error styling header rows for sheet:', schema.name, error);
       // Treat styling errors as warnings and continue setup
       console.warn('Continuing setup despite header styling error');
+    }
+  }
+  
+  private async addInitialConfigData(): Promise<void> {
+    console.log('Adding initial configuration data to _Config sheet');
+    
+    try {
+      // Check if data already exists
+      const existingData = await this.getSheetData('_Config', 'A3:K8');
+      if (existingData?.values && existingData.values.length > 0) {
+        console.log('Configuration data already exists, skipping initialization');
+        return;
+      }
+      
+      // Prepare initial configuration values
+      const configData = [
+        ['CREATE_SHEET_BY_API', 'CREATE_SHEET_BY_API', 'false', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
+        ['CREATE_SHEET_USER', 'CREATE_SHEET_USER', '[]', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
+        ['CREATE_SHEET_ROLE', 'CREATE_SHEET_ROLE', '[]', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
+        ['MODIFY_COLUMNS_BY_API', 'MODIFY_COLUMNS_BY_API', 'false', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
+        ['MODIFY_SHEET_USER', 'MODIFY_SHEET_USER', '[]', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
+        ['MODIFY_SHEET_ROLE', 'MODIFY_SHEET_ROLE', '[]', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]']
+      ];
+      
+      // Update sheet with initial configuration
+      await this.updateSheetData([{
+        range: '_Config!A3:K8',
+        values: configData
+      }]);
+      
+      console.log('Initial configuration data added successfully');
+      
+    } catch (error) {
+      console.error('Error adding initial configuration data:', error);
+      // Continue setup even if initial data fails
+      console.warn('Continuing setup despite initial data error');
     }
   }
 }

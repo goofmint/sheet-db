@@ -118,6 +118,75 @@ async function checkSheetUpdatePermission(
 	}
 }
 
+// Check column modification permission helper function
+async function checkColumnModifyPermission(
+	userId: string,
+	userRoles: string[],
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ allowed: boolean; error?: string }> {
+	try {
+		// Get column modification settings from _Config sheet
+		const configs = await getMultipleConfigsFromSheet(
+			['MODIFY_COLUMNS_BY_API', 'MODIFY_SHEET_USER', 'MODIFY_SHEET_ROLE'], 
+			spreadsheetId, 
+			accessToken
+		);
+		
+		const modifyColumnsByApi = configs['MODIFY_COLUMNS_BY_API'];
+		const modifySheetUser = configs['MODIFY_SHEET_USER'];
+		const modifySheetRole = configs['MODIFY_SHEET_ROLE'];
+
+		// If MODIFY_COLUMNS_BY_API is false, column modification via API is disabled
+		if (modifyColumnsByApi === 'false' || !modifyColumnsByApi) {
+			return { allowed: false, error: 'Column modification via API is disabled' };
+		}
+
+		// Check if user is in MODIFY_SHEET_USER list
+		if (modifySheetUser && modifySheetUser !== '') {
+			try {
+				const allowedUsers = JSON.parse(modifySheetUser);
+				if (Array.isArray(allowedUsers) && !allowedUsers.includes(userId)) {
+					return { allowed: false, error: 'User not authorized to modify columns' };
+				}
+			} catch (e) {
+				// If JSON parsing fails, treat as single user ID
+				if (modifySheetUser !== userId) {
+					return { allowed: false, error: 'User not authorized to modify columns' };
+				}
+			}
+		}
+
+		// Check if user has required role in MODIFY_SHEET_ROLE
+		if (modifySheetRole && modifySheetRole !== '') {
+			try {
+				const allowedRoles = JSON.parse(modifySheetRole);
+				if (Array.isArray(allowedRoles)) {
+					const hasRequiredRole = userRoles.some(role => allowedRoles.includes(role));
+					if (!hasRequiredRole) {
+						return { allowed: false, error: 'User role not authorized to modify columns' };
+					}
+				}
+			} catch (e) {
+				// If JSON parsing fails, treat as single role name
+				if (!userRoles.includes(modifySheetRole)) {
+					return { allowed: false, error: 'User role not authorized to modify columns' };
+				}
+			}
+		}
+
+		// If MODIFY_COLUMNS_BY_API is true but no user/role restrictions, deny by default
+		if ((!modifySheetUser || modifySheetUser === '') && (!modifySheetRole || modifySheetRole === '')) {
+			return { allowed: false, error: 'No users or roles configured for column modification' };
+		}
+
+		return { allowed: true };
+	} catch (error) {
+		console.error('Error checking column modification permission:', error);
+		return { allowed: false, error: 'Failed to check permissions' };
+	}
+}
+
 // シート読み取り権限をチェックするヘルパー関数
 async function checkSheetReadPermission(
 	userId: string | null,
@@ -1328,11 +1397,12 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
 			}
 			
-			// シート更新権限をチェック（列追加は更新権限が必要）
-			const permissionCheck = await checkSheetUpdatePermission(
+			// Check column modification permission
+			const permissionCheck = await checkColumnModifyPermission(
 				userId,
 				user.roles || [],
-				metadata
+				spreadsheetId,
+				tokens.access_token
 			);
 			
 			if (!permissionCheck.allowed) {
