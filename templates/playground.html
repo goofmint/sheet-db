@@ -205,6 +205,9 @@
         <div class="section roles-section">
             <h2>👥 Role Management</h2>
             
+            <h3>Get Roles List</h3>
+            <button onclick="getRolesList()" class="success">Get Roles List</button>
+            
             <h3>Create Role</h3>
             <div class="row">
                 <div class="col">
@@ -474,6 +477,21 @@
         }
 
         // Role functions
+        async function getRolesList() {
+            try {
+                const headers = getAuthHeaders();
+                const response = await fetch('/api/roles', {
+                    method: 'GET',
+                    headers
+                });
+                const data = await response.json();
+                
+                showResult('rolesResult', data, !data.success);
+            } catch (error) {
+                showResult('rolesResult', { error: error.message }, true);
+            }
+        }
+
         async function createRole() {
             try {
                 const headers = getAuthHeaders();

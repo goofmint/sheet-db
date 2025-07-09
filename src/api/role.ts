@@ -9,7 +9,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { createRoleRoute, updateRoleRoute, deleteRoleRoute } from '../api-routes';
+import { getRolesRoute, createRoleRoute, updateRoleRoute, deleteRoleRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -17,6 +17,37 @@ type Bindings = {
 	DB: D1Database;
 	ASSETS: Fetcher;
 };
+
+// Helper function to check role read permissions
+async function checkRoleReadPermission(
+	roleRow: string[],
+	userId: string,
+	userRoles: string[]
+): Promise<boolean> {
+	try {
+		// If public_read is true
+		if (roleRow[5] === 'TRUE') {
+			return true;
+		}
+
+		// role_readに現在のユーザーのロールが含まれているかチェック
+		const roleRead = roleRow[7] ? JSON.parse(roleRow[7]) : [];
+		if (Array.isArray(roleRead) && userRoles.some(role => roleRead.includes(role))) {
+			return true;
+		}
+
+		// user_readに現在のユーザーIDが含まれているかチェック
+		const userRead = roleRow[9] ? JSON.parse(roleRow[9]) : [];
+		if (Array.isArray(userRead) && userRead.includes(userId)) {
+			return true;
+		}
+
+		return false;
+	} catch (error) {
+		console.error('Error checking role read permission:', error);
+		return false;
+	}
+}
 
 // Helper function to check role write permissions
 async function checkRoleWritePermission(
@@ -84,6 +115,126 @@ async function getExistingRoleNames(spreadsheetId: string, accessToken: string):
 
 // Role management endpoints
 export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
+	// GET /api/roles - ロール一覧取得 (OpenAPI)
+	app.openapi(getRolesRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// Get session ID from authentication header
+			const authHeader = c.req.valid('header').authorization;
+			const sessionId = authHeader.replace('Bearer ', '');
+			
+			// Authenticate session
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+			}
+			
+			const userId = authResult.userId;
+			if (!userId) {
+				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+			}
+			
+			// Get Google Sheets configuration
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// Get valid Google token
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// Check token validity and refresh if needed
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// Get user information
+			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+			if (!user) {
+				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+			}
+			
+			// Get roles from _Role sheet
+			try {
+				const rolesResponse = await fetch(
+					`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_Role!A3:K?majorDimension=ROWS`,
+					{
+						headers: {
+							'Authorization': `Bearer ${tokens.access_token}`,
+							'Content-Type': 'application/json',
+						}
+					}
+				);
+
+				if (!rolesResponse.ok) {
+					return c.json({ success: false as false, error: 'Failed to fetch roles data' }, 500);
+				}
+
+				const rolesData = await rolesResponse.json() as any;
+				const rows = rolesData.values || [];
+				
+				const accessibleRoles = [];
+				
+				for (const row of rows) {
+					// Skip empty rows
+					if (!row || !row[0]) continue;
+					
+					// Check if user has read permission for this role
+					if (await checkRoleReadPermission(row, userId, user.roles || [])) {
+						try {
+							const role = {
+								name: row[0],
+								created_at: row[1] || '',
+								updated_at: row[2] || '',
+								public_read: row[5] === 'TRUE',
+								public_write: row[6] === 'TRUE',
+								role_read: row[7] ? JSON.parse(row[7]) : [],
+								role_write: row[8] ? JSON.parse(row[8]) : [],
+								user_read: row[9] ? JSON.parse(row[9]) : [],
+								user_write: row[10] ? JSON.parse(row[10]) : []
+							};
+							accessibleRoles.push(role);
+						} catch (parseError) {
+							console.error('Error parsing role data:', parseError, row);
+							// Skip invalid role data
+							continue;
+						}
+					}
+				}
+				
+				console.log('Accessible roles retrieved successfully:', accessibleRoles.length);
+				
+				// Return success response
+				return c.json({
+					success: true as true,
+					data: {
+						roles: accessibleRoles
+					}
+				});
+				
+			} catch (error) {
+				console.error('Error fetching roles:', error);
+				return c.json({ success: false as false, error: 'Failed to fetch role list' }, 500);
+			}
+			
+		} catch (error) {
+			console.error('Error in GET /api/roles:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
 	// POST /api/roles - ロール作成 (OpenAPI)
 	app.openapi(createRoleRoute, async (c) => {
 		try {

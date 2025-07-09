@@ -57,6 +57,14 @@ export const UpdateRoleResponseSchema = z.object({
 
 export const DeleteRoleResponseSchema = z.object({});
 
+// Role list schema
+export const GetRolesResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		roles: z.array(RoleSchema)
+	})
+});
+
 // パラメータスキーマ
 export const RoleNameParamSchema = z.object({
 	roleName: z.string().min(1, "Role name is required")
