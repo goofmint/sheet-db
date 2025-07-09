@@ -9,7 +9,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute } from '../api-routes';
+import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute, getColumnInfoRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -1449,6 +1449,111 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in POST /api/sheets/:id/columns:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// GET /api/sheets/:id/columns/:columnId - Get column information (OpenAPI)
+	app.openapi(getColumnInfoRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			const { id: sheetIdOrName, columnId } = c.req.valid('param');
+			
+			// Google Sheets configuration
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// Get valid Google token
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// Validate token and refresh if needed
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// Get sheet information
+			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { columns } = sheetInfo;
+			if (!columns) {
+				return c.json({ success: false as false, error: 'Failed to get sheet columns' }, 500);
+			}
+			
+			// Find the column
+			const columnSchema = columns[columnId];
+			if (!columnSchema) {
+				return c.json({ success: false as false, error: 'Column not found' }, 404);
+			}
+			
+			// Parse column schema (can be string or JSON object)
+			let columnInfo: any = {
+				name: columnId,
+				type: 'string',
+				required: false
+			};
+			
+			try {
+				// Try to parse as JSON first
+				if (columnSchema.trim().startsWith('{')) {
+					const parsedSchema = JSON.parse(columnSchema);
+					columnInfo = {
+						name: columnId,
+						type: parsedSchema.type || 'string',
+						required: parsedSchema.required || false,
+						...(parsedSchema.unique !== undefined && { unique: parsedSchema.unique }),
+						...(parsedSchema.pattern !== undefined && { pattern: parsedSchema.pattern }),
+						...(parsedSchema.minLength !== undefined && { minLength: parsedSchema.minLength }),
+						...(parsedSchema.maxLength !== undefined && { maxLength: parsedSchema.maxLength }),
+						...(parsedSchema.min !== undefined && { min: parsedSchema.min }),
+						...(parsedSchema.max !== undefined && { max: parsedSchema.max }),
+						...(parsedSchema.default !== undefined && { default: parsedSchema.default })
+					};
+				} else {
+					// Simple string format - just type
+					columnInfo = {
+						name: columnId,
+						type: columnSchema,
+						required: ['id', 'created_at', 'updated_at'].includes(columnId) // Default required fields
+					};
+				}
+			} catch (error) {
+				// If JSON parsing fails, treat as simple string
+				columnInfo = {
+					name: columnId,
+					type: columnSchema,
+					required: ['id', 'created_at', 'updated_at'].includes(columnId)
+				};
+			}
+			
+			console.log('Column info retrieved successfully:', sheetIdOrName, columnId);
+			
+			// Return success response
+			return c.json({
+				success: true as true,
+				data: columnInfo
+			});
+			
+		} catch (error) {
+			console.error('Error in GET /api/sheets/:id/columns/:columnId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}

@@ -34,7 +34,9 @@ import {
   GetSheetsResponseSchema,
   GetSheetMetadataResponseSchema,
   AddColumnsRequestSchema,
-  AddColumnsResponseSchema
+  AddColumnsResponseSchema,
+  ColumnIdParamSchema,
+  GetColumnInfoResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -913,6 +915,44 @@ export const addColumnsRoute = createRoute({
         },
       },
       description: 'Sheet not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// GET /api/sheets/:id/columns/:columnId - Get column information
+export const getColumnInfoRoute = createRoute({
+  method: 'get',
+  path: '/api/sheets/{id}/columns/{columnId}',
+  summary: 'Get column information',
+  description: 'Returns schema information for a specific column in a sheet. No authentication required.',
+  tags: ['Sheets'],
+  request: {
+    params: ColumnIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: GetColumnInfoResponseSchema,
+        },
+      },
+      description: 'Column information retrieved successfully',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet or column not found',
     },
     500: {
       content: {

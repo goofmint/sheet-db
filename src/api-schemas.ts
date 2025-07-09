@@ -339,3 +339,25 @@ export const AddColumnsResponseSchema = z.object({
 		message: z.string()
 	})
 });
+
+// Column info schema
+export const ColumnIdParamSchema = z.object({
+	id: z.string().min(1, "Sheet ID is required"),
+	columnId: z.string().min(1, "Column ID is required")
+});
+
+export const GetColumnInfoResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		name: z.string(),
+		type: ColumnTypeEnum,
+		required: z.boolean().default(false),
+		unique: z.boolean().optional(),
+		pattern: z.string().optional(),
+		minLength: z.number().int().min(0).optional(),
+		maxLength: z.number().int().min(0).optional(),
+		min: z.number().optional(),
+		max: z.number().optional(),
+		default: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
+	})
+});

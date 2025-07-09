@@ -385,6 +385,19 @@ export const playgroundHTML = `<!DOCTYPE html>
             </div>
             <button onclick="updateSheet()">シート更新</button>
 
+            <h3>カラム情報取得</h3>
+            <div class="inline-form">
+                <div class="form-group">
+                    <label for="columnSheetId">シートID/名前:</label>
+                    <input type="text" id="columnSheetId" placeholder="例: 12345 or UserData">
+                </div>
+                <div class="form-group">
+                    <label for="columnId">カラム名:</label>
+                    <input type="text" id="columnId" placeholder="例: name">
+                </div>
+                <button onclick="getColumnInfo()">カラム情報取得</button>
+            </div>
+
             <div id="sheetsResult" class="result" style="display: none;"></div>
         </div>
     </div>
@@ -698,6 +711,34 @@ export const playgroundHTML = `<!DOCTYPE html>
                     method: 'PUT',
                     headers,
                     body: JSON.stringify(body)
+                });
+                const data = await response.json();
+                
+                showResult('sheetsResult', data, !data.success);
+            } catch (error) {
+                showResult('sheetsResult', { error: error.message }, true);
+            }
+        }
+
+        // Column info function
+        async function getColumnInfo() {
+            try {
+                const sheetId = document.getElementById('columnSheetId').value.trim();
+                const columnId = document.getElementById('columnId').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('シートID/名前は必須です');
+                }
+                
+                if (!columnId) {
+                    throw new Error('カラム名は必須です');
+                }
+
+                const response = await fetch(\`/api/sheets/\${encodeURIComponent(sheetId)}/columns/\${encodeURIComponent(columnId)}\`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
                 const data = await response.json();
                 
