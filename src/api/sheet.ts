@@ -158,12 +158,12 @@ async function checkSheetReadPermission(
 	}
 }
 
-// シート情報を取得するヘルパー関数
+// シート情報を取得するヘルパー関数（シートIDまたはシート名で検索）
 async function getSheetInfo(
-	sheetId: string,
+	sheetIdOrName: string,
 	spreadsheetId: string,
 	accessToken: string
-): Promise<{ sheetName?: string; columns?: Record<string, string>; metadata?: any; error?: string }> {
+): Promise<{ sheetName?: string; sheetId?: number; columns?: Record<string, string>; metadata?: any; error?: string }> {
 	try {
 		// スプレッドシートのメタデータを取得してシート名を確認
 		const metadataResponse = await fetch(
@@ -181,13 +181,25 @@ async function getSheetInfo(
 		}
 
 		const metadata = await metadataResponse.json() as any;
-		const sheet = metadata.sheets?.find((s: any) => s.properties.sheetId.toString() === sheetId);
+		
+		// シートIDまたはシート名で検索
+		let sheet;
+		const isNumeric = /^\d+$/.test(sheetIdOrName);
+		
+		if (isNumeric) {
+			// 数値の場合はシートIDとして検索
+			sheet = metadata.sheets?.find((s: any) => s.properties.sheetId.toString() === sheetIdOrName);
+		} else {
+			// 文字列の場合はシート名として検索
+			sheet = metadata.sheets?.find((s: any) => s.properties.title === sheetIdOrName);
+		}
 		
 		if (!sheet) {
 			return { error: 'Sheet not found' };
 		}
 
 		const sheetName = sheet.properties.title;
+		const sheetId = sheet.properties.sheetId;
 
 		// シートの列情報を取得（1行目：ヘッダー、2行目：型定義）
 		const valuesResponse = await fetch(
@@ -291,7 +303,7 @@ async function getSheetInfo(
 			}
 		}
 
-		return { sheetName, columns, metadata: sheetMetadata };
+		return { sheetName, sheetId, columns, metadata: sheetMetadata };
 	} catch (error) {
 		console.error('Error getting sheet info:', error);
 		return { error: 'Failed to get sheet information' };
@@ -842,8 +854,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: sheetInfo.error }, 500);
 			}
 			
-			const { sheetName, metadata } = sheetInfo;
-			if (!sheetName || !metadata) {
+			const { sheetName, sheetId: actualSheetId, metadata } = sheetInfo;
+			if (!sheetName || !actualSheetId || !metadata) {
 				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
 			}
 			
@@ -863,7 +875,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// シートを更新
 			const updateResult = await updateGoogleSheet(
-				sheetId,
+				actualSheetId.toString(),
 				sheetName,
 				updateData,
 				metadata,
@@ -887,7 +899,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				success: true as true,
 				data: {
 					name: updateData.name || sheetName,
-					sheetId: parseInt(sheetId),
+					sheetId: actualSheetId,
 					public_read: finalMetadata.public_read,
 					public_write: finalMetadata.public_write,
 					role_read: finalMetadata.role_read,
@@ -966,8 +978,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: sheetInfo.error }, 500);
 			}
 			
-			const { sheetName, metadata } = sheetInfo;
-			if (!sheetName || !metadata) {
+			const { sheetName, sheetId: actualSheetId, metadata } = sheetInfo;
+			if (!sheetName || !actualSheetId || !metadata) {
 				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
 			}
 			
@@ -987,7 +999,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// シートを削除
 			const deleteResult = await deleteGoogleSheet(
-				sheetId,
+				actualSheetId.toString(),
 				spreadsheetId,
 				tokens.access_token
 			);
@@ -1018,7 +1030,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	app.openapi(getSheetMetadataRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
-			const { id: sheetId } = c.req.valid('param');
+			const { id: sheetIdOrName } = c.req.valid('param');
 			
 			// オプション認証の実装
 			const authHeader = c.req.header('authorization');
@@ -1068,8 +1080,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// シート情報を取得
-			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
+			// シート情報を取得（IDまたは名前で検索）
+			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
 			if (sheetInfo.error) {
 				if (sheetInfo.error === 'Sheet not found') {
 					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
@@ -1077,8 +1089,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: sheetInfo.error }, 500);
 			}
 			
-			const { sheetName, columns, metadata } = sheetInfo;
-			if (!sheetName || !columns || !metadata) {
+			const { sheetName, sheetId, columns, metadata } = sheetInfo;
+			if (!sheetName || !sheetId || !columns || !metadata) {
 				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
 			}
 			
@@ -1098,13 +1110,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				required: ['id', 'created_at', 'updated_at'].includes(name) // デフォルトで必須フィールドを設定
 			}));
 			
-			console.log('Sheet metadata retrieved successfully:', sheetId, sheetName);
+			console.log('Sheet metadata retrieved successfully:', sheetIdOrName, sheetName, sheetId);
 			
 			// 成功レスポンスを返す
 			return c.json({
 				success: true as true,
 				data: {
-					sheetId: parseInt(sheetId),
+					sheetId: sheetId,
 					name: sheetName,
 					columns: formattedColumns,
 					public_read: metadata.public_read,

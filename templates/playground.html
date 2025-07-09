@@ -292,12 +292,12 @@
             <h3>Get Sheet Metadata</h3>
             <div class="inline-form">
                 <div class="form-group">
-                    <label for="getSheetId">Sheet ID (Sheet Name):</label>
+                    <label for="getSheetId">Sheet ID or Sheet Name:</label>
                     <input type="text" id="getSheetId" placeholder="e.g., 12345 or UserData">
                 </div>
                 <button onclick="getSheetMetadata()" class="success">Get Sheet Metadata</button>
             </div>
-            <p><small>💡 This endpoint works without authentication for public sheets (public_read=true)</small></p>
+            <p><small>💡 This endpoint works without authentication for public sheets (public_read=true). You can use either numeric sheet ID or sheet name.</small></p>
             
             <h3>Create Sheet</h3>
             <div class="row">

@@ -801,7 +801,7 @@ export const getSheetMetadataRoute = createRoute({
   method: 'get',
   path: '/api/sheets/{id}',
   summary: 'Get sheet metadata',
-  description: 'Returns sheet metadata including column definitions from row 2. If authenticated, checks read permissions. If not authenticated, only returns data for public_read=true sheets.',
+  description: 'Returns sheet metadata including column definitions from row 2. Accepts either numeric sheet ID or sheet name. If authenticated, checks read permissions. If not authenticated, only returns data for public_read=true sheets.',
   tags: ['Sheets'],
   request: {
     params: SheetIdParamSchema,
