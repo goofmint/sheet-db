@@ -410,6 +410,41 @@
                 <button onclick="deleteSheet()" class="danger">Delete Sheet</button>
             </div>
 
+            <h3>Add Columns to Sheet</h3>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="addColumnsSheetId">Sheet ID or Name:</label>
+                        <input type="text" id="addColumnsSheetId" placeholder="e.g., 12345 or UserData">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="array-input">
+                <label>Column Definitions (JSON format):</label>
+                <div class="form-group">
+                    <label for="addColumnsData">Columns JSON:</label>
+                    <textarea id="addColumnsData" placeholder='{
+  "name": {
+    "type": "string",
+    "unique": true
+  },
+  "age": {
+    "type": "number",
+    "default": 0,
+    "max": 150
+  },
+  "email": {
+    "type": "string",
+    "pattern": "^[^@]+@[^@]+\\.[^@]+$"
+  }
+}' style="height: 150px;"></textarea>
+                </div>
+                <p><small>💡 Supported properties: type (required), unique, pattern, minLength, maxLength, min, max, default</small></p>
+                <p><small>💡 Available types: string, number, datetime, boolean, pointer, array, object</small></p>
+            </div>
+            <button onclick="addColumns()" class="success">Add Columns</button>
+
             <div id="sheetsResult" class="result" style="display: none;"></div>
         </div>
     </div>
@@ -785,6 +820,46 @@
                 // Clear form on success
                 if (data.success) {
                     document.getElementById('deleteSheetId').value = '';
+                }
+            } catch (error) {
+                showResult('sheetsResult', { error: error.message }, true);
+            }
+        }
+
+        async function addColumns() {
+            try {
+                const headers = getAuthHeaders();
+                const sheetId = document.getElementById('addColumnsSheetId').value.trim();
+                const columnsData = document.getElementById('addColumnsData').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('Sheet ID is required');
+                }
+                
+                if (!columnsData) {
+                    throw new Error('Columns JSON is required');
+                }
+
+                let body;
+                try {
+                    body = JSON.parse(columnsData);
+                } catch (parseError) {
+                    throw new Error('Invalid JSON format for columns data');
+                }
+
+                const response = await fetch(`/api/sheets/${encodeURIComponent(sheetId)}/columns`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+                
+                showResult('sheetsResult', data, !data.success);
+                
+                // Clear form on success
+                if (data.success) {
+                    document.getElementById('addColumnsSheetId').value = '';
+                    document.getElementById('addColumnsData').value = '';
                 }
             } catch (error) {
                 showResult('sheetsResult', { error: error.message }, true);

@@ -9,7 +9,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute } from '../api-routes';
+import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -547,6 +547,113 @@ async function updateGoogleSheet(
 	} catch (error) {
 		console.error('Error updating Google sheet:', error);
 		return { success: false, error: 'Failed to update sheet' };
+	}
+}
+
+// シートに列を追加するヘルパー関数
+async function addColumnsToGoogleSheet(
+	sheetId: string,
+	sheetName: string,
+	newColumns: Record<string, any>,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ success: boolean; addedColumns?: Array<{ name: string; type: string; [key: string]: any }>; error?: string }> {
+	try {
+		// 現在のシートの列情報を取得
+		const headersResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:ZZ2`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		if (!headersResponse.ok) {
+			return { success: false, error: 'Failed to fetch current sheet structure' };
+		}
+
+		const headersData = await headersResponse.json() as any;
+		const rows = headersData.values || [];
+		
+		if (rows.length < 2) {
+			return { success: false, error: 'Invalid sheet structure - missing header or type rows' };
+		}
+
+		const currentHeaders = rows[0] || [];
+		const currentTypes = rows[1] || [];
+
+		// 既存の列名をチェック
+		const existingColumns = new Set(currentHeaders.filter(h => h && h.trim()));
+		const newColumnNames = Object.keys(newColumns);
+		
+		// 重複チェック
+		const duplicateColumns = newColumnNames.filter(name => existingColumns.has(name));
+		if (duplicateColumns.length > 0) {
+			return { success: false, error: `Column(s) already exist: ${duplicateColumns.join(', ')}` };
+		}
+
+		// 新しい列のヘッダーと型を準備
+		const newHeaders = [...currentHeaders, ...newColumnNames];
+		const newTypes = [...currentTypes, ...newColumnNames.map(name => newColumns[name].type)];
+
+		// ヘッダー行を更新
+		const headerUpdateResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:${String.fromCharCode(64 + newHeaders.length)}1?valueInputOption=RAW`,
+			{
+				method: 'PUT',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					values: [newHeaders]
+				})
+			}
+		);
+
+		if (!headerUpdateResponse.ok) {
+			const errorText = await headerUpdateResponse.text();
+			console.error('Failed to update headers:', headerUpdateResponse.status, errorText);
+			return { success: false, error: `Failed to update headers: ${headerUpdateResponse.status}` };
+		}
+
+		// 型行を更新
+		const typeUpdateResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2:${String.fromCharCode(64 + newTypes.length)}2?valueInputOption=RAW`,
+			{
+				method: 'PUT',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					values: [newTypes]
+				})
+			}
+		);
+
+		if (!typeUpdateResponse.ok) {
+			const errorText = await typeUpdateResponse.text();
+			console.error('Failed to update types:', typeUpdateResponse.status, errorText);
+			return { success: false, error: `Failed to update types: ${typeUpdateResponse.status}` };
+		}
+
+		// 追加された列の情報を準備
+		const addedColumns = newColumnNames.map(name => ({
+			name,
+			type: newColumns[name].type,
+			...Object.fromEntries(
+				Object.entries(newColumns[name]).filter(([key, value]) => key !== 'type' && value !== undefined)
+			)
+		}));
+
+		console.log('Columns added successfully:', newColumnNames);
+		return { success: true, addedColumns };
+	} catch (error) {
+		console.error('Error adding columns to Google sheet:', error);
+		return { success: false, error: 'Failed to add columns to sheet' };
 	}
 }
 
@@ -1133,6 +1240,129 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in GET /api/sheets/:id:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// POST /api/sheets/:id/columns - シートに列を追加 (OpenAPI)
+	app.openapi(addColumnsRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// 認証ヘッダーからセッションIDを取得
+			const authHeader = c.req.valid('header').authorization;
+			const sessionId = authHeader.replace('Bearer ', '');
+			
+			// セッション認証
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+			}
+			
+			const userId = authResult.userId;
+			if (!userId) {
+				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+			}
+			
+			const { id: sheetId } = c.req.valid('param');
+			const newColumns = c.req.valid('json');
+			
+			// Google Sheetsの設定を取得
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// 有効なGoogleトークンを取得
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// ユーザー情報を取得（権限チェック用）
+			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+			if (!user) {
+				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+			}
+			
+			// シート情報を取得
+			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { sheetName, sheetId: actualSheetId, metadata } = sheetInfo;
+			if (!sheetName || !actualSheetId || !metadata) {
+				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+			}
+			
+			// シート更新権限をチェック（列追加は更新権限が必要）
+			const permissionCheck = await checkSheetUpdatePermission(
+				userId,
+				user.roles || [],
+				metadata
+			);
+			
+			if (!permissionCheck.allowed) {
+				return c.json({ 
+					success: false as false, 
+					error: permissionCheck.error || 'Permission denied' 
+				}, 403);
+			}
+			
+			// 列をシートに追加
+			const addResult = await addColumnsToGoogleSheet(
+				actualSheetId.toString(),
+				sheetName,
+				newColumns,
+				spreadsheetId,
+				tokens.access_token
+			);
+			
+			if (!addResult.success) {
+				if (addResult.error?.includes('already exist')) {
+					return c.json({ 
+						success: false as false, 
+						error: addResult.error 
+					}, 400);
+				}
+				return c.json({ 
+					success: false as false, 
+					error: addResult.error || 'Failed to add columns' 
+				}, 500);
+			}
+			
+			console.log('Columns added successfully to sheet:', sheetId, sheetName);
+			
+			// 成功レスポンスを返す
+			return c.json({
+				success: true as true,
+				data: {
+					sheetId: actualSheetId,
+					name: sheetName,
+					addedColumns: addResult.addedColumns || [],
+					message: `Successfully added ${addResult.addedColumns?.length || 0} column(s) to sheet '${sheetName}'`
+				}
+			});
+			
+		} catch (error) {
+			console.error('Error in POST /api/sheets/:id/columns:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}
