@@ -31,7 +31,8 @@ import {
   UpdateSheetResponseSchema,
   SheetIdParamSchema,
   DeleteSheetResponseSchema,
-  GetSheetsResponseSchema
+  GetSheetsResponseSchema,
+  GetSheetMetadataResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -775,6 +776,60 @@ export const deleteSheetRoute = createRoute({
         },
       },
       description: 'Permission denied - no write access to this sheet',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// GET /api/sheets/:id - Get sheet metadata
+export const getSheetMetadataRoute = createRoute({
+  method: 'get',
+  path: '/api/sheets/{id}',
+  summary: 'Get sheet metadata',
+  description: 'Returns sheet metadata including column definitions from row 2. If authenticated, checks read permissions. If not authenticated, only returns data for public_read=true sheets.',
+  tags: ['Sheets'],
+  request: {
+    params: SheetIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: GetSheetMetadataResponseSchema,
+        },
+      },
+      description: 'Sheet metadata retrieved successfully',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no read access to this sheet',
     },
     404: {
       content: {

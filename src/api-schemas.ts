@@ -276,3 +276,25 @@ export const GetSheetsResponseSchema = z.object({
 		sheets: z.array(SheetListItemSchema)
 	})
 });
+
+// Sheet metadata schema
+export const SheetColumnSchema = z.object({
+	name: z.string(),
+	type: ColumnTypeEnum,
+	required: z.boolean().default(false)
+});
+
+export const GetSheetMetadataResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		sheetId: z.number(),
+		name: z.string(),
+		columns: z.array(SheetColumnSchema),
+		public_read: z.boolean(),
+		public_write: z.boolean(),
+		role_read: z.array(z.string()),
+		role_write: z.array(z.string()),
+		user_read: z.array(z.string()),
+		user_write: z.array(z.string())
+	})
+});
