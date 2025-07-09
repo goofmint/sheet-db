@@ -1,122 +1,122 @@
-# Google Cloud Console セットアップガイド
+# Google Cloud Console Setup Guide
 
-Sheet DBでGoogleスプレッドシートを使用するために必要なGoogle Cloud Consoleの設定手順です。
+Setup instructions for Google Cloud Console required to use Google Sheets with Sheet DB.
 
-## 1. Google Cloud Console プロジェクトのセットアップ
+## 1. Google Cloud Console Project Setup
 
-### 1.1 プロジェクトの作成
-1. [Google Cloud Console](https://console.cloud.google.com/) にアクセス
-2. 新しいプロジェクトを作成または既存プロジェクトを選択
+### 1.1 Project Creation
+1. Access [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing project
 
-### 1.2 必要なAPIの有効化
-以下のAPIを有効にしてください：
+### 1.2 Enable Required APIs
+Enable the following APIs:
 
 - **Google Sheets API**
-  - スプレッドシートの読み書きに必要
+  - Required for reading and writing spreadsheets
   - URL: `https://console.cloud.google.com/apis/library/sheets.googleapis.com`
 
 - **Google Drive API**
-  - ファイルリストの取得、スプレッドシートへのアクセス権限確認に必要
+  - Required for getting file lists and checking spreadsheet access permissions
   - URL: `https://console.cloud.google.com/apis/library/drive.googleapis.com`
 
-## 2. OAuth 2.0 認証情報の設定
+## 2. OAuth 2.0 Credentials Setup
 
-### 2.1 OAuth同意画面の設定
-1. `APIs & Services` → `OAuth consent screen`
-2. **User Type**: External（一般ユーザー向け）または Internal（組織内のみ）
-3. 必要な情報を入力：
-   - アプリ名
-   - ユーザーサポートメール
-   - デベロッパーの連絡先情報
+### 2.1 OAuth Consent Screen Configuration
+1. Go to `APIs & Services` → `OAuth consent screen`
+2. **User Type**: External (for general users) or Internal (organization only)
+3. Fill in required information:
+   - App name
+   - User support email
+   - Developer contact information
 
-### 2.2 OAuth クライアントIDの作成
-1. `APIs & Services` → `Credentials`
+### 2.2 Create OAuth Client ID
+1. Go to `APIs & Services` → `Credentials`
 2. `Create Credentials` → `OAuth 2.0 Client IDs`
 3. **Application type**: Web application
-4. **Authorized redirect URIs** に以下を追加：
+4. Add the following to **Authorized redirect URIs**:
    ```
    https://your-domain.com/auth/callback
    ```
-   - 開発環境の場合: `http://localhost:8787/auth/callback`
-   - 本番環境の場合: 実際のドメインを使用
+   - For development: `http://localhost:8787/auth/callback`
+   - For production: Use your actual domain
 
-## 3. 権限スコープ
+## 3. Permission Scopes
 
-Sheet DBが要求するGoogleのスコープ：
+Google scopes required by Sheet DB:
 
 - `https://www.googleapis.com/auth/spreadsheets`
-  - Googleスプレッドシートの読み書き権限
+  - Read and write permissions for Google Sheets
 - `https://www.googleapis.com/auth/drive.readonly`
-  - Google Driveのファイル一覧取得（読み取り専用）
+  - Google Drive file list access (read-only)
 
-## 4. 環境変数の設定
+## 4. Environment Variables Setup
 
-### 4.1 Cloudflare Workersでの設定
+### 4.1 Cloudflare Workers Configuration
 
-#### 本番環境（Secretsとして設定）
+#### Production Environment (Set as Secrets)
 ```bash
-# Client IDを設定
+# Set Client ID
 npx wrangler secret put GOOGLE_CLIENT_ID
 
-# Client Secretを設定  
+# Set Client Secret  
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 ```
 
-#### 開発環境（.dev.varsファイル）
-プロジェクトルートに `.dev.vars` ファイルを作成：
+#### Development Environment (.dev.vars file)
+Create a `.dev.vars` file in the project root:
 
 ```env
 GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 ```
 
-### 4.2 wrangler.jsonc での環境変数参照
+### 4.2 Environment Variable Reference in wrangler.jsonc
 ```jsonc
 {
   "name": "sheet-db",
   "main": "src/index.ts", 
-  // 他の設定...
+  // Other configurations...
   "vars": {
-    // 必要に応じて非機密の環境変数を設定
+    // Set non-sensitive environment variables as needed
   }
 }
 ```
 
-## 5. セキュリティ考慮事項
+## 5. Security Considerations
 
-### 5.1 CSRF対策
-- OAuth流れでstateパラメータを使用してCSRF攻撃を防ぐ
-- stateは一意の値を生成し、セッションで管理
+### 5.1 CSRF Protection
+- Use state parameter in OAuth flow to prevent CSRF attacks
+- Generate unique state values and manage them in sessions
 
-### 5.2 リダイレクトURI検証
-- 認証後のリダイレクト先が正当なものか検証
-- 承認済みリダイレクトURIのみを使用
+### 5.2 Redirect URI Validation
+- Verify that post-authentication redirect destinations are legitimate
+- Use only authorized redirect URIs
 
-### 5.3 アクセストークンの管理
-- アクセストークンは適切に暗号化して保存
-- 必要以上に長期間保持しない
-- リフレッシュトークンを使用して定期的に更新
+### 5.3 Access Token Management
+- Store access tokens with proper encryption
+- Don't retain tokens longer than necessary
+- Use refresh tokens for periodic updates
 
-## 6. トラブルシューティング
+## 6. Troubleshooting
 
-### よくあるエラー
+### Common Errors
 
 1. **`redirect_uri_mismatch`**
-   - Google Cloud ConsoleのOAuth設定でリダイレクトURIが正しく設定されていない
+   - Redirect URI not properly configured in Google Cloud Console OAuth settings
 
 2. **`invalid_client`**
-   - Client IDまたはClient Secretが間違っている
+   - Client ID or Client Secret is incorrect
 
 3. **`access_denied`**
-   - ユーザーが権限を拒否した
-   - スコープが正しく設定されていない可能性
+   - User denied permissions
+   - Scopes may not be configured correctly
 
-### デバッグ方法
-- Google Cloud Consoleの「APIs & Services」→「Credentials」で設定を確認
-- ブラウザの開発者ツールでネットワークタブを確認
-- Cloudflare Workersのログを確認
+### Debugging Methods
+- Check settings in Google Cloud Console "APIs & Services" → "Credentials"
+- Check network tab in browser developer tools
+- Check Cloudflare Workers logs
 
-## 7. 参考リンク
+## 7. Reference Links
 
 - [Google Sheets API Documentation](https://developers.google.com/sheets/api)
 - [Google Drive API Documentation](https://developers.google.com/drive/api)

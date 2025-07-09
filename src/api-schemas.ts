@@ -249,3 +249,9 @@ export const UpdateSheetResponseSchema = z.object({
 export const SheetIdParamSchema = z.object({
 	id: z.string().min(1, "Sheet ID is required")
 });
+
+// Sheet delete schema
+export const DeleteSheetResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({})
+});

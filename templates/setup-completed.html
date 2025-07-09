@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Already Completed - Sheet DB</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        p {
+            line-height: 1.6;
+            color: #555;
+        }
+        ol {
+            line-height: 1.6;
+            color: #555;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .reset-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="password"] {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .reset-btn {
+            background-color: #ea4335;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 20px;
+        }
+        .reset-btn:hover {
+            background-color: #d33b2c;
+        }
+        .back-link {
+            color: #1a73e8;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        ul {
+            line-height: 1.8;
+            color: #555;
+        }
+        ul li a {
+            color: #1a73e8;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        ul li a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ Setup is already completed</h1>
+        <p>The setup for this application has already been completed.</p>
+        
+        <p><strong>You can:</strong></p>
+        <ul>
+            <li>Visit the <a href="/playground">API Playground</a> to test the API</li>
+            <li>Check the <a href="/doc">API Documentation</a> for available endpoints</li>
+            <li>Start using the API with your Auth0 credentials</li>
+        </ul>
+        
+        <p><strong>Need to reconfigure?</strong></p>
+        <p>Use the reset form below with your reset token:</p>
+        
+        <div class="reset-section">
+            <div class="form-group">
+                <label for="reset-token-input">Reset Token:</label>
+                <input type="password" id="reset-token-input" placeholder="Enter the reset token set during setup">
+            </div>
+            <button onclick="resetSetup()" class="reset-btn">
+                ⚠️ Reset Setup
+            </button>
+            <a href="/" class="back-link">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        function resetSetup() {
+            const token = document.getElementById('reset-token-input').value;
+            if (!token) {
+                alert('Please enter a reset token.');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to reset the setup?\\n\\nAll current settings will be deleted and setup will need to be performed from the beginning.')) {
+                fetch('/api/reset-setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Setup has been reset. Reloading the page.');
+                        window.location.reload();
+                    } else {
+                        alert('Reset failed: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert('An error occurred: ' + error.message);
+                });
+            }
+        }
+    </script>
+</body>
+</html>

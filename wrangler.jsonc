@@ -19,7 +19,7 @@
 			"database_name": "sheet-db",
 			"database_id": "250f9762-08d9-4d28-9739-30e8b0076921"
 		}
-	]
+	],
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -44,7 +44,7 @@
 	 * Static Assets
 	 * https://developers.cloudflare.com/workers/static-assets/binding/
 	 */
-	// "assets": { "directory": "./public/", "binding": "ASSETS" },
+	"assets": { "directory": "./templates/", "binding": "ASSETS" },
 	/**
 	 * Service Bindings (communicate between multiple Workers)
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings

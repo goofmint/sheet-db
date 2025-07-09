@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sheet DB Setup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"], input[type="url"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .google-sheets-btn {
+            background-color: #4285f4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .google-sheets-btn:hover {
+            background-color: #3367d6;
+        }
+        .save-btn {
+            background-color: #34a853;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .save-btn:hover {
+            background-color: #2d8f47;
+        }
+        .info {
+            background-color: #e8f0fe;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .selected-sheet {
+            background-color: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success-info {
+            background-color: #e8f5e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #34a853;
+        }
+        .readonly-field {
+            background-color: #f8f9fa;
+            border: 1px solid #e1e1e1;
+        }
+        .hidden {
+            display: none;
+        }
+        .reset-btn {
+            background-color: #ea4335;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .reset-btn:hover {
+            background-color: #d33b2c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sheet DB Setup</h1>
+        
+        <div class="section">
+            <h2>1. Google Cloud Console Setup</h2>
+            <div class="info">
+                <p>First, set up the required APIs and OAuth configuration in Google Cloud Console.</p>
+            </div>
+            
+            <h3>📋 Google Cloud Setup Steps</h3>
+            <ol style="margin-left: 20px; line-height: 1.6;">
+                <li>Access <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+                <li>Create a new project or select an existing project</li>
+                <li><strong>APIs to enable:</strong>
+                    <ul style="margin: 10px 0;">
+                        <li>✅ Google Sheets API</li>
+                        <li>✅ Google Drive API</li>
+                    </ul>
+                </li>
+                <li><strong>Create credentials:</strong>
+                    <ul style="margin: 10px 0;">
+                        <li>"Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"</li>
+                        <li>Application type: <strong>Web application</strong></li>
+                        <li>Authorized redirect URIs: <code>https://your-domain.com/auth/callback</code></li>
+                    </ul>
+                </li>
+            </ol>
+            
+            <h3>🔧 Credential Configuration</h3>
+            
+            <div id="credentials-success" class="success-info hidden">
+                <p><strong>✅ Credentials are already configured</strong></p>
+                <p>Google OAuth credentials are already saved in the database.</p>
+            </div>
+            
+            <div id="credentials-form">
+                <div class="form-group">
+                    <label for="google-client-id">Google OAuth Client ID:</label>
+                    <input type="text" id="google-client-id" placeholder="Your Google OAuth Client ID">
+                    <button type="button" id="reset-client-id" class="reset-btn hidden">Change</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="google-client-secret">Google OAuth Client Secret:</label>
+                    <input type="text" id="google-client-secret" placeholder="Your Google OAuth Client Secret">
+                    <button type="button" id="reset-client-secret" class="reset-btn hidden">Change</button>
+                </div>
+                
+                <div class="info">
+                    <p><strong>💡 Important:</strong> These credentials will be saved to the database after input. Environment variable configuration is not required.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>2. Google Spreadsheet Connection</h2>
+            
+            <div id="auth-success" class="success-info hidden">
+                <p><strong>✅ Google authentication completed</strong></p>
+                <p>Connection with Google account is already complete and spreadsheets are accessible.</p>
+            </div>
+            
+            <div id="connection-section">
+                <div class="info">
+                    <p>After Google Cloud setup is complete, connect to your spreadsheet.</p>
+                </div>
+                
+                <button class="google-sheets-btn" onclick="connectToGoogle()">
+                    🔗 Connect to Google Account
+                </button>
+            </div>
+            
+            <div id="spreadsheet-selection-section" class="hidden">
+                <div class="info">
+                    <p>Google authentication completed. Please select the spreadsheet to use.</p>
+                </div>
+                
+                <a href="/setup/connect" class="google-sheets-btn" style="display: inline-block; text-decoration: none;">
+                    📊 Select Spreadsheet
+                </a>
+            </div>
+            
+            <div id="selected-sheet" class="selected-sheet" style="display: none;">
+                <p><strong>✅ Selected Spreadsheet:</strong></p>
+                <p id="sheet-name"></p>
+                <p><strong>URL:</strong> <a id="sheet-url" href="#" target="_blank"></a></p>
+                <a href="/setup/connect" style="color: #1a73e8; text-decoration: none; font-size: 14px;">
+                    📝 Change Spreadsheet
+                </a>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>3. Sheet Initialization</h2>
+            
+            <div id="sheets-not-ready" class="info">
+                <p>After selecting a spreadsheet, initialize the basic sheets.</p>
+                <p>The following sheets will be created and configured:</p>
+                <ul style="margin: 10px 0 10px 20px;">
+                    <li><code>_User</code> - User information management</li>
+                    <li><code>_Session</code> - Session management</li>
+                    <li><code>_Config</code> - Configuration management</li>
+                    <li><code>_Role</code> - Role management</li>
+                </ul>
+            </div>
+            
+            <div id="sheets-ready" class="success-info hidden">
+                <p><strong>✅ Sheet initialization completed</strong></p>
+                <p>All basic sheets have been properly configured.</p>
+                <div style="margin-top: 15px;">
+                    <button id="force-reinitialize-btn" class="reset-btn" onclick="forceReinitializeSheets()" style="background-color: #ea4335; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                        🔄 Force Re-initialize Sheets
+                    </button>
+                    <span style="font-size: 12px; color: #666; margin-left: 10px;">
+                        Use this if sheets were deleted from the spreadsheet
+                    </span>
+                </div>
+            </div>
+            
+            <div id="sheets-setup-section" class="hidden">
+                <button id="setup-sheets-btn" class="google-sheets-btn" onclick="setupSheets()">
+                    🔧 Initialize Sheets
+                </button>
+                
+                <div id="setup-progress" class="hidden" style="margin-top: 20px;">
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; border-left: 4px solid #1a73e8;">
+                        <h4 style="margin: 0 0 10px 0;">📋 Initializing sheets...</h4>
+                        <div id="progress-bar-container" style="background-color: #e1e1e1; height: 20px; border-radius: 10px; overflow: hidden; margin: 10px 0;">
+                            <div id="progress-bar" style="background-color: #1a73e8; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                        <div id="progress-text" style="font-size: 14px; color: #666;">Starting initialization...</div>
+                        <div id="progress-details" style="font-size: 12px; color: #999; margin-top: 5px;">
+                            Completed: <span id="completed-sheets">0</span> / <span id="total-sheets">4</span> sheets
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="setup-error" class="hidden" style="margin-top: 20px;">
+                    <div style="background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; border-left: 4px solid #dc3545;">
+                        <h4 style="margin: 0 0 10px 0;">❌ An error occurred</h4>
+                        <div id="error-message"></div>
+                        <div style="margin-top: 10px;">
+                            <button onclick="setupSheets()" style="background-color: #dc3545; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                                🔄 Retry
+                            </button>
+                            <button onclick="resetSheetSetup()" style="background-color: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                                🔧 Reset
+                            </button>
+                            <button onclick="markSheetsComplete()" style="background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">
+                                ✅ Mark as Complete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>4. Auth0 Authentication Settings</h2>
+            
+            <div id="auth0-success" class="success-info hidden">
+                <p><strong>✅ Auth0 configuration completed</strong></p>
+                <p>Auth0 authentication information is already saved in the database.</p>
+            </div>
+            
+            <div id="auth0-form">
+                <div class="info">
+                    <p>Please configure your Auth0 account authentication information.</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="auth0-domain">Auth0 Domain:</label>
+                    <input type="text" id="auth0-domain" placeholder="your-tenant.auth0.com">
+                    <button type="button" id="reset-auth0-domain" class="reset-btn hidden">Change</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="auth0-client-id">Client ID:</label>
+                    <input type="text" id="auth0-client-id" placeholder="Your Auth0 Client ID">
+                    <button type="button" id="reset-auth0-client-id" class="reset-btn hidden">Change</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="auth0-client-secret">Client Secret:</label>
+                    <input type="text" id="auth0-client-secret" placeholder="Your Auth0 Client Secret">
+                    <button type="button" id="reset-auth0-client-secret" class="reset-btn hidden">Change</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="auth0-audience">Audience (Optional):</label>
+                    <input type="text" id="auth0-audience" placeholder="API Identifier">
+                    <button type="button" id="reset-auth0-audience" class="reset-btn hidden">Change</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>5. 🔒 Security Settings</h2>
+            <div class="info">
+                <p>Set the token required to reset the setup.</p>
+                <p><strong>⚠️ Important:</strong> Please store this token in a secure location. If lost, you will not be able to reset the configuration.</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="reset-token">Reset Token:</label>
+                <input type="text" id="reset-token" placeholder="Enter a secure token">
+                <button type="button" id="generate-token-btn" class="reset-btn" style="background-color: #1a73e8; margin-left: 10px;">
+                    🎲 Generate Random
+                </button>
+            </div>
+            
+            <div class="info" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                <p><strong>💡 Recommended:</strong> Use a token with at least 32 characters combining alphanumeric characters and symbols.</p>
+                <p>Example: <code>A7k9$mP2@vX8#qR5!nL3&jH6*wE4</code></p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>6. 🔐 Auth0 Authentication Test</h2>
+            
+            <div id="auth0-test-not-ready" class="info">
+                <p>After completing Auth0 configuration and spreadsheet settings, you can test authentication.</p>
+            </div>
+            
+            <div id="auth0-test-ready" class="success-info hidden">
+                <p><strong>✅ Ready for authentication test</strong></p>
+                <p>You can test Auth0 authentication and verify that user information is correctly saved to the _User sheet.</p>
+                <div style="margin-top: 15px;">
+                    <a href="/api/auth" class="google-sheets-btn" style="text-decoration: none; display: inline-block;">
+                        🔐 Test Auth0 Authentication
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <button class="save-btn" onclick="saveConfiguration()">
+            💾 Save Configuration
+        </button>
+    </div>
+
+    <script>
+        let selectedSheet = null;
+        let googleCredentials = null;
+        
+        // Apply configuration status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const config = window.setupConfig || {};
+            
+            // If credentials are already set
+            if (config.hasCredentials) {
+                // Show success message
+                document.getElementById('credentials-success').classList.remove('hidden');
+                
+                // Make fields readonly and mask display
+                const clientIdField = document.getElementById('google-client-id');
+                const clientSecretField = document.getElementById('google-client-secret');
+                
+                clientIdField.value = config.clientId ? maskClientId(config.clientId) : '';
+                clientIdField.readOnly = true;
+                clientIdField.classList.add('readonly-field');
+                
+                clientSecretField.value = '••••••••••••••••••••••••••••••••';
+                clientSecretField.readOnly = true;
+                clientSecretField.classList.add('readonly-field');
+                
+                // Show change buttons
+                document.getElementById('reset-client-id').classList.remove('hidden');
+                document.getElementById('reset-client-secret').classList.remove('hidden');
+                
+                // Set credentials
+                googleCredentials = { 
+                    clientId: config.clientId, 
+                    clientSecret: '[SAVED]' 
+                };
+            }
+            
+            // If Google authentication is completed
+            if (config.authCompleted) {
+                document.getElementById('auth-success').classList.remove('hidden');
+                document.getElementById('connection-section').style.display = 'none';
+                
+                // If spreadsheet is already selected
+                if (config.hasSpreadsheet) {
+                    document.getElementById('selected-sheet').style.display = 'block';
+                    const sheetNameElement = document.getElementById('sheet-name');
+                    sheetNameElement.textContent = config.spreadsheetName;
+                    sheetNameElement.dataset.spreadsheetId = config.spreadsheetId;
+                    const sheetUrlLink = document.getElementById('sheet-url');
+                    sheetUrlLink.textContent = config.spreadsheetUrl;
+                    sheetUrlLink.href = config.spreadsheetUrl;
+                    
+                    // Show sheet initialization section
+                    if (config.sheetsInitialized) {
+                        document.getElementById('sheets-ready').classList.remove('hidden');
+                        document.getElementById('sheets-not-ready').style.display = 'none';
+                    } else {
+                        document.getElementById('sheets-setup-section').classList.remove('hidden');
+                        document.getElementById('sheets-not-ready').style.display = 'none';
+                    }
+                } else {
+                    // Show spreadsheet selection section
+                    document.getElementById('spreadsheet-selection-section').classList.remove('hidden');
+                }
+            }
+            
+            // If Auth0 configuration already exists
+            if (config.hasAuth0Config) {
+                // Show success message
+                document.getElementById('auth0-success').classList.remove('hidden');
+                
+                // Set existing values to Auth0 fields
+                document.getElementById('auth0-domain').value = config.auth0Domain;
+                document.getElementById('auth0-client-id').value = maskClientId(config.auth0ClientId);
+                document.getElementById('auth0-client-secret').value = '••••••••••••••••••••••••••••••••';
+                if (config.auth0Audience) {
+                    document.getElementById('auth0-audience').value = config.auth0Audience;
+                }
+                
+                // Make Auth0 fields readonly
+                document.getElementById('auth0-domain').readOnly = true;
+                document.getElementById('auth0-domain').classList.add('readonly-field');
+                document.getElementById('auth0-client-id').readOnly = true;
+                document.getElementById('auth0-client-id').classList.add('readonly-field');
+                document.getElementById('auth0-client-secret').readOnly = true;
+                document.getElementById('auth0-client-secret').classList.add('readonly-field');
+                document.getElementById('auth0-audience').readOnly = true;
+                document.getElementById('auth0-audience').classList.add('readonly-field');
+                
+                // Show change buttons
+                document.getElementById('reset-auth0-domain').classList.remove('hidden');
+                document.getElementById('reset-auth0-client-id').classList.remove('hidden');
+                document.getElementById('reset-auth0-client-secret').classList.remove('hidden');
+                document.getElementById('reset-auth0-audience').classList.remove('hidden');
+            }
+            
+            // If reset token is already set
+            if (config.resetToken) {
+                document.getElementById('reset-token').value = '••••••••••••••••••••••••••••••••';
+                document.getElementById('reset-token').readOnly = true;
+                document.getElementById('reset-token').classList.add('readonly-field');
+            }
+            
+            // If connected=true parameter exists (after authentication completion)
+            if (config.connected) {
+                // Show additional success message
+                showSuccessMessage('🎉 Google authentication completed successfully!');
+            }
+            
+            // If spreadsheet=selected parameter exists (after spreadsheet selection)
+            if (config.spreadsheetSelected) {
+                // Show additional success message
+                showSuccessMessage('📊 Spreadsheet selected successfully!');
+            }
+        });
+        
+        // Function to mask Client ID display
+        function maskClientId(clientId) {
+            if (clientId.length <= 8) return clientId;
+            return clientId.substring(0, 4) + '••••••••••••••••••••••' + clientId.substring(clientId.length - 4);
+        }
+        
+        // Function to show success message
+        function showSuccessMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'success-info';
+            messageDiv.innerHTML = '<p><strong>' + message + '</strong></p>';
+            messageDiv.style.position = 'fixed';
+            messageDiv.style.top = '20px';
+            messageDiv.style.right = '20px';
+            messageDiv.style.zIndex = '1000';
+            messageDiv.style.maxWidth = '400px';
+            
+            document.body.appendChild(messageDiv);
+            
+            // Auto-delete after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+        
+        // Function to reset credentials
+        function resetCredentials() {
+            const clientIdField = document.getElementById('google-client-id');
+            const clientSecretField = document.getElementById('google-client-secret');
+            
+            clientIdField.value = '';
+            clientIdField.readOnly = false;
+            clientIdField.classList.remove('readonly-field');
+            
+            clientSecretField.value = '';
+            clientSecretField.readOnly = false;
+            clientSecretField.classList.remove('readonly-field');
+            
+            document.getElementById('credentials-success').classList.add('hidden');
+            document.getElementById('reset-client-id').classList.add('hidden');
+            document.getElementById('reset-client-secret').classList.add('hidden');
+            
+            googleCredentials = null;
+        }
+        
+        // Function to reset Auth0 configuration
+        function resetAuth0Config() {
+            // Reset all Auth0 fields
+            const auth0Fields = [
+                'auth0-domain',
+                'auth0-client-id', 
+                'auth0-client-secret',
+                'auth0-audience'
+            ];
+            
+            auth0Fields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                field.value = '';
+                field.readOnly = false;
+                field.classList.remove('readonly-field');
+                
+                // Hide corresponding reset button
+                const resetBtn = document.getElementById('reset-' + fieldId);
+                if (resetBtn) {
+                    resetBtn.classList.add('hidden');
+                }
+            });
+            
+            // Hide success message
+            document.getElementById('auth0-success').classList.add('hidden');
+        }
+        
+        // Token generation function
+        function generateSecureToken() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+            let token = '';
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            for (let i = 0; i < 32; i++) {
+                token += chars[array[i] % chars.length];
+            }
+            return token;
+        }
+        
+        // Event listeners for change buttons and token generation button
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('reset-client-id').addEventListener('click', resetCredentials);
+            document.getElementById('reset-client-secret').addEventListener('click', resetCredentials);
+            
+            // Auth0 reset button event listeners
+            document.getElementById('reset-auth0-domain').addEventListener('click', resetAuth0Config);
+            document.getElementById('reset-auth0-client-id').addEventListener('click', resetAuth0Config);
+            document.getElementById('reset-auth0-client-secret').addEventListener('click', resetAuth0Config);
+            document.getElementById('reset-auth0-audience').addEventListener('click', resetAuth0Config);
+            
+            document.getElementById('generate-token-btn').addEventListener('click', function() {
+                const tokenField = document.getElementById('reset-token');
+                tokenField.value = generateSecureToken();
+            });
+        });
+        
+        function connectToGoogle() {
+            let clientId, clientSecret;
+            
+            // Use existing credentials if available
+            if (googleCredentials && googleCredentials.clientId) {
+                clientId = googleCredentials.clientId;
+                clientSecret = googleCredentials.clientSecret;
+            } else {
+                // For new input
+                clientId = document.getElementById('google-client-id').value;
+                clientSecret = document.getElementById('google-client-secret').value;
+                
+                if (!clientId || !clientSecret) {
+                    alert('Please enter Google OAuth Client ID and Client Secret.');
+                    return;
+                }
+                
+                // Set Google credentials
+                googleCredentials = { clientId, clientSecret };
+            }
+            
+            // Show warning for re-authentication if existing tokens exist
+            const config = window.setupConfig || {};
+            if (config.authCompleted) {
+                if (!confirm('Reset existing Google authentication information and re-authenticate?\\n\\nNote: Currently saved access tokens will become invalid.')) {
+                    return;
+                }
+            }
+            
+            // Request OAuth URL from POST /api/setup/auth
+            fetch('/api/setup/auth', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    clientId: clientId,
+                    clientSecret: clientSecret === '[SAVED]' ? undefined : clientSecret
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.authUrl) {
+                    // Redirect to Google OAuth authorization screen
+                    window.location.href = data.authUrl;
+                } else {
+                    alert('Failed to get authentication URL: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                alert('An error occurred: ' + error.message);
+            });
+        }
+        
+        function selectGoogleSheet() {
+            // This method is executed after OAuth completion
+            // Demo dummy data
+            selectedSheet = {
+                id: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+                name: 'Sample Spreadsheet',
+                url: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit'
+            };
+            
+            document.getElementById('selected-sheet').style.display = 'block';
+            const sheetNameElement = document.getElementById('sheet-name');
+            sheetNameElement.textContent = selectedSheet.name;
+            sheetNameElement.dataset.spreadsheetId = selectedSheet.id;
+            const sheetUrlLink = document.getElementById('sheet-url');
+            sheetUrlLink.textContent = selectedSheet.url;
+            sheetUrlLink.href = selectedSheet.url;
+        }
+        
+        // Sheet setup function
+        function setupSheets() {
+            var setupButton = document.getElementById('setup-sheets-btn');
+            var progressSection = document.getElementById('setup-progress');
+            var errorSection = document.getElementById('setup-error');
+            
+            // Initialize UI
+            setupButton.disabled = true;
+            setupButton.textContent = '🔧 Initializing...';
+            progressSection.classList.remove('hidden');
+            errorSection.classList.add('hidden');
+            
+            // Reset progress
+            updateProgress({
+                currentSheet: '',
+                currentStep: 'Starting initialization...',
+                completedSheets: [],
+                totalSheets: 4,
+                progress: 0,
+                status: 'running'
+            });
+            
+            // Start sheet setup
+            fetch('/api/setup/sheets', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    // Monitor progress
+                    pollProgress(data.setupId);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            })
+            .catch(function(error) {
+                console.error('Error starting sheet setup:', error);
+                showSetupError(error.message);
+            });
+        }
+        
+        // Function to monitor progress
+        function pollProgress(setupId) {
+            var pollCount = 0;
+            var maxPolls = 300; // 5 minutes (300 seconds)
+            
+            var pollInterval = setInterval(function() {
+                pollCount++;
+                console.log('Polling progress, attempt:', pollCount);
+                
+                if (pollCount >= maxPolls) {
+                    clearInterval(pollInterval);
+                    showSetupError('Setup timed out. Please retry.');
+                    return;
+                }
+                
+                fetch('/api/setup/sheets/progress')
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    console.log('Progress data received:', data);
+                    
+                    if (data.progress) {
+                        updateProgress(data.progress);
+                        
+                        if (data.progress.status === 'completed') {
+                            clearInterval(pollInterval);
+                            onSetupCompleted();
+                        } else if (data.progress.status === 'error') {
+                            clearInterval(pollInterval);
+                            var errorMsg = data.progress.error || 'Unknown error occurred';
+                            console.error('Setup error:', errorMsg);
+                            showSetupError(errorMsg);
+                        }
+                    } else {
+                        console.warn('No progress data in response:', data);
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error polling progress:', error);
+                    // Continue on network errors (possible temporary issues)
+                    if (pollCount % 10 === 0) { // Log error every 10 seconds
+                        console.warn('Progress polling failed for 10 seconds, but continuing...');
+                    }
+                });
+            }, 1000); // Check every 1 second
+        }
+        
+        // Function to update progress
+        function updateProgress(progress) {
+            var progressBar = document.getElementById('progress-bar');
+            var progressText = document.getElementById('progress-text');
+            var completedSheets = document.getElementById('completed-sheets');
+            var totalSheets = document.getElementById('total-sheets');
+            
+            progressBar.style.width = progress.progress + '%';
+            progressText.textContent = progress.currentStep;
+            completedSheets.textContent = progress.completedSheets.length;
+            totalSheets.textContent = progress.totalSheets;
+            
+            if (progress.currentSheet) {
+                progressText.textContent = progress.currentSheet + ': ' + progress.currentStep;
+            }
+        }
+        
+        // Processing when setup is completed
+        function onSetupCompleted() {
+            var setupButton = document.getElementById('setup-sheets-btn');
+            var progressSection = document.getElementById('setup-progress');
+            
+            setupButton.disabled = false;
+            setupButton.textContent = '🔧 Initialize Sheets';
+            progressSection.classList.add('hidden');
+            
+            // Show success message
+            document.getElementById('sheets-ready').classList.remove('hidden');
+            document.getElementById('sheets-setup-section').classList.add('hidden');
+            
+            // Show success message as popup
+            showSuccessMessage('📊 Sheet initialization completed!');
+            
+            // Update configuration state
+            var config = window.setupConfig || {};
+            config.sheetsInitialized = true;
+            window.setupConfig = config;
+        }
+        
+        // Error display
+        function showSetupError(errorMessage) {
+            var setupButton = document.getElementById('setup-sheets-btn');
+            var progressSection = document.getElementById('setup-progress');
+            var errorSection = document.getElementById('setup-error');
+            var errorMessageElement = document.getElementById('error-message');
+            
+            setupButton.disabled = false;
+            setupButton.textContent = '🔧 Initialize Sheets';
+            progressSection.classList.add('hidden');
+            errorSection.classList.remove('hidden');
+            errorMessageElement.textContent = errorMessage;
+        }
+        
+        // Sheet setup reset function
+        function resetSheetSetup() {
+            if (!confirm('Reset the sheet setup status?\\n\\nOngoing processes will be stopped and you can start over from the beginning.')) {
+                return;
+            }
+            
+            fetch('/api/setup/sheets/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    // Reset UI
+                    var setupButton = document.getElementById('setup-sheets-btn');
+                    var progressSection = document.getElementById('setup-progress');
+                    var errorSection = document.getElementById('setup-error');
+                    
+                    setupButton.disabled = false;
+                    setupButton.textContent = '🔧 Initialize Sheets';
+                    progressSection.classList.add('hidden');
+                    errorSection.classList.add('hidden');
+                    
+                    showSuccessMessage('🔧 Setup status has been reset!');
+                } else {
+                    alert('Reset failed: ' + data.error);
+                }
+            })
+            .catch(function(error) {
+                console.error('Error resetting sheet setup:', error);
+                alert('Error occurred during reset: ' + error.message);
+            });
+        }
+        
+        function saveConfiguration() {
+            const config = window.setupConfig || {};
+            
+            // Check if Google authentication is completed but spreadsheet is not selected
+            if (config.authCompleted && !config.hasSpreadsheet && !selectedSheet) {
+                alert('Please select a spreadsheet. You can select one from the "📊 Select Spreadsheet" button.');
+                return;
+            }
+            
+            const configData = {};
+            
+            // Process Auth0 settings (use existing values if masked)
+            const auth0DomainField = document.getElementById('auth0-domain');
+            const auth0ClientIdField = document.getElementById('auth0-client-id');
+            const auth0ClientSecretField = document.getElementById('auth0-client-secret');
+            const auth0AudienceField = document.getElementById('auth0-audience');
+            
+            // Update Auth0 settings only if not masked and not readonly
+            if (!auth0DomainField.readOnly) {
+                configData.auth0Domain = auth0DomainField.value;
+                configData.auth0ClientId = auth0ClientIdField.value;
+                configData.auth0ClientSecret = auth0ClientSecretField.value;
+                
+                const audience = auth0AudienceField.value;
+                if (audience && audience.trim()) {
+                    configData.auth0Audience = audience;
+                }
+                
+                // Check required fields
+                if (!configData.auth0Domain || !configData.auth0ClientId || !configData.auth0ClientSecret) {
+                    alert('Please fill in all required Auth0 fields.');
+                    return;
+                }
+            }
+            
+            // Process reset token
+            const resetTokenField = document.getElementById('reset-token');
+            
+            // Check if value is masked (consecutive • characters)
+            const isMaskedValue = resetTokenField.value && /^•+$/.test(resetTokenField.value);
+            
+            // Validate and set new value only if not readonly
+            if (!resetTokenField.readOnly) {
+                // Check reset token
+                if (!resetTokenField.value || resetTokenField.value.length < 16) {
+                    alert('Reset token must be at least 16 characters long. For security, longer tokens are recommended.');
+                    return;
+                }
+                
+                // Ensure it's not a masked value
+                if (isMaskedValue) {
+                    alert('This is a masked value. Please generate a new token or enter a valid token.');
+                    return;
+                }
+                
+                // Send only valid new tokens
+                configData.resetToken = resetTokenField.value;
+            } else {
+                // If readonly, don't send masked values
+                if (isMaskedValue) {
+                    // Do nothing for masked values (keep existing token)
+                    console.log('Reset token is masked, not updating');
+                } else if (resetTokenField.value && resetTokenField.value.length >= 16) {
+                    // Send only valid values
+                    configData.resetToken = resetTokenField.value;
+                }
+            }
+            
+            // Add spreadsheet information if available
+            if (selectedSheet) {
+                configData.spreadsheetId = selectedSheet.id;
+                configData.spreadsheetName = selectedSheet.name;
+                configData.spreadsheetUrl = selectedSheet.url;
+            }
+            
+            // Debug: Output data being sent to console
+            console.log('Sending configuration data keys:', Object.keys(configData));
+            console.log('Reset token included:', configData.resetToken !== undefined);
+            console.log('Reset token length:', configData.resetToken ? configData.resetToken.length : 'undefined');
+            console.log('Reset token is masked:', configData.resetToken && /^•+$/.test(configData.resetToken));
+            console.log('Reset token field readonly:', resetTokenField.readOnly);
+            console.log('Reset token field value is masked:', isMaskedValue);
+            
+            // Send configuration to server
+            fetch('/api/setup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(configData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Configuration saved!');
+                    window.location.href = '/';
+                } else {
+                    alert('Failed to save configuration: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('An error occurred: ' + error.message);
+            });
+        }
+        
+        // Function to force re-initialize sheets
+        function forceReinitializeSheets() {
+            if (!confirm('This will reset the sheet initialization status and allow you to re-run the initialization process.\\n\\nThis is useful if sheets were deleted from the spreadsheet and need to be recreated.\\n\\nContinue?')) {
+                return;
+            }
+            
+            const button = document.getElementById('force-reinitialize-btn');
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = '🔄 Resetting...';
+            
+            // Get current spreadsheet info
+            const spreadsheetId = document.getElementById('sheet-name').dataset.spreadsheetId;
+            const spreadsheetName = document.getElementById('sheet-name').textContent;
+            const spreadsheetUrl = document.getElementById('sheet-url').href;
+            
+            // Re-select the same spreadsheet with force=true to trigger reset
+            fetch('/api/spreadsheets/select', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    spreadsheetId: spreadsheetId,
+                    spreadsheetName: spreadsheetName,
+                    spreadsheetUrl: spreadsheetUrl,
+                    force: true
+                })
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    showSuccessMessage('✅ Sheet initialization status has been reset!');
+                    // Hide the completed section and show the setup section
+                    document.getElementById('sheets-ready').classList.add('hidden');
+                    document.getElementById('sheets-setup-section').classList.remove('hidden');
+                    document.getElementById('sheets-not-ready').style.display = 'none';
+                } else {
+                    throw new Error(data.error || 'Reset failed');
+                }
+            })
+            .catch(function(error) {
+                console.error('Error resetting sheet initialization:', error);
+                alert('Error occurred during reset: ' + error.message);
+            })
+            .finally(function() {
+                button.disabled = false;
+                button.textContent = originalText;
+            });
+        }
+        
+        // Function to manually mark sheet initialization as complete
+        function markSheetsComplete() {
+            if (!confirm('Have you confirmed that the sheets have actually been created?\\n\\nPlease execute this operation only when the sheets actually exist.\\nPlease confirm that the four sheets _User, _Session, _Config, and _Role have been properly created in Google Spreadsheet before proceeding.')) {
+                return;
+            }
+            
+            const button = event.target;
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = 'Checking...';
+            
+            fetch('/api/setup/sheets/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    // If manual completion succeeds, update UI to completed state
+                    onSetupCompleted();
+                    showSuccessMessage('✅ Sheet initialization has been manually marked as complete!');
+                } else {
+                    throw new Error(data.error || 'Manual completion failed');
+                }
+            })
+            .catch(function(error) {
+                console.error('Error marking sheets as complete:', error);
+                alert('Error occurred during manual completion: ' + error.message);
+            })
+            .finally(function() {
+                button.disabled = false;
+                button.textContent = originalText;
+            });
+        }
+    </script>
+</body>
+</html>

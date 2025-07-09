@@ -3,6 +3,7 @@ import { swaggerUI } from '@hono/swagger-ui';
 
 type Bindings = {
 	DB: D1Database;
+	ASSETS: Fetcher;
 };
 
 // Swagger UI endpoint

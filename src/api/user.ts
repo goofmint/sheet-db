@@ -6,7 +6,7 @@ import {
   getConfig,
   getGoogleTokens,
   refreshAccessToken,
-  isTokenValid,
+  isTokenValid
 } from '../google-auth';
 import { getUserMeRoute, updateUserRoute, deleteUserRoute } from '../api-routes';
 import { authenticateSession } from './auth';
@@ -15,6 +15,7 @@ import { parseColumnSchema, validateValue } from '../utils/schema-parser';
 
 type Bindings = {
 	DB: D1Database;
+	ASSETS: Fetcher;
 };
 
 
@@ -166,7 +167,7 @@ async function validateUpdateDataAgainstSchema(
 
 		// Check unique constraints
 		if (uniqueFields.length > 0) {
-			// 全ユーザーデータを取得
+			// Get all user data
 			const usersResponse = await fetch(
 				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
 				{
@@ -184,14 +185,14 @@ async function validateUpdateDataAgainstSchema(
 			const usersData = await usersResponse.json() as any;
 			const users = usersData.values || [];
 
-			// 各ユニークフィールドをチェック（3行目以降）
+			// Check each unique field (from row 3 onwards)
 			for (const { field, value, columnIndex } of uniqueFields) {
 				const duplicate = users.find((row: string[], index: number) => {
-					// ヘッダー行と型定義行をスキップ
+					// Skip header row and type definition row
 					if (index < 2) return false;
-					// 自分自身は除外（更新の場合）
+					// Exclude self (for updates)
 					if (targetUserId && row[0] === targetUserId) return false;
-					// 値が一致するかチェック
+					// Check if values match
 					return row[columnIndex] === value;
 				});
 
@@ -215,11 +216,11 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
 				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
@@ -231,19 +232,19 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
 			}
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
 				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -281,11 +282,11 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
 				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
@@ -310,19 +311,19 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
 				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -334,19 +335,19 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// 現在のユーザー情報を取得（権限チェック用）
+			// Get current user information (for permission check)
 			const currentUser = await getUserFromSheet(currentUserId, spreadsheetId, tokens.access_token);
 			if (!currentUser) {
 				return c.json({ success: false as false, error: 'Current user not found' }, 401);
 			}
 			
-			// 対象ユーザーの存在確認
+			// Check target user existence
 			const targetUser = await getUserFromSheet(targetUserId, spreadsheetId, tokens.access_token);
 			if (!targetUser) {
 				return c.json({ success: false as false, error: 'Target user not found' }, 404);
 			}
 			
-			// 権限チェック
+			// Permission check
 			const hasPermission = await checkUserWritePermission(
 				currentUserId,
 				targetUserId,
@@ -395,7 +396,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const userData = await userResponse.json() as any;
 			const users = userData.values || [];
 			
-			// ユーザーを検索（3行目から検索）
+			// Search for user (from row 3)
 			const userRowIndex = users.findIndex((row: string[], index: number) => 
 				index >= 2 && row[0] === targetUserId
 			);
@@ -405,7 +406,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			}
 			
 			const userRow = users[userRowIndex];
-			const targetRowNumber = userRowIndex + 1; // シート行番号に変換
+			const targetRowNumber = userRowIndex + 1; // Convert to sheet row number
 			
 			// 更新データを準備
 			const now = new Date().toISOString();
@@ -491,11 +492,11 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
 				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
@@ -508,19 +509,19 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			const { id: targetUserId } = c.req.valid('param');
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
 				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -532,19 +533,19 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// 現在のユーザー情報を取得（権限チェック用）
+			// Get current user information (for permission check)
 			const currentUser = await getUserFromSheet(currentUserId, spreadsheetId, tokens.access_token);
 			if (!currentUser) {
 				return c.json({ success: false as false, error: 'Current user not found' }, 401);
 			}
 			
-			// 対象ユーザーの存在確認
+			// Check target user existence
 			const targetUser = await getUserFromSheet(targetUserId, spreadsheetId, tokens.access_token);
 			if (!targetUser) {
 				return c.json({ success: false as false, error: 'Target user not found' }, 404);
 			}
 			
-			// 権限チェック
+			// Permission check
 			const hasPermission = await checkUserWritePermission(
 				currentUserId,
 				targetUserId,
@@ -578,7 +579,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const userData = await userResponse.json() as any;
 			const users = userData.values || [];
 			
-			// ユーザーを検索（3行目から検索）
+			// Search for user (from row 3)
 			const userRowIndex = users.findIndex((row: string[], index: number) => 
 				index >= 2 && row[0] === targetUserId
 			);
@@ -587,7 +588,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: 'User not found' }, 404);
 			}
 			
-			const targetRowNumber = userRowIndex + 1; // シート行番号に変換
+			const targetRowNumber = userRowIndex + 1; // Convert to sheet row number
 			
 			// コンフリクト防止のため、行削除ではなくデータクリアを実行
 			// 全列を空文字で上書きする（ヘッダー行の列数に合わせる）

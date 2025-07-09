@@ -7,6 +7,7 @@ import {
   getGoogleTokens,
   refreshAccessToken,
   isTokenValid,
+  type DatabaseConnection
 } from '../google-auth';
 import { createRoleRoute, updateRoleRoute, deleteRoleRoute } from '../api-routes';
 import { authenticateSession } from './auth';
@@ -14,16 +15,17 @@ import { getUserFromSheet } from '../utils/sheet-helpers';
 
 type Bindings = {
 	DB: D1Database;
+	ASSETS: Fetcher;
 };
 
-// ロールの書き込み権限をチェックするヘルパー関数
+// Helper function to check role write permissions
 async function checkRoleWritePermission(
 	roleRow: string[],
 	userId: string,
 	userRoles: string[]
 ): Promise<boolean> {
 	try {
-		// public_writeがtrueの場合
+		// If public_write is true
 		if (roleRow[6] === 'TRUE') {
 			return true;
 		}
@@ -87,11 +89,11 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
 				return c.json({ success: false, error: authResult.error || 'Authentication failed' }, 401);
@@ -100,19 +102,19 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const userId = authResult.userId!;
 			const { name, public_read = false, public_write = false } = c.req.valid('json');
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
 				return c.json({ success: false, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -204,11 +206,11 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
 				return c.json({ success: false, error: authResult.error || 'Authentication failed' }, 401);
@@ -218,19 +220,19 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const { roleName } = c.req.valid('param');
 			const requestData = c.req.valid('json');
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
 				return c.json({ success: false, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -372,11 +374,11 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
 				return c.json({
@@ -388,7 +390,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const userId = authResult.userId!;
 			const { roleName } = c.req.valid('param');
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({
@@ -397,7 +399,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
 				return c.json({
@@ -406,7 +408,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);

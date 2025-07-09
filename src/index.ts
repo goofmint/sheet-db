@@ -8,13 +8,19 @@ import { registerSwaggerUI, registerOpenAPISpec } from './api/openapi';
 import { registerRoleRoutes } from './api/role';
 import { registerUserRoutes } from './api/user';
 import { registerSheetRoutes } from './api/sheet';
-import { playgroundHTML } from './playground-html';
+import { loadTemplate } from './utils/template-loader';
+import { isSetupCompleted } from './google-auth';
 
 type Bindings = {
 	DB: D1Database;
+	ASSETS: Fetcher;
 };
 
 const app = new OpenAPIHono<{ Bindings: Bindings }>();
+
+// Redirect /setup to /setup-page to avoid conflict with static assets
+// This must be registered before any static file serving
+app.get('/setup', (c) => c.redirect('/setup-page'));
 
 // Static file serving
 app.use('/static/*', serveStatic({ 
@@ -26,16 +32,19 @@ app.use('/static/*', serveStatic({
 app.get('/', async (c) => {
 	try {
 		const db = drizzle(c.env.DB);
-		const configs = await db.select().from(configTable);
 		
-		if (configs.length === 0) {
-			return c.redirect('/setup');
+		// Check if setup is completed
+		const setupCompleted = await isSetupCompleted(db);
+		
+		if (!setupCompleted) {
+			return c.redirect('/setup-page');
 		}
 		
-		return c.text('Sheet DB API');
+		// Redirect to playground if setup is completed
+		return c.redirect('/playground');
 	} catch (error) {
-		// テーブルが存在しない場合は初期化が必要
-		return c.redirect('/setup');
+		// If table doesn't exist, initialization is required
+		return c.redirect('/setup-page');
 	}
 });
 
@@ -45,15 +54,16 @@ app.get('/health', (c) => {
 });
 
 // Playground endpoint
-app.get('/playground', (c) => {
-	return c.html(playgroundHTML);
+app.get('/playground', async (c) => {
+	const html = await loadTemplate(c.env.ASSETS, 'playground.html');
+	return c.html(html);
 });
 
 // Register all route modules
 registerSwaggerUI(app);           // /doc
 registerOpenAPISpec(app);         // /doc/openapi.json
 registerAuthRoutes(app);          // /api/auth/*
-registerSetupRoutes(app);         // /setup/* and /api/setup/*
+registerSetupRoutes(app);         // /setup-page/* and /api/setup/*
 registerRoleRoutes(app);          // /api/roles/*
 registerUserRoutes(app);          // /api/users/*
 registerSheetRoutes(app);         // /api/sheets/*
