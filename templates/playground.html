@@ -283,6 +283,9 @@
         <div class="section sheets-section">
             <h2>📊 Sheet Management</h2>
             
+            <h3>Get Sheets List</h3>
+            <button onclick="getSheetsList()" class="success">Get Sheets List</button>
+            
             <h3>Create Sheet</h3>
             <div class="row">
                 <div class="col">
@@ -578,6 +581,21 @@
         }
 
         // Sheet functions
+        async function getSheetsList() {
+            try {
+                const headers = getAuthHeaders();
+                const response = await fetch('/api/sheets', {
+                    method: 'GET',
+                    headers
+                });
+                const data = await response.json();
+                
+                showResult('sheetsResult', data, !data.success);
+            } catch (error) {
+                showResult('sheetsResult', { error: error.message }, true);
+            }
+        }
+
         async function createSheet() {
             try {
                 const headers = getAuthHeaders();

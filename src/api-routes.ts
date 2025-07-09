@@ -29,7 +29,8 @@ import {
   UpdateSheetRequestSchema,
   UpdateSheetResponseSchema,
   SheetIdParamSchema,
-  DeleteSheetResponseSchema
+  DeleteSheetResponseSchema,
+  GetSheetsResponseSchema
 } from './api-schemas';
 
 // POST /api/roles - Create a new role
@@ -521,6 +522,46 @@ export const deleteUserRoute = createRoute({
   },
 });
 
+// GET /api/sheets - Get list of sheets
+export const getSheetsRoute = createRoute({
+  method: 'get',
+  path: '/api/sheets',
+  summary: 'Get list of sheets',
+  description: 'Returns a list of all sheets in the spreadsheet with their IDs and names',
+  tags: ['Sheets'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    headers: z.object({
+      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: GetSheetsResponseSchema,
+        },
+      },
+      description: 'Sheet list retrieved successfully',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
 
 // POST /api/sheets - Create a new sheet
 export const createSheetRoute = createRoute({
