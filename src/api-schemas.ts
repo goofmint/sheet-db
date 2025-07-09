@@ -339,3 +339,20 @@ export const AddColumnsResponseSchema = z.object({
 		message: z.string()
 	})
 });
+
+// Column ID parameter schema
+export const ColumnIdParamSchema = z.object({
+	columnId: z.string().min(1, "Column ID is required")
+});
+
+// Delete column response schema
+export const DeleteColumnResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		sheetId: z.number(),
+		name: z.string(),
+		columnName: z.string(),
+		action: z.enum(['deleted', 'cleared']),
+		message: z.string()
+	})
+});

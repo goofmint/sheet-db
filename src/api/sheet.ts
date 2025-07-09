@@ -9,7 +9,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute } from '../api-routes';
+import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute, deleteColumnRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -742,6 +742,128 @@ async function addColumnsToGoogleSheet(
 	}
 }
 
+// Delete or clear a column from a Google Sheet
+async function deleteColumnFromGoogleSheet(
+	sheetId: string,
+	sheetName: string,
+	columnName: string,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ success: boolean; action?: 'deleted' | 'cleared'; error?: string }> {
+	try {
+		// Get current sheet structure
+		const headersResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:ZZ2`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		if (!headersResponse.ok) {
+			return { success: false, error: 'Failed to fetch current sheet structure' };
+		}
+
+		const headersData = await headersResponse.json() as any;
+		const rows = headersData.values || [];
+		
+		if (rows.length < 2) {
+			return { success: false, error: 'Invalid sheet structure - missing header or type rows' };
+		}
+
+		const currentHeaders = rows[0] || [];
+		const currentTypes = rows[1] || [];
+
+		// Find the column index
+		const columnIndex = currentHeaders.findIndex((header: string) => header === columnName);
+		if (columnIndex === -1) {
+			return { success: false, error: 'Column not found' };
+		}
+
+		// Check if this is a system column that cannot be deleted
+		const systemColumns = ['id', 'created_at', 'updated_at', 'public_read', 'public_write', 'role_read', 'role_write', 'user_read', 'user_write'];
+		if (systemColumns.includes(columnName)) {
+			return { success: false, error: 'System columns cannot be deleted' };
+		}
+
+		// For safety, we'll clear the column data instead of deleting the column entirely
+		// This prevents data misalignment issues during concurrent operations
+		const columnLetter = getColumnLetter(columnIndex + 1);
+		
+		// Clear the column data (header and type rows will be cleared too, then restored)
+		const clearResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!${columnLetter}:${columnLetter}:clear`,
+			{
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		if (!clearResponse.ok) {
+			const errorText = await clearResponse.text();
+			console.error('Failed to clear column data:', clearResponse.status, errorText);
+			return { success: false, error: `Failed to clear column data: ${clearResponse.status}` };
+		}
+
+		// Update headers to remove the column name
+		const newHeaders = currentHeaders.filter((_: string, index: number) => index !== columnIndex);
+		const newTypes = currentTypes.filter((_: string, index: number) => index !== columnIndex);
+
+		// Update header row
+		const headerUpdateResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:${getColumnLetter(newHeaders.length)}1?valueInputOption=RAW`,
+			{
+				method: 'PUT',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					values: [newHeaders]
+				})
+			}
+		);
+
+		if (!headerUpdateResponse.ok) {
+			const errorText = await headerUpdateResponse.text();
+			console.error('Failed to update headers:', headerUpdateResponse.status, errorText);
+			return { success: false, error: `Failed to update headers: ${headerUpdateResponse.status}` };
+		}
+
+		// Update type row
+		const typeUpdateResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2:${getColumnLetter(newTypes.length)}2?valueInputOption=RAW`,
+			{
+				method: 'PUT',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					values: [newTypes]
+				})
+			}
+		);
+
+		if (!typeUpdateResponse.ok) {
+			const errorText = await typeUpdateResponse.text();
+			console.error('Failed to update types:', typeUpdateResponse.status, errorText);
+			return { success: false, error: `Failed to update types: ${typeUpdateResponse.status}` };
+		}
+
+		console.log('Column cleared successfully:', columnName);
+		return { success: true, action: 'cleared' };
+	} catch (error) {
+		console.error('Error deleting column from Google sheet:', error);
+		return { success: false, error: 'Failed to delete column from sheet' };
+	}
+}
+
 // シートを削除するヘルパー関数
 async function deleteGoogleSheet(
 	sheetId: string,
@@ -1449,6 +1571,136 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in POST /api/sheets/:id/columns:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// DELETE /api/sheets/:id/columns/:columnId - Delete a column from a sheet (OpenAPI)
+	app.openapi(deleteColumnRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// Get session ID from authorization header
+			const authHeader = c.req.valid('header').authorization;
+			const sessionId = authHeader.replace('Bearer ', '');
+			
+			// Authenticate session
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+			}
+			
+			const userId = authResult.userId;
+			if (!userId) {
+				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+			}
+			
+			const { id: sheetId, columnId: columnName } = c.req.valid('param');
+			
+			// Get Google Sheets configuration
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// Get valid Google tokens
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// Check token validity and refresh if needed
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// Get user information (for permission check)
+			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+			if (!user) {
+				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+			}
+			
+			// Get sheet information
+			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { sheetName, sheetId: actualSheetId } = sheetInfo;
+			if (!sheetName || !actualSheetId) {
+				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+			}
+			
+			// Check column modification permission
+			const permissionCheck = await checkColumnModifyPermission(
+				userId,
+				user.roles || [],
+				spreadsheetId,
+				tokens.access_token
+			);
+			
+			if (!permissionCheck.allowed) {
+				return c.json({ 
+					success: false as false, 
+					error: permissionCheck.error || 'Permission denied' 
+				}, 403);
+			}
+			
+			// Delete the column from the sheet
+			const deleteResult = await deleteColumnFromGoogleSheet(
+				actualSheetId.toString(),
+				sheetName,
+				columnName,
+				spreadsheetId,
+				tokens.access_token
+			);
+			
+			if (!deleteResult.success) {
+				if (deleteResult.error === 'Column not found') {
+					return c.json({ 
+						success: false as false, 
+						error: 'Column not found' 
+					}, 404);
+				}
+				if (deleteResult.error === 'System columns cannot be deleted') {
+					return c.json({ 
+						success: false as false, 
+						error: 'System columns cannot be deleted' 
+					}, 400);
+				}
+				return c.json({ 
+					success: false as false, 
+					error: deleteResult.error || 'Failed to delete column' 
+				}, 500);
+			}
+			
+			console.log('Column deleted successfully from sheet:', sheetId, sheetName, columnName);
+			
+			// Return success response
+			return c.json({
+				success: true as true,
+				data: {
+					sheetId: actualSheetId,
+					name: sheetName,
+					columnName: columnName,
+					action: deleteResult.action || 'cleared',
+					message: `Column '${columnName}' ${deleteResult.action || 'cleared'} successfully from sheet '${sheetName}'`
+				}
+			});
+			
+		} catch (error) {
+			console.error('Error in DELETE /api/sheets/:id/columns/:columnId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}

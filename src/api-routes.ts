@@ -34,7 +34,9 @@ import {
   GetSheetsResponseSchema,
   GetSheetMetadataResponseSchema,
   AddColumnsRequestSchema,
-  AddColumnsResponseSchema
+  AddColumnsResponseSchema,
+  ColumnIdParamSchema,
+  DeleteColumnResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -913,6 +915,67 @@ export const addColumnsRoute = createRoute({
         },
       },
       description: 'Sheet not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// DELETE /api/sheets/:id/columns/:columnId - Delete a column from a sheet
+export const deleteColumnRoute = createRoute({
+  method: 'delete',
+  path: '/api/sheets/{id}/columns/{columnId}',
+  summary: 'Delete a column from a sheet',
+  description: 'Deletes a column from an existing sheet. If data misalignment risk exists during concurrent operations, the column data will be cleared instead of deleted. Requires column modification permission (MODIFY_COLUMNS_BY_API=true and user in MODIFY_SHEET_USER or MODIFY_SHEET_ROLE).',
+  tags: ['Sheets'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    headers: z.object({
+      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
+    }),
+    params: z.object({
+      id: z.string().min(1, "Sheet ID is required"),
+      columnId: z.string().min(1, "Column ID is required")
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DeleteColumnResponseSchema,
+        },
+      },
+      description: 'Column deleted or cleared successfully',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - column modification not allowed',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet or column not found',
     },
     500: {
       content: {
