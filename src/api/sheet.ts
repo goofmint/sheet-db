@@ -607,7 +607,12 @@ async function addColumnsToGoogleSheet(
 
 		// 新しい列のヘッダーと型を準備
 		const newHeaders = [...currentHeaders, ...newColumnNames];
-		const newTypes = [...currentTypes, ...newColumnNames.map(name => newColumns[name].type)];
+		const newTypes = [...currentTypes, ...newColumnNames.map(name => {
+			if (!newColumns[name].type) {
+				throw new Error(`Column '${name}' is missing required 'type' property`);
+			}
+			return newColumns[name].type;
+		})];
 
 		// ヘッダー行を更新
 		const headerUpdateResponse = await fetch(
