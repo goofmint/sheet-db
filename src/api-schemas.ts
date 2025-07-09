@@ -356,3 +356,39 @@ export const DeleteColumnResponseSchema = z.object({
 		message: z.string()
 	})
 });
+
+// Update column request schema
+export const UpdateColumnRequestSchema = z.object({
+	name: z.string().min(1, "Column name must be a non-empty string").optional(),
+	pattern: z.string().optional(),
+	minLength: z.number().int().min(0).optional(),
+	maxLength: z.number().int().min(0).optional(),
+	min: z.number().optional(),
+	max: z.number().optional(),
+	default: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
+}).refine(data => Object.keys(data).length > 0, {
+	message: "At least one field must be provided for update"
+}).refine(data => !('type' in data), {
+	message: "Type modification is not allowed"
+});
+
+// Update column response schema
+export const UpdateColumnResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		sheetId: z.number(),
+		name: z.string(),
+		columnName: z.string(),
+		updatedColumn: z.object({
+			name: z.string(),
+			type: ColumnTypeEnum,
+			pattern: z.string().optional(),
+			minLength: z.number().optional(),
+			maxLength: z.number().optional(),
+			min: z.number().optional(),
+			max: z.number().optional(),
+			default: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
+		}),
+		message: z.string()
+	})
+});

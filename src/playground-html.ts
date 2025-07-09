@@ -387,6 +387,65 @@ export const playgroundHTML = `<!DOCTYPE html>
 
             <div id="sheetsResult" class="result" style="display: none;"></div>
         </div>
+
+        <!-- Column Management Section -->
+        <div class="section sheets-section">
+            <h2>📋 列管理</h2>
+            
+            <h3>列の更新</h3>
+            <p><strong>注意:</strong> 列の型（type）の変更はできません。システム列（id, created_at, updated_at等）の変更もできません。</p>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="updateColumnSheetId">シートID:</label>
+                        <input type="text" id="updateColumnSheetId" placeholder="例: 12345">
+                    </div>
+                    <div class="form-group">
+                        <label for="updateColumnCurrentName">現在の列名:</label>
+                        <input type="text" id="updateColumnCurrentName" placeholder="例: user_name">
+                    </div>
+                    <div class="form-group">
+                        <label for="updateColumnNewName">新しい列名 (optional):</label>
+                        <input type="text" id="updateColumnNewName" placeholder="例: username">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="updateColumnPattern">パターン (optional):</label>
+                        <input type="text" id="updateColumnPattern" placeholder="例: ^[a-zA-Z0-9_]+$">
+                    </div>
+                    <div class="form-group">
+                        <label for="updateColumnMinLength">最小長 (optional):</label>
+                        <input type="text" id="updateColumnMinLength" placeholder="例: 3">
+                    </div>
+                    <div class="form-group">
+                        <label for="updateColumnMaxLength">最大長 (optional):</label>
+                        <input type="text" id="updateColumnMaxLength" placeholder="例: 50">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="updateColumnMin">最小値 (optional):</label>
+                        <input type="text" id="updateColumnMin" placeholder="例: 0">
+                    </div>
+                    <div class="form-group">
+                        <label for="updateColumnMax">最大値 (optional):</label>
+                        <input type="text" id="updateColumnMax" placeholder="例: 100">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="updateColumnDefault">デフォルト値 (optional):</label>
+                        <input type="text" id="updateColumnDefault" placeholder="例: default_value">
+                    </div>
+                </div>
+            </div>
+            <button onclick="updateColumn()">列の更新</button>
+
+            <div id="columnsResult" class="result" style="display: none;"></div>
+        </div>
     </div>
 
     <script>
@@ -704,6 +763,83 @@ export const playgroundHTML = `<!DOCTYPE html>
                 showResult('sheetsResult', data, !data.success);
             } catch (error) {
                 showResult('sheetsResult', { error: error.message }, true);
+            }
+        }
+
+        // Column functions
+        async function updateColumn() {
+            try {
+                const headers = getAuthHeaders();
+                const sheetId = document.getElementById('updateColumnSheetId').value.trim();
+                const currentName = document.getElementById('updateColumnCurrentName').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('シートIDは必須です');
+                }
+                
+                if (!currentName) {
+                    throw new Error('現在の列名は必須です');
+                }
+
+                const body = {};
+                
+                const newName = document.getElementById('updateColumnNewName').value.trim();
+                if (newName) body.name = newName;
+                
+                const pattern = document.getElementById('updateColumnPattern').value.trim();
+                if (pattern) body.pattern = pattern;
+                
+                const minLength = document.getElementById('updateColumnMinLength').value.trim();
+                if (minLength) body.minLength = parseInt(minLength);
+                
+                const maxLength = document.getElementById('updateColumnMaxLength').value.trim();
+                if (maxLength) body.maxLength = parseInt(maxLength);
+                
+                const min = document.getElementById('updateColumnMin').value.trim();
+                if (min) body.min = parseFloat(min);
+                
+                const max = document.getElementById('updateColumnMax').value.trim();
+                if (max) body.max = parseFloat(max);
+                
+                const defaultValue = document.getElementById('updateColumnDefault').value.trim();
+                if (defaultValue) {
+                    // Try to parse as number, boolean, or keep as string
+                    let parsedDefault = defaultValue;
+                    if (defaultValue === 'true') parsedDefault = true;
+                    else if (defaultValue === 'false') parsedDefault = false;
+                    else if (defaultValue === 'null') parsedDefault = null;
+                    else if (!isNaN(defaultValue) && defaultValue !== '') parsedDefault = parseFloat(defaultValue);
+                    
+                    body.default = parsedDefault;
+                }
+
+                if (Object.keys(body).length === 0) {
+                    throw new Error('更新する項目を少なくとも1つ指定してください');
+                }
+
+                const response = await fetch(\`/api/sheets/\${encodeURIComponent(sheetId)}/columns/\${encodeURIComponent(currentName)}\`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+                
+                showResult('columnsResult', data, !data.success);
+                
+                // Clear form on success
+                if (data.success) {
+                    document.getElementById('updateColumnSheetId').value = '';
+                    document.getElementById('updateColumnCurrentName').value = '';
+                    document.getElementById('updateColumnNewName').value = '';
+                    document.getElementById('updateColumnPattern').value = '';
+                    document.getElementById('updateColumnMinLength').value = '';
+                    document.getElementById('updateColumnMaxLength').value = '';
+                    document.getElementById('updateColumnMin').value = '';
+                    document.getElementById('updateColumnMax').value = '';
+                    document.getElementById('updateColumnDefault').value = '';
+                }
+            } catch (error) {
+                showResult('columnsResult', { error: error.message }, true);
             }
         }
 

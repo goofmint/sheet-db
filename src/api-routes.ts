@@ -36,7 +36,9 @@ import {
   AddColumnsRequestSchema,
   AddColumnsResponseSchema,
   ColumnIdParamSchema,
-  DeleteColumnResponseSchema
+  DeleteColumnResponseSchema,
+  UpdateColumnRequestSchema,
+  UpdateColumnResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -952,6 +954,82 @@ export const deleteColumnRoute = createRoute({
         },
       },
       description: 'Column deleted or cleared successfully',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - column modification not allowed',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet or column not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// PUT /api/sheets/:id/columns/:columnId - Update a column in a sheet
+export const updateColumnRoute = createRoute({
+  method: 'put',
+  path: '/api/sheets/{id}/columns/{columnId}',
+  summary: 'Update a column in a sheet',
+  description: 'Updates a column in an existing sheet. Type modification is not allowed. Requires column modification permission (MODIFY_COLUMNS_BY_API=true and user in MODIFY_SHEET_USER or MODIFY_SHEET_ROLE).',
+  tags: ['Sheets'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    headers: z.object({
+      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
+    }),
+    params: z.object({
+      id: z.string().min(1, "Sheet ID is required"),
+      columnId: z.string().min(1, "Column ID is required")
+    }),
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateColumnRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: UpdateColumnResponseSchema,
+        },
+      },
+      description: 'Column updated successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+      description: 'Invalid request data or type modification attempted',
     },
     401: {
       content: {
