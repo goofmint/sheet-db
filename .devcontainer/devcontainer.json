@@ -1,0 +1,58 @@
+{
+  "name": "Sheet DB - Cloudflare Workers",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-json",
+        "cloudflare.vscode-cloudflare-workers",
+        "drizzle-team.drizzle-vscode",
+        "redhat.vscode-yaml",
+        "ms-vscode.test-adapter-converter",
+        "hbenl.vscode-test-explorer",
+        "ZixuanChen.vitest-explorer"
+      ],
+      "settings": {
+        "typescript.preferences.quoteStyle": "single",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": true
+        },
+        "files.associations": {
+          "*.jsonc": "jsonc"
+        }
+      }
+    }
+  },
+  
+  "forwardPorts": [8787],
+  "portsAttributes": {
+    "8787": {
+      "label": "Cloudflare Workers Dev Server",
+      "onAutoForward": "notify"
+    }
+  },
+  
+  "postCreateCommand": "npm install",
+  
+  "remoteUser": "node",
+  
+  "mounts": [
+    "source=${localWorkspaceFolder}/.env,target=/workspaces/sheet-db/.env,type=bind,consistency=cached"
+  ],
+  
+  "containerEnv": {
+    "NODE_ENV": "development"
+  }
+}
