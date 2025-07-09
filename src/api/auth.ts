@@ -6,12 +6,14 @@ import {
 	isTokenValid, 
 	getGoogleCredentials, 
 	refreshAccessToken, 
-	saveGoogleTokens 
+	saveGoogleTokens,
+	type DatabaseConnection
 } from '../google-auth';
 import { authStartRoute, authCallbackGetRoute, authCallbackPostRoute } from '../api-routes';
 
 type Bindings = {
 	DB: D1Database;
+	ASSETS: Fetcher;
 };
 
 // Auth0認証開始エンドポイント (OpenAPI)
@@ -135,7 +137,7 @@ export function registerAuthCallbackPostRoute(app: OpenAPIHono<{ Bindings: Bindi
 }
 
 // 認証コールバック処理関数
-async function handleAuthCallback(c: any, db: any, code: string): Promise<any> {
+async function handleAuthCallback(c: any, db: DatabaseConnection, code: string): Promise<any> {
 	try {
 		console.log('Processing auth callback with code');
 		
@@ -229,7 +231,7 @@ async function handleAuthCallback(c: any, db: any, code: string): Promise<any> {
 }
 
 // ユーザー情報を_Userシートに保存する関数
-async function saveUserToSheet(db: any, userInfo: any): Promise<any> {
+async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<any> {
 	try {
 		console.log('Saving user to _User sheet:', userInfo.sub);
 		
@@ -376,7 +378,7 @@ async function saveUserToSheet(db: any, userInfo: any): Promise<any> {
 }
 
 // セッション情報を_Sessionシートに保存する関数
-async function saveSessionToSheet(db: any, sessionId: string, userId: string, accessToken: string): Promise<void> {
+async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, userId: string, accessToken: string): Promise<void> {
 	try {
 		console.log('Saving session to _Session sheet:', sessionId);
 		
@@ -436,7 +438,7 @@ async function saveSessionToSheet(db: any, sessionId: string, userId: string, ac
 }
 
 // セッション認証のヘルパー関数
-export async function authenticateSession(db: any, sessionId: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
+export async function authenticateSession(db: DatabaseConnection, sessionId: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
 	try {
 		if (!sessionId) {
 			return { valid: false, error: 'Session ID is required' };

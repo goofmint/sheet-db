@@ -1,6 +1,9 @@
 import { drizzle } from 'drizzle-orm/d1';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { configTable } from './db/schema';
+
+// Database type for Drizzle with D1
+export type DatabaseConnection = ReturnType<typeof drizzle<Record<string, never>, D1Database>>;
 
 export interface GoogleTokens {
   access_token: string;
@@ -29,16 +32,41 @@ export const CONFIG_KEYS = {
 
 /**
  * Configテーブルから設定値を取得
+ * @param db Database instance
+ * @param key Single key or array of keys to retrieve
+ * @returns Single value for string key, or Record<string, string | null> for array keys
  */
-export async function getConfig(db: any, key: string): Promise<string | null> {
-  const result = await db.select().from(configTable).where(eq(configTable.name, key));
-  return result.length > 0 ? result[0].value : null;
+export async function getConfig(db: DatabaseConnection, key: string): Promise<string | null>;
+export async function getConfig(db: DatabaseConnection, keys: string[]): Promise<Record<string, string | null>>;
+export async function getConfig(db: DatabaseConnection, keyOrKeys: string | string[]): Promise<string | null | Record<string, string | null>> {
+  if (typeof keyOrKeys === 'string') {
+    // Single key
+    const result = await db.select().from(configTable).where(eq(configTable.name, keyOrKeys));
+    return result.length > 0 ? result[0].value : null;
+  } else {
+    // Multiple keys
+    const keys = keyOrKeys;
+    const result = await db.select().from(configTable).where(inArray(configTable.name, keys));
+    
+    // Create result object with all requested keys, defaulting to null
+    const configMap: Record<string, string | null> = {};
+    keys.forEach(key => {
+      configMap[key] = null;
+    });
+    
+    // Fill in the actual values
+    result.forEach(row => {
+      configMap[row.name] = row.value;
+    });
+    
+    return configMap;
+  }
 }
 
 /**
  * Configテーブルに設定値を保存
  */
-export async function setConfig(db: any, key: string, value: string): Promise<void> {
+export async function setConfig(db: DatabaseConnection, key: string, value: string): Promise<void> {
   const existing = await db.select().from(configTable).where(eq(configTable.name, key));
   
   if (existing.length > 0) {
@@ -53,7 +81,7 @@ export async function setConfig(db: any, key: string, value: string): Promise<vo
 /**
  * Google OAuth認証情報を保存
  */
-export async function saveGoogleCredentials(db: any, credentials: GoogleCredentials): Promise<void> {
+export async function saveGoogleCredentials(db: DatabaseConnection, credentials: GoogleCredentials): Promise<void> {
   await setConfig(db, CONFIG_KEYS.GOOGLE_CLIENT_ID, credentials.client_id);
   await setConfig(db, CONFIG_KEYS.GOOGLE_CLIENT_SECRET, credentials.client_secret);
 }
@@ -61,9 +89,11 @@ export async function saveGoogleCredentials(db: any, credentials: GoogleCredenti
 /**
  * Google OAuth認証情報を取得
  */
-export async function getGoogleCredentials(db: any): Promise<GoogleCredentials | null> {
-  const clientId = await getConfig(db, CONFIG_KEYS.GOOGLE_CLIENT_ID);
-  const clientSecret = await getConfig(db, CONFIG_KEYS.GOOGLE_CLIENT_SECRET);
+export async function getGoogleCredentials(db: DatabaseConnection): Promise<GoogleCredentials | null> {
+  const configs = await getConfig(db, [CONFIG_KEYS.GOOGLE_CLIENT_ID, CONFIG_KEYS.GOOGLE_CLIENT_SECRET]);
+  
+  const clientId = configs[CONFIG_KEYS.GOOGLE_CLIENT_ID];
+  const clientSecret = configs[CONFIG_KEYS.GOOGLE_CLIENT_SECRET];
   
   if (!clientId || !clientSecret) {
     return null;
@@ -78,7 +108,7 @@ export async function getGoogleCredentials(db: any): Promise<GoogleCredentials |
 /**
  * Googleアクセストークンを保存
  */
-export async function saveGoogleTokens(db: any, tokens: GoogleTokens): Promise<void> {
+export async function saveGoogleTokens(db: DatabaseConnection, tokens: GoogleTokens): Promise<void> {
   const expiresAt = Date.now() + (tokens.expires_in * 1000);
   
   console.log('Saving Google tokens:', {
@@ -104,11 +134,18 @@ export async function saveGoogleTokens(db: any, tokens: GoogleTokens): Promise<v
 /**
  * 保存されたGoogleアクセストークンを取得
  */
-export async function getGoogleTokens(db: any): Promise<GoogleTokens | null> {
-  const accessToken = await getConfig(db, CONFIG_KEYS.GOOGLE_ACCESS_TOKEN);
-  const refreshToken = await getConfig(db, CONFIG_KEYS.GOOGLE_REFRESH_TOKEN);
-  const expiresAt = await getConfig(db, CONFIG_KEYS.GOOGLE_TOKEN_EXPIRES_AT);
-  const scope = await getConfig(db, CONFIG_KEYS.GOOGLE_TOKEN_SCOPE);
+export async function getGoogleTokens(db: DatabaseConnection): Promise<GoogleTokens | null> {
+  const configs = await getConfig(db, [
+    CONFIG_KEYS.GOOGLE_ACCESS_TOKEN,
+    CONFIG_KEYS.GOOGLE_REFRESH_TOKEN,
+    CONFIG_KEYS.GOOGLE_TOKEN_EXPIRES_AT,
+    CONFIG_KEYS.GOOGLE_TOKEN_SCOPE
+  ]);
+  
+  const accessToken = configs[CONFIG_KEYS.GOOGLE_ACCESS_TOKEN];
+  const refreshToken = configs[CONFIG_KEYS.GOOGLE_REFRESH_TOKEN];
+  const expiresAt = configs[CONFIG_KEYS.GOOGLE_TOKEN_EXPIRES_AT];
+  const scope = configs[CONFIG_KEYS.GOOGLE_TOKEN_SCOPE];
   
   if (!accessToken || !expiresAt) {
     return null;
@@ -127,7 +164,7 @@ export async function getGoogleTokens(db: any): Promise<GoogleTokens | null> {
 /**
  * アクセストークンが有効かチェック
  */
-export async function isTokenValid(db: any): Promise<boolean> {
+export async function isTokenValid(db: DatabaseConnection): Promise<boolean> {
   const tokens = await getGoogleTokens(db);
   if (!tokens || !tokens.expires_at) {
     console.log('No tokens or expires_at found');
@@ -227,7 +264,7 @@ export async function refreshAccessToken(
 /**
  * セットアップが完了しているかをチェック
  */
-export async function isSetupCompleted(db: any): Promise<boolean> {
+export async function isSetupCompleted(db: DatabaseConnection): Promise<boolean> {
   const completed = await getConfig(db, CONFIG_KEYS.SETUP_COMPLETED);
   return completed === 'true';
 }
@@ -235,6 +272,6 @@ export async function isSetupCompleted(db: any): Promise<boolean> {
 /**
  * セットアップ完了フラグをリセット
  */
-export async function resetSetupCompleted(db: any): Promise<void> {
+export async function resetSetupCompleted(db: DatabaseConnection): Promise<void> {
   await setConfig(db, CONFIG_KEYS.SETUP_COMPLETED, 'false');
 }

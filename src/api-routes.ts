@@ -28,7 +28,8 @@ import {
   CreateSheetResponseSchema,
   UpdateSheetRequestSchema,
   UpdateSheetResponseSchema,
-  SheetIdParamSchema
+  SheetIdParamSchema,
+  DeleteSheetResponseSchema
 } from './api-schemas';
 
 // POST /api/roles - Create a new role
@@ -622,6 +623,64 @@ export const updateSheetRoute = createRoute({
         },
       },
       description: 'Invalid request data',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no write access to this sheet',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// DELETE /api/sheets/:id - Delete a sheet
+export const deleteSheetRoute = createRoute({
+  method: 'delete',
+  path: '/api/sheets/{id}',
+  summary: 'Delete a sheet',
+  description: 'Deletes an existing sheet from the spreadsheet. Requires write access to the sheet (public_write=true, user\'s role in role_write, or user ID in user_write).',
+  tags: ['Sheets'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    headers: z.object({
+      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
+    }),
+    params: SheetIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DeleteSheetResponseSchema,
+        },
+      },
+      description: 'Sheet deleted successfully',
     },
     401: {
       content: {

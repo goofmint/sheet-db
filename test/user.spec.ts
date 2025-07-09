@@ -3,6 +3,7 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 
 type Bindings = {
 	DB: D1Database;
+	ASSETS: Fetcher;
 };
 
 // Mock functions for testing

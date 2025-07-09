@@ -1,33 +1,33 @@
 # Google Token Management
 
-このドキュメントでは、Sheet DBでGoogleトークンの継続的な利用と管理について説明します。
+This document explains the continuous use and management of Google tokens in Sheet DB.
 
-## 概要
+## Overview
 
-Sheet DBはGoogle OAuth2.0を使用してGoogleスプレッドシートにアクセスします。認証情報とアクセストークンはConfigテーブルに安全に保存され、自動的にリフレッシュされます。
+Sheet DB uses Google OAuth 2.0 to access Google Sheets. Authentication credentials and access tokens are securely stored in the Config table and automatically refreshed.
 
-## Configテーブルに保存される情報
+## Information Stored in Config Table
 
-### Google OAuth認証情報
+### Google OAuth Credentials
 - `google_client_id`: Google OAuth Client ID
 - `google_client_secret`: Google OAuth Client Secret
 
-### Google アクセストークン
-- `google_access_token`: 現在のアクセストークン
-- `google_refresh_token`: リフレッシュトークン（長期保存）
-- `google_token_expires_at`: トークンの有効期限（Unix timestamp）
-- `google_token_scope`: 承認されたスコープ
+### Google Access Tokens
+- `google_access_token`: Current access token
+- `google_refresh_token`: Refresh token (long-term storage)
+- `google_token_expires_at`: Token expiration time (Unix timestamp)
+- `google_token_scope`: Authorized scopes
 
-### その他の設定
-- `google_auth_completed`: 認証完了フラグ
-- `oauth_state_*`: CSRF防止用の一時的なstateデータ
+### Other Settings
+- `google_auth_completed`: Authentication completion flag
+- `oauth_state_*`: Temporary state data for CSRF prevention
 
-## API エンドポイント
+## API Endpoints
 
 ### 1. POST /connects
-Google OAuth認証フローを開始します。
+Initiates the Google OAuth authentication flow.
 
-**リクエスト:**
+**Request:**
 ```json
 {
   "clientId": "your-google-client-id",
@@ -35,7 +35,7 @@ Google OAuth認証フローを開始します。
 }
 ```
 
-**レスポンス:**
+**Response:**
 ```json
 {
   "authUrl": "https://accounts.google.com/o/oauth2/v2/auth?...",
@@ -43,24 +43,24 @@ Google OAuth認証フローを開始します。
 }
 ```
 
-**処理内容:**
-1. Google認証情報をConfigテーブルに保存
-2. OAuth認証URLを生成
-3. CSRF防止用のstateを保存
+**Processing:**
+1. Save Google credentials to Config table
+2. Generate OAuth authentication URL
+3. Save CSRF prevention state
 
 ### 2. GET /auth/callback
-Google OAuth認証完了後のコールバック処理を行います。
+Handles callback processing after Google OAuth authentication completion.
 
-**処理内容:**
-1. stateパラメータでCSRF攻撃を防止
-2. 認証コードをアクセストークンに交換
-3. アクセストークンとリフレッシュトークンをConfigテーブルに保存
-4. 認証完了フラグを設定
+**Processing:**
+1. Prevent CSRF attacks with state parameter
+2. Exchange authorization code for access token
+3. Save access token and refresh token to Config table
+4. Set authentication completion flag
 
 ### 3. POST /auth/refresh
-手動でアクセストークンをリフレッシュします。
+Manually refresh the access token.
 
-**レスポンス:**
+**Response:**
 ```json
 {
   "success": true,
@@ -69,9 +69,9 @@ Google OAuth認証完了後のコールバック処理を行います。
 ```
 
 ### 4. GET /api/token
-有効なアクセストークンを取得します（内部API用）。
+Retrieve a valid access token (for internal API use).
 
-**レスポンス:**
+**Response:**
 ```json
 {
   "access_token": "ya29.xxxxx",
@@ -80,96 +80,96 @@ Google OAuth認証完了後のコールバック処理を行います。
 }
 ```
 
-**処理内容:**
-1. トークンの有効性を確認
-2. 無効な場合は自動的にリフレッシュ
-3. 有効なトークンを返却
+**Processing:**
+1. Check token validity
+2. Automatically refresh if invalid
+3. Return valid token
 
-## トークン管理フロー
+## Token Management Flow
 
-### 初回認証
-1. ユーザーが `/setup` でGoogle認証情報を入力
-2. `POST /connects` でOAuth認証フローを開始
-3. ユーザーがGoogleで認証を完了
-4. `/auth/callback` でトークンを取得・保存
+### Initial Authentication
+1. User enters Google credentials in `/setup`
+2. Start OAuth authentication flow with `POST /connects`
+3. User completes authentication with Google
+4. Retrieve and save tokens in `/auth/callback`
 
-### 継続利用
-1. アプリケーションが `GET /api/token` を呼び出し
-2. システムが自動的にトークンの有効性をチェック
-3. 必要に応じて自動的にリフレッシュ
-4. 有効なトークンを返却
+### Continuous Use
+1. Application calls `GET /api/token`
+2. System automatically checks token validity
+3. Automatically refresh if necessary
+4. Return valid token
 
-### トークンリフレッシュ
-- アクセストークンの有効期限: 通常1時間
-- リフレッシュトークンの有効期限: 6ヶ月（使用されない場合）
-- 自動リフレッシュ: トークン有効期限の5分前からリフレッシュ可能
+### Token Refresh
+- Access token validity: Usually 1 hour
+- Refresh token validity: 6 months (if not used)
+- Automatic refresh: Available 5 minutes before token expiration
 
-## セキュリティ考慮事項
+## Security Considerations
 
-### 1. CSRF対策
-- OAuth認証時にstateパラメータを使用
-- stateは一意のUUIDを生成し、Configテーブルで管理
+### 1. CSRF Protection
+- Use state parameter during OAuth authentication
+- Generate unique UUID for state and manage in Config table
 
-### 2. トークンの暗号化
-- Configテーブルには平文で保存されるため、D1データベースレベルでの暗号化を推奨
-- 本番環境では適切なアクセス制御を実装
+### 2. Token Encryption
+- Stored as plaintext in Config table, database-level encryption recommended for D1
+- Implement appropriate access control in production environment
 
-### 3. トークンの期限管理
-- アクセストークンは短期間（1時間）で自動更新
-- リフレッシュトークンは長期間有効だが、定期的な再認証を推奨
+### 3. Token Expiration Management
+- Access tokens automatically updated short-term (1 hour)
+- Refresh tokens valid long-term, but periodic re-authentication recommended
 
-## ヘルパー関数
+## Helper Functions
 
 ### saveGoogleCredentials(db, credentials)
-Google OAuth認証情報をConfigテーブルに保存
+Save Google OAuth credentials to Config table
 
 ### getGoogleCredentials(db)
-保存されたGoogle OAuth認証情報を取得
+Retrieve saved Google OAuth credentials
 
 ### saveGoogleTokens(db, tokens)
-Google アクセストークンとリフレッシュトークンを保存
+Save Google access token and refresh token
 
 ### getGoogleTokens(db)
-保存されたGoogleトークンを取得
+Retrieve saved Google tokens
 
 ### isTokenValid(db)
-アクセストークンの有効性をチェック
+Check access token validity
 
 ### exchangeCodeForTokens(code, redirectUri, credentials)
-認証コードをアクセストークンに交換
+Exchange authorization code for access token
 
 ### refreshAccessToken(refreshToken, credentials)
-リフレッシュトークンを使用してアクセストークンを更新
+Update access token using refresh token
 
-## エラーハンドリング
+## Error Handling
 
-### よくあるエラーと対処法
+### Common Errors and Solutions
 
 1. **`No refresh token available`**
-   - 原因: リフレッシュトークンが保存されていない
-   - 対処: 再認証が必要
+   - Cause: Refresh token not saved
+   - Solution: Re-authentication required
 
 2. **`Token refresh failed`**
-   - 原因: リフレッシュトークンが無効
-   - 対処: 再認証が必要
+   - Cause: Refresh token is invalid
+   - Solution: Re-authentication required
 
 3. **`Authentication required`**
-   - 原因: トークンが存在しないまたは無効
-   - 対処: `/setup` から認証フローを開始
+   - Cause: Token doesn't exist or is invalid
+   - Solution: Start authentication flow from `/setup`
 
 4. **`Invalid state parameter`**
-   - 原因: CSRF攻撃またはセッション期限切れ
-   - 対処: 認証フローを最初からやり直し
+   - Cause: CSRF attack or session timeout
+   - Solution: Restart authentication flow from beginning
 
-## 使用例
+## Usage Examples
 
-### Google Sheets APIの呼び出し
+### Google Sheets API Call
 ```javascript
-// 有効なトークンを取得
+// Get valid token
 const tokenResponse = await fetch('/api/token');
 const tokenData = await tokenResponse.json();
 
-// Google Sheets APIを呼び出し
+// Call Google Sheets API
 const sheetsResponse = await fetch(
   'https://sheets.googleapis.com/v4/spreadsheets/SPREADSHEET_ID/values/A1:Z100',
   {
@@ -181,27 +181,27 @@ const sheetsResponse = await fetch(
 );
 ```
 
-## 設定確認
+## Configuration Verification
 
-### Configテーブルの内容確認
+### Check Config Table Contents
 ```sql
--- 保存されている設定を確認
+-- Check saved settings
 SELECT name, value FROM Config WHERE name LIKE 'google_%';
 
--- 認証完了ステータス確認
+-- Check authentication completion status
 SELECT value FROM Config WHERE name = 'google_auth_completed';
 ```
 
-## 注意事項
+## Important Notes
 
-1. **リフレッシュトークンの管理**
-   - リフレッシュトークンは一度だけ発行される
-   - 失われた場合は再認証が必要
+1. **Refresh Token Management**
+   - Refresh tokens are issued only once
+   - Re-authentication required if lost
 
-2. **スコープの変更**
-   - 必要な権限が変更された場合は再認証が必要
-   - 既存のトークンでは新しいスコープにアクセスできない
+2. **Scope Changes**
+   - Re-authentication required when required permissions change
+   - Existing tokens cannot access new scopes
 
-3. **レート制限**
-   - Google APIには使用量制限がある
-   - 適切なエラーハンドリングとリトライ機能を実装推奨
+3. **Rate Limiting**
+   - Google APIs have usage limits
+   - Recommend implementing proper error handling and retry functionality

@@ -7,13 +7,15 @@ import {
   getGoogleTokens,
   refreshAccessToken,
   isTokenValid,
+  type DatabaseConnection
 } from '../google-auth';
-import { createSheetRoute, updateSheetRoute } from '../api-routes';
+import { createSheetRoute, updateSheetRoute, deleteSheetRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
 type Bindings = {
 	DB: D1Database;
+	ASSETS: Fetcher;
 };
 
 
@@ -493,6 +495,46 @@ async function updateGoogleSheet(
 	}
 }
 
+// シートを削除するヘルパー関数
+async function deleteGoogleSheet(
+	sheetId: string,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ success: boolean; error?: string }> {
+	try {
+		// シートを削除
+		const deleteResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+			{
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					requests: [{
+						deleteSheet: {
+							sheetId: parseInt(sheetId)
+						}
+					}]
+				})
+			}
+		);
+
+		if (!deleteResponse.ok) {
+			const errorText = await deleteResponse.text();
+			console.error('Failed to delete sheet:', deleteResponse.status, errorText);
+			return { success: false, error: `Failed to delete sheet: ${deleteResponse.status}` };
+		}
+
+		console.log('Sheet deleted successfully:', sheetId);
+		return { success: true };
+	} catch (error) {
+		console.error('Error deleting Google sheet:', error);
+		return { success: false, error: 'Failed to delete sheet' };
+	}
+}
+
 // Sheet management endpoints
 export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// POST /api/sheets - 新しいシートを作成 (OpenAPI)
@@ -725,6 +767,115 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in PUT /api/sheets/:id:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// DELETE /api/sheets/:id - シートを削除 (OpenAPI)
+	app.openapi(deleteSheetRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// 認証ヘッダーからセッションIDを取得
+			const authHeader = c.req.valid('header').authorization;
+			const sessionId = authHeader.replace('Bearer ', '');
+			
+			// セッション認証
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+			}
+			
+			const userId = authResult.userId;
+			if (!userId) {
+				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+			}
+			
+			const { id: sheetId } = c.req.valid('param');
+			
+			// Google Sheetsの設定を取得
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// 有効なGoogleトークンを取得
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// ユーザー情報を取得（権限チェック用）
+			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+			if (!user) {
+				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+			}
+			
+			// 現在のシート情報を取得
+			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { sheetName, metadata } = sheetInfo;
+			if (!sheetName || !metadata) {
+				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+			}
+			
+			// シート削除権限をチェック（更新権限と同じチェック）
+			const permissionCheck = await checkSheetUpdatePermission(
+				userId,
+				user.roles || [],
+				metadata
+			);
+			
+			if (!permissionCheck.allowed) {
+				return c.json({ 
+					success: false as false, 
+					error: permissionCheck.error || 'Permission denied' 
+				}, 403);
+			}
+			
+			// シートを削除
+			const deleteResult = await deleteGoogleSheet(
+				sheetId,
+				spreadsheetId,
+				tokens.access_token
+			);
+			
+			if (!deleteResult.success) {
+				return c.json({ 
+					success: false as false, 
+					error: deleteResult.error || 'Failed to delete sheet' 
+				}, 500);
+			}
+			
+			console.log('Sheet deleted successfully:', sheetId, sheetName);
+			
+			// 成功レスポンスを返す
+			return c.json({
+				success: true as true,
+				data: {}
+			});
+			
+		} catch (error) {
+			console.error('Error in DELETE /api/sheets/:id:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}
