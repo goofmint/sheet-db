@@ -9,7 +9,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute } from '../api-routes';
+import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute, modifyColumnRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -742,6 +742,149 @@ async function addColumnsToGoogleSheet(
 	}
 }
 
+// Google Sheetsから値を取得するヘルパー関数
+async function getGoogleSheetValues(
+	spreadsheetId: string,
+	range: string,
+	accessToken: string
+): Promise<any[][] | null> {
+	try {
+		const response = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		if (!response.ok) {
+			return null;
+		}
+
+		const data = await response.json();
+		return data.values || [];
+	} catch (error) {
+		console.error('Error fetching Google Sheet values:', error);
+		return null;
+	}
+}
+
+// シートの列を修正するヘルパー関数
+async function modifyColumnInGoogleSheet(
+	sheetId: string,
+	sheetName: string,
+	columnId: string,
+	updateData: any,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ success: boolean; modifiedColumn?: any; error?: string }> {
+	try {
+		// シートの現在の状態を取得
+		const values = await getGoogleSheetValues(
+			spreadsheetId,
+			`${sheetName}!1:2`,
+			accessToken
+		);
+
+		if (!values || values.length < 2) {
+			return { success: false, error: 'Sheet structure is invalid' };
+		}
+
+		const headers = values[0] || [];
+		const types = values[1] || [];
+
+		// 対象の列のインデックスを取得
+		const columnIndex = headers.findIndex((header: string) => header === columnId);
+		if (columnIndex === -1) {
+			return { success: false, error: 'Column not found' };
+		}
+
+		// 現在の列の設定を解析
+		const currentTypeStr = types[columnIndex];
+		let currentColumn: any = { type: currentTypeStr };
+
+		// 既存の列設定を解析（JSON形式の場合）
+		if (currentTypeStr && currentTypeStr.includes('{')) {
+			try {
+				currentColumn = JSON.parse(currentTypeStr);
+			} catch (e) {
+				currentColumn = { type: currentTypeStr };
+			}
+		}
+
+		// 新しい列設定を作成（既存の設定にupdateDataをマージ）
+		const newColumn = { ...currentColumn, ...updateData };
+
+		// 名前の変更がある場合は、ヘッダーを更新
+		let newHeaders = [...headers];
+		if (updateData.name && updateData.name !== columnId) {
+			// 新しい名前が既存の列名と重複しないかチェック
+			if (headers.includes(updateData.name)) {
+				return { success: false, error: 'Column name already exists' };
+			}
+			newHeaders[columnIndex] = updateData.name;
+		}
+
+		// 新しい型定義を作成
+		const newTypeDefinition = Object.keys(newColumn).length === 1 && newColumn.type 
+			? newColumn.type 
+			: JSON.stringify(newColumn);
+
+		let newTypes = [...types];
+		newTypes[columnIndex] = newTypeDefinition;
+
+		// バッチ更新を実行
+		const requests = [];
+
+		// ヘッダーの更新（名前が変更された場合）
+		if (updateData.name && updateData.name !== columnId) {
+			requests.push({
+				range: `${sheetName}!${getColumnLetter(columnIndex + 1)}1`,
+				values: [[updateData.name]]
+			});
+		}
+
+		// 型定義の更新
+		requests.push({
+			range: `${sheetName}!${getColumnLetter(columnIndex + 1)}2`,
+			values: [[newTypeDefinition]]
+		});
+
+		// Google Sheets API でバッチ更新
+		const batchUpdateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`;
+		const batchUpdateResponse = await fetch(batchUpdateUrl, {
+			method: 'POST',
+			headers: {
+				'Authorization': `Bearer ${accessToken}`,
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				valueInputOption: 'RAW',
+				data: requests
+			})
+		});
+
+		if (!batchUpdateResponse.ok) {
+			const errorData = await batchUpdateResponse.json();
+			return { success: false, error: `Failed to update column: ${errorData.error?.message || 'Unknown error'}` };
+		}
+
+		// 修正された列の情報を返す
+		const modifiedColumn = {
+			name: updateData.name || columnId,
+			type: newColumn.type,
+			...newColumn
+		};
+
+		return { success: true, modifiedColumn };
+	} catch (error) {
+		console.error('Error modifying column in Google Sheet:', error);
+		return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+	}
+}
+
 // シートを削除するヘルパー関数
 async function deleteGoogleSheet(
 	sheetId: string,
@@ -1449,6 +1592,131 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in POST /api/sheets/:id/columns:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// PUT /api/sheets/:id/columns/:columnId - シートの列を修正 (OpenAPI)
+	app.openapi(modifyColumnRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// 認証ヘッダーからセッションIDを取得
+			const authHeader = c.req.valid('header').authorization;
+			const sessionId = authHeader.replace('Bearer ', '');
+			
+			// セッション認証
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+			}
+			
+			const userId = authResult.userId;
+			if (!userId) {
+				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+			}
+			
+			const { id: sheetId, columnId } = c.req.valid('param');
+			const updateData = c.req.valid('json');
+			
+			// Google Sheetsの設定を取得
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// 有効なGoogleトークンを取得
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// ユーザー情報を取得（権限チェック用）
+			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+			if (!user) {
+				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+			}
+			
+			// シート情報を取得
+			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { sheetName, sheetId: actualSheetId, columns } = sheetInfo;
+			if (!sheetName || !actualSheetId || !columns) {
+				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+			}
+			
+			// 対象の列が存在するかチェック
+			if (!columns[columnId]) {
+				return c.json({ success: false as false, error: 'Column not found' }, 404);
+			}
+			
+			// Check column modification permission
+			const permissionCheck = await checkColumnModifyPermission(
+				userId,
+				user.roles || [],
+				spreadsheetId,
+				tokens.access_token
+			);
+			
+			if (!permissionCheck.allowed) {
+				return c.json({ 
+					success: false as false, 
+					error: permissionCheck.error || 'Permission denied' 
+				}, 403);
+			}
+			
+			// 列をシートで修正
+			const modifyResult = await modifyColumnInGoogleSheet(
+				actualSheetId.toString(),
+				sheetName,
+				columnId,
+				updateData,
+				spreadsheetId,
+				tokens.access_token
+			);
+			
+			if (!modifyResult.success) {
+				return c.json({ 
+					success: false as false, 
+					error: modifyResult.error || 'Failed to modify column' 
+				}, 500);
+			}
+			
+			console.log('Column modified successfully in sheet:', sheetId, sheetName, columnId);
+			
+			// 成功レスポンスを返す
+			return c.json({
+				success: true as true,
+				data: {
+					sheetId: actualSheetId,
+					sheetName: sheetName,
+					columnId: columnId,
+					modifiedColumn: modifyResult.modifiedColumn,
+					message: `Successfully modified column '${columnId}' in sheet '${sheetName}'`
+				}
+			});
+			
+		} catch (error) {
+			console.error('Error in PUT /api/sheets/:id/columns/:columnId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}

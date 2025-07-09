@@ -34,7 +34,10 @@ import {
   GetSheetsResponseSchema,
   GetSheetMetadataResponseSchema,
   AddColumnsRequestSchema,
-  AddColumnsResponseSchema
+  AddColumnsResponseSchema,
+  ModifyColumnRequestSchema,
+  ModifyColumnResponseSchema,
+  ColumnIdParamSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -913,6 +916,79 @@ export const addColumnsRoute = createRoute({
         },
       },
       description: 'Sheet not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// PUT /api/sheets/:id/columns/:columnId - Modify a column in a sheet
+export const modifyColumnRoute = createRoute({
+  method: 'put',
+  path: '/api/sheets/{id}/columns/{columnId}',
+  summary: 'Modify a column in a sheet',
+  description: 'Modifies properties of an existing column in a sheet. Type changes are not allowed. Requires write access to the sheet and column modification permissions.',
+  tags: ['Sheets'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    headers: z.object({
+      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
+    }),
+    params: SheetIdParamSchema.merge(ColumnIdParamSchema),
+    body: {
+      content: {
+        'application/json': {
+          schema: ModifyColumnRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: ModifyColumnResponseSchema,
+        },
+      },
+      description: 'Column modified successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+      description: 'Invalid request data or attempting to change column type',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no column modification access',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet or column not found',
     },
     500: {
       content: {
