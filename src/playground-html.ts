@@ -390,6 +390,9 @@ export const playgroundHTML = `<!DOCTYPE html>
     </div>
 
     <script>
+        // Constants
+        const SESSION_TOKEN_KEY = 'sheet-db-session-token';
+
         // Helper functions
         function getAuthHeaders() {
             const token = document.getElementById('sessionToken').value.trim();
@@ -400,6 +403,32 @@ export const playgroundHTML = `<!DOCTYPE html>
                 'Authorization': token.startsWith('Bearer ') ? token : \`Bearer \${token}\`,
                 'Content-Type': 'application/json'
             };
+        }
+
+        // LocalStorage functions
+        function saveTokenToStorage(token) {
+            try {
+                localStorage.setItem(SESSION_TOKEN_KEY, token);
+            } catch (error) {
+                console.error('Failed to save token to localStorage:', error);
+            }
+        }
+
+        function loadTokenFromStorage() {
+            try {
+                return localStorage.getItem(SESSION_TOKEN_KEY) || '';
+            } catch (error) {
+                console.error('Failed to load token from localStorage:', error);
+                return '';
+            }
+        }
+
+        function clearTokenFromStorage() {
+            try {
+                localStorage.removeItem(SESSION_TOKEN_KEY);
+            } catch (error) {
+                console.error('Failed to clear token from localStorage:', error);
+            }
         }
 
         function showResult(elementId, data, isError = false) {
@@ -448,6 +477,12 @@ export const playgroundHTML = `<!DOCTYPE html>
                 const response = await fetch('/api/users/me', { headers });
                 const data = await response.json();
                 
+                // Save token to localStorage if user info request succeeds
+                if (data.success) {
+                    const token = document.getElementById('sessionToken').value.trim();
+                    saveTokenToStorage(token);
+                }
+                
                 showResult('authResult', data, !data.success);
                 updateAuthStatus();
             } catch (error) {
@@ -457,6 +492,8 @@ export const playgroundHTML = `<!DOCTYPE html>
 
         function clearAuth() {
             document.getElementById('sessionToken').value = '';
+            // Clear token from localStorage
+            clearTokenFromStorage();
             updateAuthStatus();
             showResult('authResult', { message: '認証情報をクリアしました' });
         }
@@ -672,6 +709,13 @@ export const playgroundHTML = `<!DOCTYPE html>
 
         // Initialize
         document.getElementById('sessionToken').addEventListener('input', updateAuthStatus);
+        
+        // Load token from localStorage on page load
+        const savedToken = loadTokenFromStorage();
+        if (savedToken) {
+            document.getElementById('sessionToken').value = savedToken;
+        }
+        
         updateAuthStatus();
     </script>
 </body>
