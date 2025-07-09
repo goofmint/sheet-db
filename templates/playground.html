@@ -982,17 +982,29 @@
                 const pattern = document.getElementById('modifyColumnPattern').value.trim();
                 if (pattern) body.pattern = pattern;
                 
-                const minLength = document.getElementById('modifyColumnMinLength').value.trim();
-                if (minLength) body.minLength = parseInt(minLength);
+                const minLengthRaw = document.getElementById('modifyColumnMinLength').value.trim();
+                const minLength = parseInt(minLengthRaw, 10);
+                if (minLengthRaw !== '' && !Number.isNaN(minLength)) {
+                    body.minLength = minLength;
+                }
                 
-                const maxLength = document.getElementById('modifyColumnMaxLength').value.trim();
-                if (maxLength) body.maxLength = parseInt(maxLength);
+                const maxLengthRaw = document.getElementById('modifyColumnMaxLength').value.trim();
+                const maxLength = parseInt(maxLengthRaw, 10);
+                if (maxLengthRaw !== '' && !Number.isNaN(maxLength)) {
+                    body.maxLength = maxLength;
+                }
                 
-                const min = document.getElementById('modifyColumnMin').value.trim();
-                if (min) body.min = parseFloat(min);
+                const minRaw = document.getElementById('modifyColumnMin').value.trim();
+                const min = parseFloat(minRaw);
+                if (minRaw !== '' && !Number.isNaN(min)) {
+                    body.min = min;
+                }
                 
-                const max = document.getElementById('modifyColumnMax').value.trim();
-                if (max) body.max = parseFloat(max);
+                const maxRaw = document.getElementById('modifyColumnMax').value.trim();
+                const max = parseFloat(maxRaw);
+                if (maxRaw !== '' && !Number.isNaN(max)) {
+                    body.max = max;
+                }
                 
                 const defaultValue = document.getElementById('modifyColumnDefault').value.trim();
                 if (defaultValue) {
