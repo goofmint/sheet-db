@@ -32,7 +32,9 @@ import {
   SheetIdParamSchema,
   DeleteSheetResponseSchema,
   GetSheetsResponseSchema,
-  GetSheetMetadataResponseSchema
+  GetSheetMetadataResponseSchema,
+  AddColumnsRequestSchema,
+  AddColumnsResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -830,6 +832,79 @@ export const getSheetMetadataRoute = createRoute({
         },
       },
       description: 'Permission denied - no read access to this sheet',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// POST /api/sheets/:id/columns - Add columns to a sheet
+export const addColumnsRoute = createRoute({
+  method: 'post',
+  path: '/api/sheets/{id}/columns',
+  summary: 'Add columns to a sheet',
+  description: 'Adds new columns to an existing sheet with specified types and validation rules. Requires write access to the sheet.',
+  tags: ['Sheets'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    headers: z.object({
+      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
+    }),
+    params: SheetIdParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: AddColumnsRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: AddColumnsResponseSchema,
+        },
+      },
+      description: 'Columns added successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+      description: 'Invalid request data or column already exists',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no write access to this sheet',
     },
     404: {
       content: {

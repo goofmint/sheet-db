@@ -298,3 +298,44 @@ export const GetSheetMetadataResponseSchema = z.object({
 		user_write: z.array(z.string())
 	})
 });
+
+// Column definition schema for adding columns
+export const ColumnDefinitionSchema = z.object({
+	type: ColumnTypeEnum,
+	unique: z.boolean().optional(),
+	pattern: z.string().optional(),
+	minLength: z.number().int().min(0).optional(),
+	maxLength: z.number().int().min(0).optional(),
+	min: z.number().optional(),
+	max: z.number().optional(),
+	default: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
+});
+
+// Add columns request schema
+export const AddColumnsRequestSchema = z.record(z.string(), ColumnDefinitionSchema).refine(
+	(data) => Object.keys(data).length > 0,
+	{
+		message: "At least one column must be provided"
+	}
+);
+
+// Add columns response schema
+export const AddColumnsResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		sheetId: z.number(),
+		name: z.string(),
+		addedColumns: z.array(z.object({
+			name: z.string(),
+			type: ColumnTypeEnum,
+			unique: z.boolean().optional(),
+			pattern: z.string().optional(),
+			minLength: z.number().optional(),
+			maxLength: z.number().optional(),
+			min: z.number().optional(),
+			max: z.number().optional(),
+			default: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
+		})),
+		message: z.string()
+	})
+});
