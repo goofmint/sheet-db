@@ -289,6 +289,16 @@
             <h3>Get Sheets List</h3>
             <button onclick="getSheetsList()" class="success">Get Sheets List</button>
             
+            <h3>Get Sheet Metadata</h3>
+            <div class="inline-form">
+                <div class="form-group">
+                    <label for="getSheetId">Sheet ID (Sheet Name):</label>
+                    <input type="text" id="getSheetId" placeholder="e.g., 12345 or UserData">
+                </div>
+                <button onclick="getSheetMetadata()" class="success">Get Sheet Metadata</button>
+            </div>
+            <p><small>💡 This endpoint works without authentication for public sheets (public_read=true)</small></p>
+            
             <h3>Create Sheet</h3>
             <div class="row">
                 <div class="col">
@@ -613,6 +623,37 @@
             try {
                 const headers = getAuthHeaders();
                 const response = await fetch('/api/sheets', {
+                    method: 'GET',
+                    headers
+                });
+                const data = await response.json();
+                
+                showResult('sheetsResult', data, !data.success);
+            } catch (error) {
+                showResult('sheetsResult', { error: error.message }, true);
+            }
+        }
+
+        async function getSheetMetadata() {
+            try {
+                const sheetId = document.getElementById('getSheetId').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('Sheet ID is required');
+                }
+
+                // Try with authentication first, fallback to no auth if token is missing
+                let headers = { 'Content-Type': 'application/json' };
+                try {
+                    const token = document.getElementById('sessionToken').value.trim();
+                    if (token) {
+                        headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+                    }
+                } catch (authError) {
+                    // Continue without authentication for public sheets
+                }
+
+                const response = await fetch(`/api/sheets/${encodeURIComponent(sheetId)}`, {
                     method: 'GET',
                     headers
                 });
