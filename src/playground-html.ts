@@ -1,5 +1,5 @@
 export const playgroundHTML = `<!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -179,23 +179,23 @@ export const playgroundHTML = `<!DOCTYPE html>
         <h1>Sheet DB API Playground</h1>
         
         <div class="status" id="authStatus">
-            認証状態: 未認証
+            Authentication Status: Not Authenticated
         </div>
 
         <!-- Authentication Section -->
         <div class="section auth-section">
-            <h2>🔐 認証</h2>
-            <p><strong>手順:</strong> 1) 認証開始ボタンをクリック → 2) Auth0でログイン → 3) 表示されたセッショントークンをコピー → 4) 下記フィールドに貼り付け</p>
+            <h2>🔐 Authentication</h2>
+            <p><strong>Steps:</strong> 1) Click "Start Authentication" → 2) Login with Auth0 → 3) Copy the displayed session token → 4) Paste it in the field below</p>
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <label for="sessionToken">セッショントークン:</label>
+                        <label for="sessionToken">Session Token:</label>
                         <input type="text" id="sessionToken" placeholder="Bearer token here...">
                     </div>
-                    <button onclick="startAuth()">認証開始</button>
-                    <a href="/api/auth" target="_blank" style="display: inline-block; background: #17a2b8; color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px; margin-bottom: 10px;">認証開始 (リンク)</a>
-                    <button onclick="checkUserInfo()">ユーザー情報取得</button>
-                    <button onclick="clearAuth()" class="danger">認証クリア</button>
+                    <button onclick="startAuth()">Start Authentication</button>
+                    <a href="/api/auth" target="_blank" style="display: inline-block; background: #17a2b8; color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px; margin-bottom: 10px;">Start Authentication (Link)</a>
+                    <button onclick="checkUserInfo()">Get User Info</button>
+                    <button onclick="clearAuth()" class="danger">Clear Authentication</button>
                 </div>
             </div>
             <div id="authResult" class="result" style="display: none;"></div>
@@ -203,14 +203,14 @@ export const playgroundHTML = `<!DOCTYPE html>
 
         <!-- Roles Section -->
         <div class="section roles-section">
-            <h2>👥 ロール管理</h2>
+            <h2>👥 Role Management</h2>
             
-            <h3>ロール作成</h3>
+            <h3>Create Role</h3>
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <label for="newRoleName">ロール名:</label>
-                        <input type="text" id="newRoleName" placeholder="例: editor">
+                        <label for="newRoleName">Role Name:</label>
+                        <input type="text" id="newRoleName" placeholder="e.g., editor">
                     </div>
                 </div>
                 <div class="col">
@@ -226,23 +226,23 @@ export const playgroundHTML = `<!DOCTYPE html>
                     </div>
                 </div>
             </div>
-            <button onclick="createRole()" class="success">ロール作成</button>
+            <button onclick="createRole()" class="success">Create Role</button>
 
-            <h3>ロール更新</h3>
+            <h3>Update Role</h3>
             <div class="inline-form">
                 <div class="form-group">
-                    <label for="updateRoleName">更新するロール名:</label>
-                    <input type="text" id="updateRoleName" placeholder="例: editor">
+                    <label for="updateRoleName">Role Name to Update:</label>
+                    <input type="text" id="updateRoleName" placeholder="e.g., editor">
                 </div>
                 <div class="form-group">
-                    <label for="updateRoleNewName">新しいロール名 (optional):</label>
-                    <input type="text" id="updateRoleNewName" placeholder="例: super_editor">
+                    <label for="updateRoleNewName">New Role Name (optional):</label>
+                    <input type="text" id="updateRoleNewName" placeholder="e.g., super_editor">
                 </div>
-                <button onclick="updateRole()">ロール更新</button>
+                <button onclick="updateRole()">Update Role</button>
             </div>
             
             <div class="array-input">
-                <label>権限設定 (JSON配列形式で入力):</label>
+                <label>Permission Settings (Enter in JSON array format):</label>
                 <div class="row">
                     <div class="col">
                         <div class="form-group">
@@ -267,13 +267,13 @@ export const playgroundHTML = `<!DOCTYPE html>
                 </div>
             </div>
 
-            <h3>ロール削除</h3>
+            <h3>Delete Role</h3>
             <div class="inline-form">
                 <div class="form-group">
-                    <label for="deleteRoleName">削除するロール名:</label>
-                    <input type="text" id="deleteRoleName" placeholder="例: old_role">
+                    <label for="deleteRoleName">Role Name to Delete:</label>
+                    <input type="text" id="deleteRoleName" placeholder="e.g., old_role">
                 </div>
-                <button onclick="deleteRole()" class="danger">ロール削除</button>
+                <button onclick="deleteRole()" class="danger">Delete Role</button>
             </div>
 
             <div id="rolesResult" class="result" style="display: none;"></div>
@@ -281,14 +281,14 @@ export const playgroundHTML = `<!DOCTYPE html>
 
         <!-- Sheets Section -->
         <div class="section sheets-section">
-            <h2>📊 シート管理</h2>
+            <h2>📊 Sheet Management</h2>
             
-            <h3>シート作成</h3>
+            <h3>Create Sheet</h3>
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <label for="newSheetName">シート名:</label>
-                        <input type="text" id="newSheetName" placeholder="例: UserData">
+                        <label for="newSheetName">Sheet Name:</label>
+                        <input type="text" id="newSheetName" placeholder="e.g., UserData">
                     </div>
                 </div>
                 <div class="col">
@@ -306,7 +306,7 @@ export const playgroundHTML = `<!DOCTYPE html>
             </div>
             
             <div class="array-input">
-                <label>権限設定 (JSON配列形式で入力):</label>
+                <label>Permission Settings (Enter in JSON array format):</label>
                 <div class="row">
                     <div class="col">
                         <div class="form-group">
@@ -330,18 +330,18 @@ export const playgroundHTML = `<!DOCTYPE html>
                     </div>
                 </div>
             </div>
-            <button onclick="createSheet()" class="success">シート作成</button>
+            <button onclick="createSheet()" class="success">Create Sheet</button>
 
-            <h3>シート更新</h3>
+            <h3>Update Sheet</h3>
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <label for="updateSheetId">シートID:</label>
-                        <input type="text" id="updateSheetId" placeholder="例: 12345">
+                        <label for="updateSheetId">Sheet ID:</label>
+                        <input type="text" id="updateSheetId" placeholder="e.g., 12345">
                     </div>
                     <div class="form-group">
-                        <label for="updateSheetName">新しいシート名 (optional):</label>
-                        <input type="text" id="updateSheetName" placeholder="例: UpdatedUserData">
+                        <label for="updateSheetName">New Sheet Name (optional):</label>
+                        <input type="text" id="updateSheetName" placeholder="e.g., UpdatedUserData">
                     </div>
                 </div>
                 <div class="col">
@@ -359,7 +359,7 @@ export const playgroundHTML = `<!DOCTYPE html>
             </div>
             
             <div class="array-input">
-                <label>権限設定 (JSON配列形式で入力、空の場合は変更されません):</label>
+                <label>Permission Settings (Enter in JSON array format, no changes if empty):</label>
                 <div class="row">
                     <div class="col">
                         <div class="form-group">
@@ -383,129 +383,129 @@ export const playgroundHTML = `<!DOCTYPE html>
                     </div>
                 </div>
             </div>
-            <button onclick="updateSheet()">シート更新</button>
+            <button onclick="updateSheet()">Update Sheet</button>
 
             <div id="sheetsResult" class="result" style="display: none;"></div>
         </div>
 
         <!-- Column Management Section -->
         <div class="section sheets-section">
-            <h2>📋 列管理</h2>
+            <h2>📋 Column Management</h2>
             
-            <h3>列情報の取得</h3>
-            <p><strong>Note:</strong> 認証は不要です。シートの読み取り権限のみチェックされます。</p>
+            <h3>Get Column Information</h3>
+            <p><strong>Note:</strong> Authentication not required. Only sheet read permissions are checked.</p>
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <label for="getColumnSheetId">シートID:</label>
-                        <input type="text" id="getColumnSheetId" placeholder="例: 12345">
+                        <label for="getColumnSheetId">Sheet ID:</label>
+                        <input type="text" id="getColumnSheetId" placeholder="e.g., 12345">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                        <label for="getColumnName">列名:</label>
-                        <input type="text" id="getColumnName" placeholder="例: user_name">
+                        <label for="getColumnName">Column Name:</label>
+                        <input type="text" id="getColumnName" placeholder="e.g., user_name">
                     </div>
                 </div>
             </div>
-            <button onclick="getColumnInfo()">列情報取得</button>
+            <button onclick="getColumnInfo()">Get Column Info</button>
 
-            <h3>列の更新</h3>
-            <p><strong>注意:</strong> 列の型（type）の変更はできません。システム列（id, created_at, updated_at等）の変更もできません。</p>
+            <h3>Update Column</h3>
+            <p><strong>Note:</strong> Column type changes are not allowed. System columns (id, created_at, updated_at, etc.) cannot be modified.</p>
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <label for="updateColumnSheetId">シートID:</label>
-                        <input type="text" id="updateColumnSheetId" placeholder="例: 12345">
+                        <label for="updateColumnSheetId">Sheet ID:</label>
+                        <input type="text" id="updateColumnSheetId" placeholder="e.g., 12345">
                     </div>
                     <div class="form-group">
-                        <label for="updateColumnCurrentName">現在の列名:</label>
-                        <input type="text" id="updateColumnCurrentName" placeholder="例: user_name">
+                        <label for="updateColumnCurrentName">Current Column Name:</label>
+                        <input type="text" id="updateColumnCurrentName" placeholder="e.g., user_name">
                     </div>
                     <div class="form-group">
-                        <label for="updateColumnNewName">新しい列名 (optional):</label>
-                        <input type="text" id="updateColumnNewName" placeholder="例: username">
+                        <label for="updateColumnNewName">New Column Name (optional):</label>
+                        <input type="text" id="updateColumnNewName" placeholder="e.g., username">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                        <label for="updateColumnPattern">パターン (optional):</label>
-                        <input type="text" id="updateColumnPattern" placeholder="例: ^[a-zA-Z0-9_]+$">
+                        <label for="updateColumnPattern">Pattern (optional):</label>
+                        <input type="text" id="updateColumnPattern" placeholder="e.g., ^[a-zA-Z0-9_]+$">
                     </div>
                     <div class="form-group">
-                        <label for="updateColumnMinLength">最小長 (optional):</label>
-                        <input type="text" id="updateColumnMinLength" placeholder="例: 3">
+                        <label for="updateColumnMinLength">Min Length (optional):</label>
+                        <input type="text" id="updateColumnMinLength" placeholder="e.g., 3">
                     </div>
                     <div class="form-group">
-                        <label for="updateColumnMaxLength">最大長 (optional):</label>
-                        <input type="text" id="updateColumnMaxLength" placeholder="例: 50">
+                        <label for="updateColumnMaxLength">Max Length (optional):</label>
+                        <input type="text" id="updateColumnMaxLength" placeholder="e.g., 50">
                     </div>
                 </div>
             </div>
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <label for="updateColumnMin">最小値 (optional):</label>
-                        <input type="text" id="updateColumnMin" placeholder="例: 0">
+                        <label for="updateColumnMin">Min Value (optional):</label>
+                        <input type="text" id="updateColumnMin" placeholder="e.g., 0">
                     </div>
                     <div class="form-group">
-                        <label for="updateColumnMax">最大値 (optional):</label>
-                        <input type="text" id="updateColumnMax" placeholder="例: 100">
+                        <label for="updateColumnMax">Max Value (optional):</label>
+                        <input type="text" id="updateColumnMax" placeholder="e.g., 100">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                        <label for="updateColumnDefault">デフォルト値 (optional):</label>
-                        <input type="text" id="updateColumnDefault" placeholder="例: default_value">
+                        <label for="updateColumnDefault">Default Value (optional):</label>
+                        <input type="text" id="updateColumnDefault" placeholder="e.g., default_value">
                     </div>
                 </div>
             </div>
-            <button onclick="updateColumn()">列の更新</button>
+            <button onclick="updateColumn()">Update Column</button>
 
             <div id="columnsResult" class="result" style="display: none;"></div>
         </div>
 
         <!-- Data Management Section -->
         <div class="section sheets-section">
-            <h2>📊 データ管理</h2>
+            <h2>📊 Data Management</h2>
             
-            <h3>シートデータの取得</h3>
-            <p><strong>Note:</strong> 認証は不要です（public_read=trueのシート）。高度なクエリ機能に対応しています。</p>
+            <h3>Get Sheet Data</h3>
+            <p><strong>Note:</strong> Authentication not required for public sheets (public_read=true). Supports advanced query features.</p>
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <label for="getDataSheetId">シートID:</label>
-                        <input type="text" id="getDataSheetId" placeholder="例: 12345">
+                        <label for="getDataSheetId">Sheet ID:</label>
+                        <input type="text" id="getDataSheetId" placeholder="e.g., 12345">
                     </div>
                     <div class="form-group">
-                        <label for="getDataQuery">テキスト検索 (optional):</label>
-                        <input type="text" id="getDataQuery" placeholder="全フィールドを対象とした検索テキスト">
+                        <label for="getDataQuery">Text Search (optional):</label>
+                        <input type="text" id="getDataQuery" placeholder="Search text across all fields">
                     </div>
                     <div class="form-group">
-                        <label for="getDataOrder">ソート順 (optional):</label>
-                        <input type="text" id="getDataOrder" placeholder="例: name, score:desc, category,score:desc">
+                        <label for="getDataOrder">Sort Order (optional):</label>
+                        <input type="text" id="getDataOrder" placeholder="e.g., name, score:desc, category,score:desc">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                        <label for="getDataLimit">取得件数制限 (optional):</label>
-                        <input type="number" id="getDataLimit" placeholder="例: 10" min="1" max="1000">
+                        <label for="getDataLimit">Limit Results (optional):</label>
+                        <input type="number" id="getDataLimit" placeholder="e.g., 10" min="1" max="1000">
                     </div>
                     <div class="form-group">
-                        <label for="getDataPage">ページ番号 (optional):</label>
-                        <input type="number" id="getDataPage" placeholder="例: 1" min="1">
+                        <label for="getDataPage">Page Number (optional):</label>
+                        <input type="number" id="getDataPage" placeholder="e.g., 1" min="1">
                     </div>
                     <div class="checkbox-group">
                         <label>
                             <input type="checkbox" id="getDataCount">
-                            件数を含める
+                            Include Count
                         </label>
                     </div>
                 </div>
             </div>
             
             <div class="array-input">
-                <label>WHERE条件 (optional, JSON形式):</label>
+                <label>WHERE Conditions (optional, JSON format):</label>
                 <div class="form-group">
                     <label for="getDataWhere">WHERE JSON:</label>
                     <textarea id="getDataWhere" placeholder='{
@@ -520,7 +520,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 <p><small>💡 対応演算子: $lt, $lte, $gt, $gte, $ne, $in, $nin, $exists, $regex, $text</small></p>
                 <p><small>💡 完全一致: {"field": "value"}. 演算子: {"field": {"$operator": "value"}}</small></p>
             </div>
-            <button onclick="getSheetData()">データ取得</button>
+            <button onclick="getSheetData()">Get Data</button>
 
             <div id="dataResult" class="result" style="display: none;"></div>
         </div>
@@ -534,7 +534,7 @@ export const playgroundHTML = `<!DOCTYPE html>
         function getAuthHeaders() {
             const token = document.getElementById('sessionToken').value.trim();
             if (!token) {
-                throw new Error('セッショントークンが設定されていません');
+                throw new Error('Session token is not set');
             }
             return {
                 'Authorization': token.startsWith('Bearer ') ? token : \`Bearer \${token}\`,
@@ -580,10 +580,10 @@ export const playgroundHTML = `<!DOCTYPE html>
             const statusElement = document.getElementById('authStatus');
             if (token) {
                 statusElement.className = 'status authenticated';
-                statusElement.textContent = '認証状態: 認証済み';
+                statusElement.textContent = 'Authentication Status: Authenticated';
             } else {
                 statusElement.className = 'status unauthenticated';
-                statusElement.textContent = '認証状態: 未認証';
+                statusElement.textContent = 'Authentication Status: Not Authenticated';
             }
         }
 
@@ -602,7 +602,7 @@ export const playgroundHTML = `<!DOCTYPE html>
             try {
                 // Redirect directly to the auth endpoint
                 window.open('/api/auth', '_blank');
-                showResult('authResult', { message: '認証ページを開きました。認証完了後、セッショントークンをコピーして貼り付けてください。' });
+                showResult('authResult', { message: 'Authentication page opened. After completing authentication, copy and paste the session token.' });
             } catch (error) {
                 showResult('authResult', { error: error.message }, true);
             }
@@ -632,7 +632,7 @@ export const playgroundHTML = `<!DOCTYPE html>
             // Clear token from localStorage
             clearTokenFromStorage();
             updateAuthStatus();
-            showResult('authResult', { message: '認証情報をクリアしました' });
+            showResult('authResult', { message: 'Authentication information cleared' });
         }
 
         // Role functions
@@ -646,7 +646,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 };
 
                 if (!body.name) {
-                    throw new Error('ロール名は必須です');
+                    throw new Error('Role name is required');
                 }
 
                 const response = await fetch('/api/roles', {
@@ -675,7 +675,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 const roleName = document.getElementById('updateRoleName').value.trim();
                 
                 if (!roleName) {
-                    throw new Error('更新するロール名は必須です');
+                    throw new Error('Role name to update is required');
                 }
 
                 const body = {};
@@ -696,7 +696,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 if (userWrite !== undefined) body.user_write = userWrite;
 
                 if (Object.keys(body).length === 0) {
-                    throw new Error('更新する項目を少なくとも1つ指定してください');
+                    throw new Error('Please specify at least one item to update');
                 }
 
                 const response = await fetch(\`/api/roles/\${encodeURIComponent(roleName)}\`, {
@@ -718,10 +718,10 @@ export const playgroundHTML = `<!DOCTYPE html>
                 const roleName = document.getElementById('deleteRoleName').value.trim();
                 
                 if (!roleName) {
-                    throw new Error('削除するロール名は必須です');
+                    throw new Error('Role name to delete is required');
                 }
 
-                if (!confirm(\`ロール "\${roleName}" を削除しますか？\`)) {
+                if (!confirm(\`Delete role "\${roleName}"?\`)) {
                     return;
                 }
 
@@ -753,7 +753,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 };
 
                 if (!body.name) {
-                    throw new Error('シート名は必須です');
+                    throw new Error('Sheet name is required');
                 }
 
                 const roleRead = parseJsonArray(document.getElementById('newSheetRoleRead').value);
@@ -798,7 +798,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 const sheetId = document.getElementById('updateSheetId').value.trim();
                 
                 if (!sheetId) {
-                    throw new Error('シートIDは必須です');
+                    throw new Error('Sheet ID is required');
                 }
 
                 const body = {};
@@ -828,7 +828,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 if (userWrite !== undefined) body.user_write = userWrite;
 
                 if (Object.keys(body).length === 0) {
-                    throw new Error('更新する項目を少なくとも1つ指定してください');
+                    throw new Error('Please specify at least one item to update');
                 }
 
                 const response = await fetch(\`/api/sheets/\${encodeURIComponent(sheetId)}\`, {
@@ -851,11 +851,11 @@ export const playgroundHTML = `<!DOCTYPE html>
                 const columnName = document.getElementById('getColumnName').value.trim();
                 
                 if (!sheetId) {
-                    throw new Error('シートIDは必須です');
+                    throw new Error('Sheet ID is required');
                 }
                 
                 if (!columnName) {
-                    throw new Error('列名は必須です');
+                    throw new Error('Column name is required');
                 }
 
                 // Note: This endpoint doesn't require authentication, but can use it if available
@@ -890,11 +890,11 @@ export const playgroundHTML = `<!DOCTYPE html>
                 const currentName = document.getElementById('updateColumnCurrentName').value.trim();
                 
                 if (!sheetId) {
-                    throw new Error('シートIDは必須です');
+                    throw new Error('Sheet ID is required');
                 }
                 
                 if (!currentName) {
-                    throw new Error('現在の列名は必須です');
+                    throw new Error('Current column name is required');
                 }
 
                 const body = {};
@@ -930,7 +930,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 }
 
                 if (Object.keys(body).length === 0) {
-                    throw new Error('更新する項目を少なくとも1つ指定してください');
+                    throw new Error('Please specify at least one item to update');
                 }
 
                 const response = await fetch(\`/api/sheets/\${encodeURIComponent(sheetId)}/columns/\${encodeURIComponent(currentName)}\`, {
@@ -964,7 +964,7 @@ export const playgroundHTML = `<!DOCTYPE html>
             try {
                 const sheetId = document.getElementById('getDataSheetId').value.trim();
                 if (!sheetId) {
-                    throw new Error('シートIDは必須です');
+                    throw new Error('Sheet ID is required');
                 }
                 
                 // Build query parameters
@@ -979,7 +979,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                         JSON.parse(where); // Validate JSON
                         params.append('where', encodeURIComponent(where));
                     } catch (e) {
-                        throw new Error('無効なWHERE JSON形式です');
+                        throw new Error('Invalid WHERE JSON format');
                     }
                 }
                 
