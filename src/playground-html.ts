@@ -464,6 +464,66 @@ export const playgroundHTML = `<!DOCTYPE html>
 
             <div id="columnsResult" class="result" style="display: none;"></div>
         </div>
+
+        <!-- Data Management Section -->
+        <div class="section sheets-section">
+            <h2>📊 データ管理</h2>
+            
+            <h3>シートデータの取得</h3>
+            <p><strong>Note:</strong> 認証は不要です（public_read=trueのシート）。高度なクエリ機能に対応しています。</p>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="getDataSheetId">シートID:</label>
+                        <input type="text" id="getDataSheetId" placeholder="例: 12345">
+                    </div>
+                    <div class="form-group">
+                        <label for="getDataQuery">テキスト検索 (optional):</label>
+                        <input type="text" id="getDataQuery" placeholder="全フィールドを対象とした検索テキスト">
+                    </div>
+                    <div class="form-group">
+                        <label for="getDataOrder">ソート順 (optional):</label>
+                        <input type="text" id="getDataOrder" placeholder="例: name, score:desc, category,score:desc">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="getDataLimit">取得件数制限 (optional):</label>
+                        <input type="number" id="getDataLimit" placeholder="例: 10" min="1" max="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="getDataPage">ページ番号 (optional):</label>
+                        <input type="number" id="getDataPage" placeholder="例: 1" min="1">
+                    </div>
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="getDataCount">
+                            件数を含める
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="array-input">
+                <label>WHERE条件 (optional, JSON形式):</label>
+                <div class="form-group">
+                    <label for="getDataWhere">WHERE JSON:</label>
+                    <textarea id="getDataWhere" placeholder='{
+  "score": {"$gte": 1000, "$lte": 3000},
+  "category": {"$in": ["A", "B"]},
+  "status": {"$ne": "inactive"},
+  "email": {"$exists": true},
+  "name": {"$regex": "^John"},
+  "description": {"$text": "search term"}
+}' style="height: 150px;"></textarea>
+                </div>
+                <p><small>💡 対応演算子: $lt, $lte, $gt, $gte, $ne, $in, $nin, $exists, $regex, $text</small></p>
+                <p><small>💡 完全一致: {"field": "value"}. 演算子: {"field": {"$operator": "value"}}</small></p>
+            </div>
+            <button onclick="getSheetData()">データ取得</button>
+
+            <div id="dataResult" class="result" style="display: none;"></div>
+        </div>
     </div>
 
     <script>
@@ -896,6 +956,98 @@ export const playgroundHTML = `<!DOCTYPE html>
                 }
             } catch (error) {
                 showResult('columnsResult', { error: error.message }, true);
+            }
+        }
+
+        // Data functions  
+        async function getSheetData() {
+            try {
+                const sheetId = document.getElementById('getDataSheetId').value.trim();
+                if (!sheetId) {
+                    throw new Error('シートIDは必須です');
+                }
+                
+                // Build query parameters
+                const params = new URLSearchParams();
+                
+                const query = document.getElementById('getDataQuery').value.trim();
+                if (query) params.append('query', query);
+                
+                const where = document.getElementById('getDataWhere').value.trim();
+                if (where) {
+                    try {
+                        JSON.parse(where); // Validate JSON
+                        params.append('where', where);
+                    } catch (e) {
+                        throw new Error('無効なWHERE JSON形式です');
+                    }
+                }
+                
+                const limit = document.getElementById('getDataLimit').value.trim();
+                if (limit) params.append('limit', limit);
+                
+                const page = document.getElementById('getDataPage').value.trim();
+                if (page) params.append('page', page);
+                
+                const order = document.getElementById('getDataOrder').value.trim();
+                if (order) params.append('order', order);
+                
+                const count = document.getElementById('getDataCount').checked;
+                if (count) params.append('count', 'true');
+                
+                // Build URL
+                const url = \`/api/sheets/\${encodeURIComponent(sheetId)}/data\${params.toString() ? '?' + params.toString() : ''}\`;
+                
+                // Try without authentication first (for public sheets)
+                let headers = { 'Content-Type': 'application/json' };
+                const token = document.getElementById('sessionToken').value.trim();
+                if (token) {
+                    headers['Authorization'] = token.startsWith('Bearer ') ? token : \`Bearer \${token}\`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                const data = await response.json();
+                
+                // Enhanced result display for data
+                if (data.success) {
+                    let displayData = {
+                        success: data.success,
+                        totalResults: data.results.length
+                    };
+                    
+                    if (data.count !== undefined) {
+                        displayData.totalCount = data.count;
+                    }
+                    
+                    displayData.results = data.results;
+                    
+                    // Add summary information
+                    if (data.results.length > 0) {
+                        displayData.sampleFields = Object.keys(data.results[0]);
+                    }
+                    
+                    showResult('dataResult', displayData, false);
+                } else {
+                    showResult('dataResult', data, true);
+                }
+                
+                // Clear form on success
+                if (data.success) {
+                    document.getElementById('getDataSheetId').value = '';
+                    document.getElementById('getDataQuery').value = '';
+                    document.getElementById('getDataWhere').value = '';
+                    document.getElementById('getDataLimit').value = '';
+                    document.getElementById('getDataPage').value = '';
+                    document.getElementById('getDataOrder').value = '';
+                    document.getElementById('getDataCount').checked = false;
+                }
+                
+            } catch (error) {
+                showResult('dataResult', { error: error.message }, true);
             }
         }
 
