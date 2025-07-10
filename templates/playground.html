@@ -410,6 +410,13 @@
                 <button onclick="deleteSheet()" class="danger">Delete Sheet</button>
             </div>
 
+            <div id="sheetsResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Column Management Section -->
+        <div class="section sheets-section">
+            <h2>📋 Column Management</h2>
+            
             <h3>Add Columns to Sheet</h3>
             <div class="row">
                 <div class="col">
@@ -463,6 +470,13 @@
             <button onclick="deleteColumn()" class="danger">Delete Column</button>
             <p><small>⚠️ Warning: Column data will be cleared to prevent data misalignment during concurrent operations. System columns (id, created_at, etc.) cannot be deleted.</small></p>
 
+            <div id="columnsResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Data Management Section -->
+        <div class="section sheets-section">
+            <h2>📊 Data Management</h2>
+            
             <h3>Get Sheet Data</h3>
             <div class="row">
                 <div class="col">
@@ -516,7 +530,7 @@
             <button onclick="getSheetData()">Get Sheet Data</button>
             <p><small>💡 This endpoint works without authentication for public sheets (public_read=true).</small></p>
 
-            <div id="sheetsResult" class="result" style="display: none;"></div>
+            <div id="dataResult" class="result" style="display: none;"></div>
         </div>
     </div>
 
@@ -962,7 +976,7 @@
                 });
                 const data = await response.json();
                 
-                showResult('sheetsResult', data, !data.success);
+                showResult('columnsResult', data, !data.success);
                 
                 // Clear form on success
                 if (data.success) {
@@ -970,7 +984,7 @@
                     document.getElementById('addColumnsData').value = '';
                 }
             } catch (error) {
-                showResult('sheetsResult', { error: error.message }, true);
+                showResult('columnsResult', { error: error.message }, true);
             }
         }
 
@@ -998,7 +1012,7 @@
                 });
                 const data = await response.json();
                 
-                showResult('sheetsResult', data, !data.success);
+                showResult('columnsResult', data, !data.success);
                 
                 // Clear form on success
                 if (data.success) {
@@ -1006,7 +1020,7 @@
                     document.getElementById('deleteColumnName').value = '';
                 }
             } catch (error) {
-                showResult('sheetsResult', { error: error.message }, true);
+                showResult('columnsResult', { error: error.message }, true);
             }
         }
 
@@ -1081,13 +1095,13 @@
                         displayData.sampleFields = Object.keys(data.results[0]);
                     }
                     
-                    showResult('sheetsResult', displayData, false);
+                    showResult('dataResult', displayData, false);
                 } else {
-                    showResult('sheetsResult', data, true);
+                    showResult('dataResult', data, true);
                 }
                 
             } catch (error) {
-                showResult('sheetsResult', { error: error.message }, true);
+                showResult('dataResult', { error: error.message }, true);
             }
         }
 

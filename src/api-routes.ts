@@ -865,7 +865,7 @@ export const addColumnsRoute = createRoute({
   path: '/api/sheets/{id}/columns',
   summary: 'Add columns to a sheet',
   description: 'Adds new columns to an existing sheet with specified types and validation rules. Requires write access to the sheet.',
-  tags: ['Sheets'],
+  tags: ['Columns'],
   security: [{ BearerAuth: [] }],
   request: {
     headers: z.object({
@@ -938,7 +938,7 @@ export const deleteColumnRoute = createRoute({
   path: '/api/sheets/{id}/columns/{columnId}',
   summary: 'Delete a column from a sheet',
   description: 'Deletes a column from an existing sheet. If data misalignment risk exists during concurrent operations, the column data will be cleared instead of deleted. Requires column modification permission (MODIFY_COLUMNS_BY_API=true and user in MODIFY_SHEET_USER or MODIFY_SHEET_ROLE).',
-  tags: ['Sheets'],
+  tags: ['Columns'],
   security: [{ BearerAuth: [] }],
   request: {
     headers: z.object({
@@ -999,7 +999,7 @@ export const updateColumnRoute = createRoute({
   path: '/api/sheets/{id}/columns/{columnId}',
   summary: 'Update a column in a sheet',
   description: 'Updates a column in an existing sheet. Type modification is not allowed. Requires column modification permission (MODIFY_COLUMNS_BY_API=true and user in MODIFY_SHEET_USER or MODIFY_SHEET_ROLE).',
-  tags: ['Sheets'],
+  tags: ['Columns'],
   security: [{ BearerAuth: [] }],
   request: {
     headers: z.object({
@@ -1075,7 +1075,7 @@ export const getColumnInfoRoute = createRoute({
   path: '/api/sheets/{id}/columns/{columnId}',
   summary: 'Get column schema information',
   description: 'Returns detailed schema information for a specific column in a sheet, including type, validation rules, and constraints. No authentication required.',
-  tags: ['Sheets'],
+  tags: ['Columns'],
   request: {
     params: z.object({
       id: z.string().min(1, "Sheet ID is required"),
@@ -1124,7 +1124,7 @@ export const getSheetDataRoute = createRoute({
   path: '/api/sheets/{id}/data',
   summary: 'Get sheet data with query support',
   description: 'Returns sheet data with advanced query capabilities including filtering, pagination, ordering, and counting. Supports complex WHERE conditions with operators like $lt, $lte, $gt, $gte, $ne, $in, $nin, $exists, $regex, and $text. Authentication is optional - unauthenticated users can only access sheets with public_read=true.',
-  tags: ['Sheets'],
+  tags: ['Data'],
   request: {
     params: SheetIdParamSchema,
     query: GetSheetDataQuerySchema,
