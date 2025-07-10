@@ -39,7 +39,9 @@ import {
   DeleteColumnResponseSchema,
   UpdateColumnRequestSchema,
   UpdateColumnResponseSchema,
-  GetColumnInfoResponseSchema
+  GetColumnInfoResponseSchema,
+  GetSheetDataQuerySchema,
+  GetSheetDataResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -1104,6 +1106,61 @@ export const getColumnInfoRoute = createRoute({
         },
       },
       description: 'Sheet or column not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// GET /api/sheets/:id/data - Get sheet data with query support
+export const getSheetDataRoute = createRoute({
+  method: 'get',
+  path: '/api/sheets/{id}/data',
+  summary: 'Get sheet data with query support',
+  description: 'Returns sheet data with advanced query capabilities including filtering, pagination, ordering, and counting. Supports complex WHERE conditions with operators like $lt, $lte, $gt, $gte, $ne, $in, $nin, $exists, $regex, and $text. Authentication is optional - unauthenticated users can only access sheets with public_read=true.',
+  tags: ['Sheets'],
+  request: {
+    params: SheetIdParamSchema,
+    query: GetSheetDataQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: GetSheetDataResponseSchema,
+        },
+      },
+      description: 'Sheet data retrieved successfully',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication required for this sheet',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no read access to this sheet',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet not found',
     },
     500: {
       content: {

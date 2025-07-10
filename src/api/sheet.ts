@@ -9,7 +9,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute, deleteColumnRoute, updateColumnRoute, getColumnInfoRoute } from '../api-routes';
+import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute, deleteColumnRoute, updateColumnRoute, getColumnInfoRoute, getSheetDataRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -1067,6 +1067,243 @@ async function deleteGoogleSheet(
 	} catch (error) {
 		console.error('Error deleting Google sheet:', error);
 		return { success: false, error: 'Failed to delete sheet' };
+	}
+}
+
+// Helper function to parse WHERE conditions
+function parseWhereCondition(whereStr: string): any {
+	try {
+		return JSON.parse(whereStr);
+	} catch (error) {
+		throw new Error('Invalid WHERE condition format');
+	}
+}
+
+// Helper function to apply WHERE conditions to a row
+function matchesWhereCondition(row: Record<string, any>, whereCondition: any): boolean {
+	for (const [field, condition] of Object.entries(whereCondition)) {
+		const value = row[field];
+		
+		if (typeof condition === 'object' && condition !== null) {
+			// Handle operators
+			for (const [operator, expectedValue] of Object.entries(condition)) {
+				switch (operator) {
+					case '$lt':
+						if (!(value < expectedValue)) return false;
+						break;
+					case '$lte':
+						if (!(value <= expectedValue)) return false;
+						break;
+					case '$gt':
+						if (!(value > expectedValue)) return false;
+						break;
+					case '$gte':
+						if (!(value >= expectedValue)) return false;
+						break;
+					case '$ne':
+						if (value === expectedValue) return false;
+						break;
+					case '$in':
+						if (!Array.isArray(expectedValue) || !expectedValue.includes(value)) return false;
+						break;
+					case '$nin':
+						if (!Array.isArray(expectedValue) || expectedValue.includes(value)) return false;
+						break;
+					case '$exists':
+						if (Boolean(expectedValue) !== (value !== undefined && value !== null && value !== '')) return false;
+						break;
+					case '$regex':
+						try {
+							const regex = new RegExp(expectedValue as string);
+							if (!regex.test(String(value))) return false;
+						} catch (e) {
+							return false;
+						}
+						break;
+					case '$text':
+						if (!String(value).toLowerCase().includes(String(expectedValue).toLowerCase())) return false;
+						break;
+					default:
+						return false;
+				}
+			}
+		} else {
+			// Handle direct equality
+			if (value !== condition) return false;
+		}
+	}
+	return true;
+}
+
+// Helper function to apply text search across all fields
+function matchesTextSearch(row: Record<string, any>, searchQuery: string): boolean {
+	const lowerQuery = searchQuery.toLowerCase();
+	return Object.values(row).some(value => 
+		String(value).toLowerCase().includes(lowerQuery)
+	);
+}
+
+// Helper function to apply ordering
+function applyOrdering(rows: Record<string, any>[], orderBy: string): Record<string, any>[] {
+	if (!orderBy) return rows;
+	
+	const parts = orderBy.split(',').map(part => part.trim());
+	
+	return rows.sort((a, b) => {
+		for (const part of parts) {
+			const [field, direction] = part.split(':').map(s => s.trim());
+			const desc = direction === 'desc';
+			
+			const aVal = a[field];
+			const bVal = b[field];
+			
+			if (aVal < bVal) return desc ? 1 : -1;
+			if (aVal > bVal) return desc ? -1 : 1;
+		}
+		return 0;
+	});
+}
+
+// Helper function to apply pagination
+function applyPagination(rows: Record<string, any>[], page?: number, limit?: number): Record<string, any>[] {
+	if (!limit) return rows;
+	
+	const pageNum = page || 1;
+	const startIndex = (pageNum - 1) * limit;
+	const endIndex = startIndex + limit;
+	
+	return rows.slice(startIndex, endIndex);
+}
+
+// Helper function to get sheet data from Google Sheets
+async function getSheetDataFromGoogleSheets(
+	sheetName: string,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ success: boolean; data?: Record<string, any>[]; error?: string }> {
+	try {
+		// First, get the headers and types (rows 1 and 2)
+		const headersResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:ZZ2`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		if (!headersResponse.ok) {
+			return { success: false, error: 'Failed to fetch sheet headers' };
+		}
+
+		const headersData = await headersResponse.json() as any;
+		const rows = headersData.values || [];
+		
+		if (rows.length < 2) {
+			return { success: false, error: 'Invalid sheet structure' };
+		}
+
+		const headers = rows[0] || [];
+		const types = rows[1] || [];
+
+		// Get all data from row 3 onwards (skip header and type rows)
+		const dataResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A3:ZZ`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+
+		if (!dataResponse.ok) {
+			return { success: false, error: 'Failed to fetch sheet data' };
+		}
+
+		const dataResult = await dataResponse.json() as any;
+		const dataRows = dataResult.values || [];
+
+		// Convert rows to objects
+		const data: Record<string, any>[] = [];
+		for (const row of dataRows) {
+			const obj: Record<string, any> = {};
+			let hasData = false;
+			
+			for (let i = 0; i < headers.length; i++) {
+				const header = headers[i];
+				const type = types[i];
+				const value = row[i] || '';
+				
+				if (header) {
+					// Convert value based on type
+					let convertedValue: any = value;
+					
+					if (value) {
+						hasData = true;
+						
+						switch (type) {
+							case 'number':
+								convertedValue = parseFloat(value) || 0;
+								break;
+							case 'boolean':
+								convertedValue = value.toLowerCase() === 'true';
+								break;
+							case 'datetime':
+								convertedValue = value; // Keep as string for now
+								break;
+							case 'array':
+								try {
+									convertedValue = JSON.parse(value);
+								} catch (e) {
+									convertedValue = [];
+								}
+								break;
+							case 'object':
+								try {
+									convertedValue = JSON.parse(value);
+								} catch (e) {
+									convertedValue = {};
+								}
+								break;
+							default:
+								convertedValue = value;
+						}
+					} else {
+						// Set default values for empty cells
+						switch (type) {
+							case 'number':
+								convertedValue = 0;
+								break;
+							case 'boolean':
+								convertedValue = false;
+								break;
+							case 'array':
+								convertedValue = [];
+								break;
+							case 'object':
+								convertedValue = {};
+								break;
+							default:
+								convertedValue = '';
+						}
+					}
+					
+					obj[header] = convertedValue;
+				}
+			}
+			
+			// Only add rows that have at least some data
+			if (hasData) {
+				data.push(obj);
+			}
+		}
+
+		return { success: true, data };
+	} catch (error) {
+		console.error('Error fetching sheet data:', error);
+		return { success: false, error: 'Failed to fetch sheet data' };
 	}
 }
 
@@ -2129,6 +2366,146 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in GET /api/sheets/:id/columns/:columnId:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// GET /api/sheets/:id/data - Get sheet data with query support (OpenAPI)
+	app.openapi(getSheetDataRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			const { id: sheetIdOrName } = c.req.valid('param');
+			const { query, where, limit, page, order, count } = c.req.valid('query');
+			
+			// Optional authentication implementation
+			const authHeader = c.req.header('authorization');
+			let userId: string | null = null;
+			let userRoles: string[] = [];
+			let isAuthenticated = false;
+			
+			// Try authentication only if authorization header is provided
+			if (authHeader) {
+				const sessionId = authHeader.replace('Bearer ', '');
+				const authResult = await authenticateSession(db, sessionId);
+				if (authResult.valid && authResult.userId) {
+					userId = authResult.userId;
+					isAuthenticated = true;
+				}
+			}
+			
+			// Get Google Sheets configuration
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// Get valid Google tokens
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// Check token validity and refresh if needed
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// Get user information if authenticated
+			if (isAuthenticated && userId) {
+				const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+				if (user) {
+					userRoles = user.roles || [];
+				}
+			}
+			
+			// Get sheet information (ID or name search)
+			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { sheetName, sheetId, metadata } = sheetInfo;
+			if (!sheetName || !sheetId || !metadata) {
+				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+			}
+			
+			// Check sheet read permission
+			const permissionCheck = await checkSheetReadPermission(userId, userRoles, metadata);
+			if (!permissionCheck.allowed) {
+				if (permissionCheck.error === 'Authentication required for this sheet') {
+					return c.json({ success: false as false, error: permissionCheck.error }, 401);
+				}
+				return c.json({ success: false as false, error: permissionCheck.error || 'Permission denied' }, 403);
+			}
+			
+			// Get sheet data
+			const dataResult = await getSheetDataFromGoogleSheets(sheetName, spreadsheetId, tokens.access_token);
+			if (!dataResult.success) {
+				return c.json({ success: false as false, error: dataResult.error || 'Failed to get sheet data' }, 500);
+			}
+			
+			let data = dataResult.data || [];
+			
+			// Apply text search if provided
+			if (query) {
+				data = data.filter(row => matchesTextSearch(row, query));
+			}
+			
+			// Apply WHERE conditions if provided
+			if (where) {
+				try {
+					const whereCondition = parseWhereCondition(where);
+					data = data.filter(row => matchesWhereCondition(row, whereCondition));
+				} catch (error) {
+					return c.json({ success: false as false, error: 'Invalid WHERE condition format' }, 400);
+				}
+			}
+			
+			// Store total count before pagination
+			const totalCount = data.length;
+			
+			// Apply ordering if provided
+			if (order) {
+				try {
+					data = applyOrdering(data, order);
+				} catch (error) {
+					return c.json({ success: false as false, error: 'Invalid order format' }, 400);
+				}
+			}
+			
+			// Apply pagination if provided
+			if (limit) {
+				data = applyPagination(data, page, limit);
+			}
+			
+			console.log('Sheet data retrieved successfully:', sheetIdOrName, sheetName, 'rows:', data.length);
+			
+			// Build response
+			const response: any = {
+				success: true,
+				results: data
+			};
+			
+			// Add count if requested
+			if (count) {
+				response.count = totalCount;
+			}
+			
+			return c.json(response);
+			
+		} catch (error) {
+			console.error('Error in GET /api/sheets/:id/data:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}

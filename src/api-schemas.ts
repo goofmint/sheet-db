@@ -413,3 +413,19 @@ export const GetColumnInfoResponseSchema = z.object({
 		})
 	})
 });
+
+// Sheet data query schemas
+export const GetSheetDataQuerySchema = z.object({
+	query: z.string().optional(),
+	where: z.string().optional(),
+	limit: z.number().int().min(1).max(1000).optional(),
+	page: z.number().int().min(1).optional(),
+	order: z.string().optional(),
+	count: z.boolean().optional()
+});
+
+export const GetSheetDataResponseSchema = z.object({
+	success: z.literal(true),
+	results: z.array(z.record(z.string(), z.any())),
+	count: z.number().int().optional()
+});
