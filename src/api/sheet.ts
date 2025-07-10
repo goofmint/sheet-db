@@ -1,4 +1,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
+import { logger } from '../utils/logger';
+import { dataInsertionRateLimiter, unauthenticatedRateLimiter } from '../utils/rate-limiter';
+import { sheetDataValidator } from '../utils/data-validator';
 import { drizzle } from 'drizzle-orm/d1';
 import {
   getGoogleCredentials,
@@ -128,47 +131,52 @@ async function checkSheetWritePermission(
 		// Get permission info from sheet metadata
 		const { public_write, role_write, user_write } = sheetMetadata;
 
-		console.log(`[checkSheetWritePermission] userId: ${userId}, userRoles: ${JSON.stringify(userRoles)}`);
-		console.log(`[checkSheetWritePermission] public_write: ${public_write}, role_write: ${JSON.stringify(role_write)}, user_write: ${JSON.stringify(user_write)}`);
+		logger.debug('Checking write permission', {
+			userId: userId,
+			userRoles: userRoles,
+			publicWrite: public_write,
+			roleWrite: role_write,
+			userWrite: user_write
+		});
 
 		// 1. public_write = true allows anyone to write
 		if (public_write === true) {
-			console.log(`[checkSheetWritePermission] Allowed due to public_write = true`);
+			logger.debug('Access granted: public write enabled');
 			return { allowed: true };
 		}
 
 		// 2. If no specific permissions are set, allow anyone to write (default behavior)
 		if (!public_write && !role_write && !user_write) {
-			console.log(`[checkSheetWritePermission] Allowed due to no specific permissions set`);
+			logger.debug('Access granted: no permissions configured');
 			return { allowed: true };
 		}
 
-		// 3. If permissions are empty arrays, treat as no restrictions (default allow)
+		// 3. If permissions are empty arrays, deny access (default-deny security)
 		if (public_write !== true && public_write !== false && 
 			(Array.isArray(role_write) && role_write.length === 0) && 
 			(Array.isArray(user_write) && user_write.length === 0)) {
-			console.log(`[checkSheetWritePermission] Allowed due to empty permission arrays`);
-			return { allowed: true };
+			logger.debug('Access denied: empty permission arrays (default-deny)');
+			return { allowed: false, error: 'No write permissions configured for this sheet' };
 		}
 
 		// 4. If public_write is explicitly false, check authenticated user permissions
 		if (public_write === false) {
 			// Unauthenticated users cannot write if public_write = false
 			if (!userId) {
-				console.log(`[checkSheetWritePermission] Authentication required for public_write = false`);
+				logger.debug('Access denied: authentication required for private sheet');
 				return { allowed: false, error: 'Authentication required for this sheet' };
 			}
 
 			// If user_write and role_write are empty arrays, allow authenticated users
 			if ((Array.isArray(user_write) && user_write.length === 0) && 
 				(Array.isArray(role_write) && role_write.length === 0)) {
-				console.log(`[checkSheetWritePermission] Allowed authenticated user due to empty permission arrays`);
+				logger.debug('Access granted: authenticated user with empty permission arrays');
 				return { allowed: true };
 			}
 
 			// Check user_write contains the user ID
 			if (user_write && Array.isArray(user_write) && user_write.includes(userId)) {
-				console.log(`[checkSheetWritePermission] Allowed due to user_write contains userId`);
+				logger.debug('Access granted: user in user_write list');
 				return { allowed: true };
 			}
 
@@ -176,32 +184,20 @@ async function checkSheetWritePermission(
 			if (role_write && Array.isArray(role_write) && userRoles) {
 				const hasRequiredRole = userRoles.some(role => role_write.includes(role));
 				if (hasRequiredRole) {
-					console.log(`[checkSheetWritePermission] Allowed due to role_write contains user role`);
+					logger.debug('Access granted: user has required role');
 					return { allowed: true };
 				}
 			}
 
-			console.log(`[checkSheetWritePermission] Permission denied for public_write = false`);
+			logger.debug('Access denied: no matching permissions for private sheet');
 			return { allowed: false, error: 'No write permission for this sheet' };
 		}
 
-		// 4. user_write contains the user ID
-		if (user_write && Array.isArray(user_write) && user_write.includes(userId)) {
-			return { allowed: true };
-		}
-
-		// 5. role_write contains any of the user's roles
-		if (role_write && Array.isArray(role_write) && userRoles) {
-			const hasRequiredRole = userRoles.some(role => role_write.includes(role));
-			if (hasRequiredRole) {
-				return { allowed: true };
-			}
-		}
-
-		console.log(`[checkSheetWritePermission] Permission denied - no matching permissions found`);
+		// Default deny - no matching permissions found
+		logger.debug('Access denied: no matching permissions found');
 		return { allowed: false, error: 'No write permission for this sheet' };
 	} catch (error) {
-		console.error('Error checking sheet write permission:', error);
+		logger.error('Error checking sheet write permission', { error });
 		return { allowed: false, error: 'Failed to check permissions' };
 	}
 }
@@ -596,15 +592,23 @@ async function createGoogleSheet(
 
 		if (!freezeResponse.ok) {
 			const errorText = await freezeResponse.text();
-			console.error('Failed to freeze header rows:', freezeResponse.status, errorText);
-			// ヘッダー固定設定の失敗はシート作成の失敗とはしない（警告のみ）
-			console.warn('Sheet created but header freeze failed');
+			logger.error('Failed to freeze header rows', { 
+				status: freezeResponse.status, 
+				error: errorText,
+				spreadsheetId: spreadsheetId
+			});
+			// Return warning in response rather than just logging
+			return { 
+				success: true, 
+				sheetId,
+				warning: 'Sheet created but header rows could not be frozen' 
+			};
 		}
 
-		console.log('Sheet created successfully:', sheetName, 'ID:', sheetId);
+		logger.info('Sheet created successfully', { sheetName, sheetId });
 		return { success: true, sheetId };
 	} catch (error) {
-		console.error('Error creating Google sheet:', error);
+		logger.error('Error creating Google sheet', { error });
 		return { success: false, error: 'Failed to create sheet' };
 	}
 }
@@ -2260,7 +2264,26 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			const { id: sheetId, columnId: columnName } = c.req.valid('param');
 			
-			// Get Google Sheets configuration
+			// Apply rate limiting
+		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
+		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+		const rateLimitKey = userId || clientIP;
+		
+		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
+		if (!rateLimitResult.allowed) {
+			logger.warn('Rate limit exceeded for data insertion', { 
+				userId, 
+				clientIP,
+				rateLimitKey 
+			});
+			return c.json({ 
+				success: false as false, 
+				error: rateLimitResult.error || 'Rate limit exceeded',
+				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+			}, 429);
+		}
+		
+		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
@@ -2399,7 +2422,26 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}, 400);
 			}
 			
-			// Get Google Sheets configuration
+			// Apply rate limiting
+		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
+		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+		const rateLimitKey = userId || clientIP;
+		
+		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
+		if (!rateLimitResult.allowed) {
+			logger.warn('Rate limit exceeded for data insertion', { 
+				userId, 
+				clientIP,
+				rateLimitKey 
+			});
+			return c.json({ 
+				success: false as false, 
+				error: rateLimitResult.error || 'Rate limit exceeded',
+				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+			}, 429);
+		}
+		
+		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
@@ -2536,7 +2578,26 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Get Google Sheets configuration
+			// Apply rate limiting
+		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
+		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+		const rateLimitKey = userId || clientIP;
+		
+		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
+		if (!rateLimitResult.allowed) {
+			logger.warn('Rate limit exceeded for data insertion', { 
+				userId, 
+				clientIP,
+				rateLimitKey 
+			});
+			return c.json({ 
+				success: false as false, 
+				error: rateLimitResult.error || 'Rate limit exceeded',
+				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+			}, 429);
+		}
+		
+		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
@@ -2653,7 +2714,26 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Get Google Sheets configuration
+			// Apply rate limiting
+		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
+		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+		const rateLimitKey = userId || clientIP;
+		
+		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
+		if (!rateLimitResult.allowed) {
+			logger.warn('Rate limit exceeded for data insertion', { 
+				userId, 
+				clientIP,
+				rateLimitKey 
+			});
+			return c.json({ 
+				success: false as false, 
+				error: rateLimitResult.error || 'Rate limit exceeded',
+				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+			}, 429);
+		}
+		
+		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
@@ -2793,7 +2873,26 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Get Google Sheets configuration
+			// Apply rate limiting
+		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
+		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+		const rateLimitKey = userId || clientIP;
+		
+		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
+		if (!rateLimitResult.allowed) {
+			logger.warn('Rate limit exceeded for data insertion', { 
+				userId, 
+				clientIP,
+				rateLimitKey 
+			});
+			return c.json({ 
+				success: false as false, 
+				error: rateLimitResult.error || 'Rate limit exceeded',
+				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+			}, 429);
+		}
+		
+		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
@@ -2839,10 +2938,31 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
 			}
 			
-			// Note: No permission check for regular sheet data insertion - anyone can add data
+			// Check write permissions for data insertion
+			const permissionCheck = await checkSheetWritePermission(userId, userRoles, metadata);
+			if (!permissionCheck.allowed) {
+				return c.json({ success: false as false, error: permissionCheck.error || 'No write permission for this sheet' }, 403);
+			}
+			
+			// Log data insertion attempt for audit trail
+			logger.info('Data insertion attempted', {
+				userId: userId,
+				sheetId: spreadsheetId,
+				sheetName: sheetName,
+				timestamp: new Date().toISOString()
+			});
+			
+			// Enhanced data validation for security
+			const securityValidation = await sheetDataValidator.validateInputData(inputData, 'sheet_data_insertion');
+			if (!securityValidation.valid) {
+				return c.json({ success: false as false, error: securityValidation.error }, 400);
+			}
+			
+			// Use sanitized data for further processing
+			const sanitizedData = securityValidation.sanitizedData;
 			
 			// Validate input data against sheet schema
-			const validationResult = await validateInputData(inputData, columns, spreadsheetId, tokens.access_token);
+			const validationResult = await validateInputData(sanitizedData, columns, spreadsheetId, tokens.access_token);
 			if (!validationResult.valid) {
 				return c.json({ success: false as false, error: validationResult.error }, 400);
 			}
@@ -2856,15 +2976,16 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				id,
 				created_at: now,
 				updated_at: now,
-				...inputData
+				...sanitizedData
 			};
 			
 			// Set default user_read and user_write for authenticated users
 			if (userId) {
-				if (!completeData.user_read) {
+				// Only set defaults if permissions weren't explicitly set to empty
+				if (!completeData.user_read && !sanitizedData.hasOwnProperty('user_read')) {
 					completeData.user_read = [userId];
 				}
-				if (!completeData.user_write) {
+				if (!completeData.user_write && !sanitizedData.hasOwnProperty('user_write')) {
 					completeData.user_write = [userId];
 				}
 			}
