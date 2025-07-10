@@ -392,3 +392,24 @@ export const UpdateColumnResponseSchema = z.object({
 		message: z.string()
 	})
 });
+
+// Get column info response schema
+export const GetColumnInfoResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		sheetId: z.number(),
+		sheetName: z.string(),
+		columnName: z.string(),
+		schema: z.object({
+			type: ColumnTypeEnum,
+			required: z.boolean().optional(),
+			unique: z.boolean().optional(),
+			pattern: z.string().optional(),
+			minLength: z.number().optional(),
+			maxLength: z.number().optional(),
+			min: z.number().optional(),
+			max: z.number().optional(),
+			default: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional()
+		})
+	})
+});

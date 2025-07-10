@@ -392,6 +392,24 @@ export const playgroundHTML = `<!DOCTYPE html>
         <div class="section sheets-section">
             <h2>📋 列管理</h2>
             
+            <h3>列情報の取得</h3>
+            <p><strong>Note:</strong> 認証は不要です。シートの読み取り権限のみチェックされます。</p>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="getColumnSheetId">シートID:</label>
+                        <input type="text" id="getColumnSheetId" placeholder="例: 12345">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="getColumnName">列名:</label>
+                        <input type="text" id="getColumnName" placeholder="例: user_name">
+                    </div>
+                </div>
+            </div>
+            <button onclick="getColumnInfo()">列情報取得</button>
+
             <h3>列の更新</h3>
             <p><strong>注意:</strong> 列の型（type）の変更はできません。システム列（id, created_at, updated_at等）の変更もできません。</p>
             <div class="row">
@@ -767,6 +785,44 @@ export const playgroundHTML = `<!DOCTYPE html>
         }
 
         // Column functions
+        async function getColumnInfo() {
+            try {
+                const sheetId = document.getElementById('getColumnSheetId').value.trim();
+                const columnName = document.getElementById('getColumnName').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('シートIDは必須です');
+                }
+                
+                if (!columnName) {
+                    throw new Error('列名は必須です');
+                }
+
+                // Note: This endpoint doesn't require authentication, but can use it if available
+                const token = document.getElementById('sessionToken').value.trim();
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) {
+                    headers['Authorization'] = token.startsWith('Bearer ') ? token : \`Bearer \${token}\`;
+                }
+
+                const response = await fetch(\`/api/sheets/\${encodeURIComponent(sheetId)}/columns/\${encodeURIComponent(columnName)}\`, {
+                    method: 'GET',
+                    headers
+                });
+                const data = await response.json();
+                
+                showResult('columnsResult', data, !data.success);
+                
+                // Clear form on success
+                if (data.success) {
+                    document.getElementById('getColumnSheetId').value = '';
+                    document.getElementById('getColumnName').value = '';
+                }
+            } catch (error) {
+                showResult('columnsResult', { error: error.message }, true);
+            }
+        }
+
         async function updateColumn() {
             try {
                 const headers = getAuthHeaders();

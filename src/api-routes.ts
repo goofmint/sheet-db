@@ -38,7 +38,8 @@ import {
   ColumnIdParamSchema,
   DeleteColumnResponseSchema,
   UpdateColumnRequestSchema,
-  UpdateColumnResponseSchema
+  UpdateColumnResponseSchema,
+  GetColumnInfoResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -1046,6 +1047,55 @@ export const updateColumnRoute = createRoute({
         },
       },
       description: 'Permission denied - column modification not allowed',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet or column not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// GET /api/sheets/:id/columns/:columnId - Get column schema information
+export const getColumnInfoRoute = createRoute({
+  method: 'get',
+  path: '/api/sheets/{id}/columns/{columnId}',
+  summary: 'Get column schema information',
+  description: 'Returns detailed schema information for a specific column in a sheet, including type, validation rules, and constraints. No authentication required.',
+  tags: ['Sheets'],
+  request: {
+    params: z.object({
+      id: z.string().min(1, "Sheet ID is required"),
+      columnId: z.string().min(1, "Column ID is required")
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: GetColumnInfoResponseSchema,
+        },
+      },
+      description: 'Column schema information retrieved successfully',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no read access to this sheet',
     },
     404: {
       content: {
