@@ -977,7 +977,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 if (where) {
                     try {
                         JSON.parse(where); // Validate JSON
-                        params.append('where', where);
+                        params.append('where', encodeURIComponent(where));
                     } catch (e) {
                         throw new Error('無効なWHERE JSON形式です');
                     }
