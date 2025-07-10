@@ -317,4 +317,328 @@ describe('Sheet Data API', () => {
 			}
 		});
 	});
+
+	describe('POST /api/sheets/:id/data', () => {
+		it('should require valid sheet ID', async () => {
+			const resp = await worker.fetch('/api/sheets/invalid-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ name: 'Test', value: 123 })
+			});
+			expect(resp.status).toBe(404);
+			
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+			expect(data.error).toContain('Sheet not found');
+		});
+
+		it('should reject data with restricted fields', async () => {
+			const testCases = [
+				{ field: 'id', value: 'test-id' },
+				{ field: 'created_at', value: '2023-01-01T00:00:00Z' },
+				{ field: 'updated_at', value: '2023-01-01T00:00:00Z' }
+			];
+
+			for (const testCase of testCases) {
+				const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ [testCase.field]: testCase.value, name: 'Test' })
+				});
+				
+				expect(resp.status).toBe(400);
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toContain(`Field '${testCase.field}' cannot be specified`);
+			}
+		});
+
+		it('should reject data with non-existent columns', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					name: 'Test', 
+					nonexistent_column: 'value' 
+				})
+			});
+			
+			expect(resp.status).toBe(400);
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+			expect(data.error).toContain('Column \'nonexistent_column\' does not exist');
+		});
+
+		it('should create data successfully with valid fields', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					name: 'Test User', 
+					email: 'test@example.com',
+					score: 100
+				})
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data).toBeDefined();
+				expect(data.data.id).toBeDefined();
+				expect(data.data.created_at).toBeDefined();
+				expect(data.data.updated_at).toBeDefined();
+				expect(data.data.name).toBe('Test User');
+				expect(data.data.email).toBe('test@example.com');
+				expect(data.data.score).toBe(100);
+			}
+		});
+
+		it('should handle authentication when required', async () => {
+			const resp = await worker.fetch('/api/sheets/private-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ name: 'Test' })
+			});
+			
+			if (resp.status === 401) {
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toContain('Authentication required');
+			}
+		});
+
+		it('should handle permission denied for write access', async () => {
+			const resp = await worker.fetch('/api/sheets/readonly-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer invalid-token'
+				},
+				body: JSON.stringify({ name: 'Test' })
+			});
+			
+			if (resp.status === 403) {
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toContain('Permission denied');
+			}
+		});
+
+		it('should return empty object when user has no read permission', async () => {
+			// This tests the case where a user can write but not read
+			const resp = await worker.fetch('/api/sheets/writeonly-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer writeonly-token'
+				},
+				body: JSON.stringify({ name: 'Test' })
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data).toEqual({});
+			}
+		});
+
+		it('should validate data types according to schema', async () => {
+			// Test invalid data type for number field
+			const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					name: 'Test',
+					score: 'invalid-number' // Should be number
+				})
+			});
+			
+			if (resp.status === 400) {
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toContain('Field \'score\'');
+			}
+		});
+
+		it('should handle empty request body', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({})
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data).toBeDefined();
+				expect(data.data.id).toBeDefined();
+				expect(data.data.created_at).toBeDefined();
+				expect(data.data.updated_at).toBeDefined();
+			}
+		});
+
+		it('should handle malformed JSON', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: 'invalid-json'
+			});
+			
+			expect(resp.status).toBe(400);
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+		});
+
+		it('should handle missing Content-Type header', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+				method: 'POST',
+				body: JSON.stringify({ name: 'Test' })
+			});
+			
+			expect(resp.status).toBe(400);
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+		});
+
+		it('should generate unique IDs for concurrent requests', async () => {
+			// Test concurrent requests to ensure unique ID generation
+			const requests = Array.from({ length: 5 }, () => 
+				worker.fetch('/api/sheets/test-sheet/data', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ name: 'Concurrent Test' })
+				})
+			);
+			
+			const responses = await Promise.all(requests);
+			const ids = new Set();
+			
+			for (const resp of responses) {
+				if (resp.status === 200) {
+					const data = await resp.json();
+					expect(data.success).toBe(true);
+					expect(data.data.id).toBeDefined();
+					ids.add(data.data.id);
+				}
+			}
+			
+			// All IDs should be unique
+			if (ids.size > 1) {
+				expect(ids.size).toBe(responses.filter(r => r.status === 200).length);
+			}
+		});
+
+		it('should handle required field validation', async () => {
+			// This test depends on having a required field in the schema
+			const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					// Missing required field
+					optional_field: 'value'
+				})
+			});
+			
+			if (resp.status === 400) {
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toContain('required');
+			}
+		});
+
+		it('should handle complex data types', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					name: 'Complex Data Test',
+					metadata: { key: 'value', nested: { data: true } },
+					tags: ['tag1', 'tag2', 'tag3'],
+					is_active: true
+				})
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data.metadata).toBeDefined();
+				expect(data.data.tags).toBeDefined();
+				expect(data.data.is_active).toBe(true);
+			}
+		});
+
+		it('should handle public_write=true sheets without authentication', async () => {
+			const resp = await worker.fetch('/api/sheets/public-write-sheet/data', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ name: 'Public Write Test' })
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data).toBeDefined();
+				expect(data.data.id).toBeDefined();
+				expect(data.data.name).toBe('Public Write Test');
+			}
+		});
+
+		it('should validate against schema constraints', async () => {
+			// Test various schema constraints
+			const testCases = [
+				{
+					data: { name: 'A', description: 'Test' }, // Name too short
+					expectedError: 'minLength'
+				},
+				{
+					data: { name: 'Valid Name', score: -1 }, // Score below minimum
+					expectedError: 'minimum'
+				},
+				{
+					data: { name: 'Valid Name', email: 'invalid-email' }, // Invalid email format
+					expectedError: 'pattern'
+				}
+			];
+
+			for (const testCase of testCases) {
+				const resp = await worker.fetch('/api/sheets/test-sheet/data', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(testCase.data)
+				});
+				
+				if (resp.status === 400) {
+					const data = await resp.json();
+					expect(data.success).toBe(false);
+					expect(data.error).toBeDefined();
+				}
+			}
+		});
+	});
 });

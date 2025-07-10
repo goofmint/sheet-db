@@ -429,3 +429,20 @@ export const GetSheetDataResponseSchema = z.object({
 	results: z.array(z.record(z.string(), z.any())),
 	count: z.number().int().optional()
 });
+
+// Create sheet data schemas
+export const CreateSheetDataRequestSchema = z.record(z.string(), z.any())
+	.refine((data) => !Object.hasOwn(data, 'id'), {
+		message: "Field 'id' cannot be specified - it will be generated automatically"
+	})
+	.refine((data) => !Object.hasOwn(data, 'created_at'), {
+		message: "Field 'created_at' cannot be specified - it will be generated automatically"
+	})
+	.refine((data) => !Object.hasOwn(data, 'updated_at'), {
+		message: "Field 'updated_at' cannot be specified - it will be generated automatically"
+	});
+
+export const CreateSheetDataResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.record(z.string(), z.any())
+});

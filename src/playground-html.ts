@@ -523,6 +523,37 @@ export const playgroundHTML = `<!DOCTYPE html>
             <button onclick="getSheetData()">Get Data</button>
 
             <div id="dataResult" class="result" style="display: none;"></div>
+
+            <h3>Create Sheet Data</h3>
+            <p><strong>Note:</strong> Authentication is optional - unauthenticated users can only create data in sheets with public_write=true. Fields id, created_at, and updated_at are automatically generated.</p>
+            <div class="form-group">
+                <label for="createDataSheetId">Sheet ID:</label>
+                <input type="text" id="createDataSheetId" placeholder="e.g., 12345">
+            </div>
+            <div class="array-input">
+                <label>Data to Create (JSON format):</label>
+                <div class="form-group">
+                    <label for="createDataBody">Data JSON:</label>
+                    <textarea id="createDataBody" placeholder='{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "score": 1500,
+  "category": "A",
+  "is_active": true,
+  "metadata": {
+    "location": "Tokyo",
+    "department": "Engineering"
+  },
+  "tags": ["developer", "senior"]
+}' style="height: 200px;"></textarea>
+                </div>
+                <p><small>💡 Do not include id, created_at, or updated_at - they will be generated automatically</small></p>
+                <p><small>💡 All fields must match existing columns in the sheet</small></p>
+                <p><small>💡 Data will be validated against the sheet schema</small></p>
+            </div>
+            <button onclick="createSheetData()">Create Data</button>
+
+            <div id="createDataResult" class="result" style="display: none;"></div>
         </div>
     </div>
 
@@ -1048,6 +1079,85 @@ export const playgroundHTML = `<!DOCTYPE html>
                 
             } catch (error) {
                 showResult('dataResult', { error: error.message }, true);
+            }
+        }
+
+        async function createSheetData() {
+            try {
+                const sheetId = document.getElementById('createDataSheetId').value.trim();
+                if (!sheetId) {
+                    throw new Error('Sheet ID is required');
+                }
+                
+                const dataBody = document.getElementById('createDataBody').value.trim();
+                if (!dataBody) {
+                    throw new Error('Data JSON is required');
+                }
+                
+                let data;
+                try {
+                    data = JSON.parse(dataBody);
+                } catch (e) {
+                    throw new Error('Invalid JSON format in data body');
+                }
+                
+                // Check for restricted fields
+                const restrictedFields = ['id', 'created_at', 'updated_at'];
+                for (const field of restrictedFields) {
+                    if (Object.hasOwn(data, field)) {
+                        throw new Error(\`Field '\${field}' cannot be specified - it will be generated automatically\`);
+                    }
+                }
+                
+                // Build URL
+                const url = \`/api/sheets/\${encodeURIComponent(sheetId)}/data\`;
+                
+                // Try without authentication first (for public_write sheets)
+                let headers = { 'Content-Type': 'application/json' };
+                const token = document.getElementById('sessionToken').value.trim();
+                if (token) {
+                    headers['Authorization'] = token.startsWith('Bearer ') ? token : \`Bearer \${token}\`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                // Enhanced result display for created data
+                if (result.success) {
+                    let displayData = {
+                        success: result.success,
+                        message: 'Data created successfully'
+                    };
+                    
+                    if (Object.keys(result.data).length > 0) {
+                        displayData.createdData = result.data;
+                        displayData.generatedFields = {
+                            id: result.data.id,
+                            created_at: result.data.created_at,
+                            updated_at: result.data.updated_at
+                        };
+                    } else {
+                        displayData.message = 'Data created successfully (no read permission - empty response)';
+                    }
+                    
+                    showResult('createDataResult', displayData, false);
+                } else {
+                    showResult('createDataResult', result, true);
+                }
+                
+                // Clear form on success
+                if (result.success) {
+                    document.getElementById('createDataSheetId').value = '';
+                    document.getElementById('createDataBody').value = '';
+                }
+                
+            } catch (error) {
+                showResult('createDataResult', { error: error.message }, true);
             }
         }
 
