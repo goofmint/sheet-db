@@ -1104,7 +1104,7 @@ export const playgroundHTML = `<!DOCTYPE html>
                 // Check for restricted fields
                 const restrictedFields = ['id', 'created_at', 'updated_at'];
                 for (const field of restrictedFields) {
-                    if (data.hasOwnProperty(field)) {
+                    if (Object.hasOwn(data, field)) {
                         throw new Error(\`Field '\${field}' cannot be specified - it will be generated automatically\`);
                     }
                 }

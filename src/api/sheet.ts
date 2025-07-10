@@ -1411,39 +1411,19 @@ async function validateInputData(
 			}
 		}
 		
-		// Get schema information from row 2 of the sheet
-		const schemaResponse = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A2:ZZ2`,
-			{
-				headers: {
-					'Authorization': `Bearer ${accessToken}`
-				}
-			}
-		);
-		
-		if (!schemaResponse.ok) {
-			return { valid: false, error: 'Failed to get schema information' };
-		}
-		
-		const schemaData = await schemaResponse.json();
-		const schemaValues = schemaData.values?.[0] || [];
-		
 		// Validate each input field against its schema
 		for (const [field, value] of Object.entries(inputData)) {
-			const columnIndex = columnNames.indexOf(field);
-			if (columnIndex >= 0 && columnIndex < schemaValues.length) {
-				const schemaText = schemaValues[columnIndex];
-				if (schemaText) {
-					try {
-						const schema = parseColumnSchema(schemaText);
-						const validationResult = validateValue(value, schema);
-						if (!validationResult.valid) {
-							return { valid: false, error: `Field '${field}': ${validationResult.error}` };
-						}
-					} catch (error) {
-						// If schema parsing fails, continue without validation
-						console.warn(`Failed to parse schema for column '${field}':`, error);
+			const schemaText = columns[field];
+			if (schemaText) {
+				try {
+					const schema = parseColumnSchema(schemaText);
+					const validationResult = validateValue(value, schema);
+					if (!validationResult.valid) {
+						return { valid: false, error: `Field '${field}': ${validationResult.error}` };
 					}
+				} catch (error) {
+					// If schema parsing fails, continue without validation
+					console.warn(`Failed to parse schema for column '${field}':`, error);
 				}
 			}
 		}
