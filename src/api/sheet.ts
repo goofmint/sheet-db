@@ -1114,9 +1114,41 @@ function matchesWhereCondition(row: Record<string, any>, whereCondition: any): b
 						break;
 					case '$regex':
 						try {
-							const regex = new RegExp(expectedValue as string);
-							if (!regex.test(String(value))) return false;
+							const pattern = expectedValue as string;
+							
+							// Basic pattern complexity check to prevent ReDoS
+							// Reject patterns with excessive repetition or nested quantifiers
+							const dangerousPatterns = [
+								/(\+|\*){2,}/,           // Multiple consecutive quantifiers
+								/(\(.*\)){2,}[\+\*]/,    // Nested groups with quantifiers
+								/(\[.*\]){2,}[\+\*]/,    // Nested character classes with quantifiers
+								/\(\?.*\){3,}/,          // Excessive conditional groups
+								/.{100,}/                // Overly long patterns
+							];
+							
+							if (dangerousPatterns.some(dangerous => dangerous.test(pattern))) {
+								console.warn('Potentially dangerous regex pattern rejected:', pattern);
+								return false;
+							}
+							
+							// Additional check for pattern length
+							if (pattern.length > 200) {
+								console.warn('Regex pattern too long:', pattern.length);
+								return false;
+							}
+							
+							const regex = new RegExp(pattern, 'u'); // Use unicode flag for better safety
+							const stringValue = String(value);
+							
+							// Limit input string length to prevent excessive processing
+							if (stringValue.length > 10000) {
+								console.warn('Input string too long for regex matching:', stringValue.length);
+								return false;
+							}
+							
+							if (!regex.test(stringValue)) return false;
 						} catch (e) {
+							console.error('Regex error:', e);
 							return false;
 						}
 						break;
