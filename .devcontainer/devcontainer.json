@@ -28,7 +28,8 @@
 				"redhat.vscode-yaml",
 				"ms-vscode.test-adapter-converter",
 				"hbenl.vscode-test-explorer",
-				"ZixuanChen.vitest-explorer"
+				"ZixuanChen.vitest-explorer",
+				"Anthropic.claude-code"
 			],
 			"settings": {
 				"typescript.preferences.quoteStyle": "single",
@@ -45,15 +46,13 @@
 		}
 	},
 	"forwardPorts": [8787],
-
-
-	"postCreateCommand": "npm install",
-
 	"remoteUser": "node",
+	"postCreateCommand": "export NPM_CONFIG_PREFIX=$HOME/.npm-global && export PATH=$HOME/.npm-global/bin:$PATH && npm install -g @anthropic-ai/claude-code && npm install",
 
 	"mounts": [
 		"source=${localWorkspaceFolder}/.env,target=/workspaces/sheet-db/.env,type=bind,consistency=cached",
-		"source=/Users/nakatsugawa/Documents/VisualStudioExtention,target=/var/extension,type=bind,consistency=cached"
+		"source=/Users/nakatsugawa/Documents/VisualStudioExtention,target=/var/extension,type=bind,consistency=cached",
+		"source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
 	],
 
 	"containerEnv": {

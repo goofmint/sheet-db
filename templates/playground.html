@@ -531,6 +531,30 @@
             <p><small>💡 This endpoint works without authentication for public sheets (public_read=true).</small></p>
 
             <div id="dataResult" class="result" style="display: none;"></div>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+            
+            <h3>Create Sheet Data</h3>
+            <div class="form-group">
+                <label for="createDataSheetId">Sheet ID or Name:</label>
+                <input type="text" id="createDataSheetId" placeholder="e.g., 12345 or UserData">
+            </div>
+            
+            <div class="form-group">
+                <label for="createDataJson">Data JSON:</label>
+                <textarea id="createDataJson" placeholder='{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "score": 1500,
+  "category": "A",
+  "status": "active"
+}' style="height: 150px;"></textarea>
+            </div>
+            
+            <button onclick="createSheetData()">Create Sheet Data</button>
+            <p><small>💡 This endpoint works without authentication for public sheets (public_write=true). Fields id, created_at, and updated_at are automatically generated.</small></p>
+            
+            <div id="createDataResult" class="result" style="display: none;"></div>
         </div>
     </div>
 
@@ -1102,6 +1126,59 @@
                 
             } catch (error) {
                 showResult('dataResult', { error: error.message }, true);
+            }
+        }
+
+        // Create sheet data
+        async function createSheetData() {
+            try {
+                const sheetId = document.getElementById('createDataSheetId').value.trim();
+                const jsonData = document.getElementById('createDataJson').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('Sheet ID or Name is required');
+                }
+                
+                if (!jsonData) {
+                    throw new Error('Data JSON is required');
+                }
+                
+                let bodyData;
+                try {
+                    bodyData = JSON.parse(jsonData);
+                } catch (parseError) {
+                    throw new Error('Invalid JSON format for data');
+                }
+                
+                // Try with authentication first, fallback to no auth if token is missing
+                let headers = { 'Content-Type': 'application/json' };
+                try {
+                    const token = document.getElementById('sessionToken').value.trim();
+                    if (token) {
+                        headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+                    }
+                } catch (authError) {
+                    // Continue without authentication for public sheets
+                }
+                
+                const response = await fetch(`/api/sheets/${encodeURIComponent(sheetId)}/data`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(bodyData)
+                });
+                
+                const data = await response.json();
+                
+                showResult('createDataResult', data, !data.success);
+                
+                // Clear form on success
+                if (data.success) {
+                    document.getElementById('createDataSheetId').value = '';
+                    document.getElementById('createDataJson').value = '';
+                }
+                
+            } catch (error) {
+                showResult('createDataResult', { error: error.message }, true);
             }
         }
 

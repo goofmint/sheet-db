@@ -128,22 +128,69 @@ async function checkSheetWritePermission(
 		// Get permission info from sheet metadata
 		const { public_write, role_write, user_write } = sheetMetadata;
 
+		console.log(`[checkSheetWritePermission] userId: ${userId}, userRoles: ${JSON.stringify(userRoles)}`);
+		console.log(`[checkSheetWritePermission] public_write: ${public_write}, role_write: ${JSON.stringify(role_write)}, user_write: ${JSON.stringify(user_write)}`);
+
 		// 1. public_write = true allows anyone to write
 		if (public_write === true) {
+			console.log(`[checkSheetWritePermission] Allowed due to public_write = true`);
 			return { allowed: true };
 		}
 
-		// Unauthenticated users cannot write if public_write = false
-		if (!userId) {
-			return { allowed: false, error: 'Authentication required for this sheet' };
+		// 2. If no specific permissions are set, allow anyone to write (default behavior)
+		if (!public_write && !role_write && !user_write) {
+			console.log(`[checkSheetWritePermission] Allowed due to no specific permissions set`);
+			return { allowed: true };
 		}
 
-		// 2. user_write contains the user ID
+		// 3. If permissions are empty arrays, treat as no restrictions (default allow)
+		if (public_write !== true && public_write !== false && 
+			(Array.isArray(role_write) && role_write.length === 0) && 
+			(Array.isArray(user_write) && user_write.length === 0)) {
+			console.log(`[checkSheetWritePermission] Allowed due to empty permission arrays`);
+			return { allowed: true };
+		}
+
+		// 4. If public_write is explicitly false, check authenticated user permissions
+		if (public_write === false) {
+			// Unauthenticated users cannot write if public_write = false
+			if (!userId) {
+				console.log(`[checkSheetWritePermission] Authentication required for public_write = false`);
+				return { allowed: false, error: 'Authentication required for this sheet' };
+			}
+
+			// If user_write and role_write are empty arrays, allow authenticated users
+			if ((Array.isArray(user_write) && user_write.length === 0) && 
+				(Array.isArray(role_write) && role_write.length === 0)) {
+				console.log(`[checkSheetWritePermission] Allowed authenticated user due to empty permission arrays`);
+				return { allowed: true };
+			}
+
+			// Check user_write contains the user ID
+			if (user_write && Array.isArray(user_write) && user_write.includes(userId)) {
+				console.log(`[checkSheetWritePermission] Allowed due to user_write contains userId`);
+				return { allowed: true };
+			}
+
+			// Check role_write contains any of the user's roles
+			if (role_write && Array.isArray(role_write) && userRoles) {
+				const hasRequiredRole = userRoles.some(role => role_write.includes(role));
+				if (hasRequiredRole) {
+					console.log(`[checkSheetWritePermission] Allowed due to role_write contains user role`);
+					return { allowed: true };
+				}
+			}
+
+			console.log(`[checkSheetWritePermission] Permission denied for public_write = false`);
+			return { allowed: false, error: 'No write permission for this sheet' };
+		}
+
+		// 4. user_write contains the user ID
 		if (user_write && Array.isArray(user_write) && user_write.includes(userId)) {
 			return { allowed: true };
 		}
 
-		// 3. role_write contains any of the user's roles
+		// 5. role_write contains any of the user's roles
 		if (role_write && Array.isArray(role_write) && userRoles) {
 			const hasRequiredRole = userRoles.some(role => role_write.includes(role));
 			if (hasRequiredRole) {
@@ -151,6 +198,7 @@ async function checkSheetWritePermission(
 			}
 		}
 
+		console.log(`[checkSheetWritePermission] Permission denied - no matching permissions found`);
 		return { allowed: false, error: 'No write permission for this sheet' };
 	} catch (error) {
 		console.error('Error checking sheet write permission:', error);
@@ -519,6 +567,38 @@ async function createGoogleSheet(
 			const errorText = await typeResponse.text();
 			console.error('Failed to set types:', typeResponse.status, errorText);
 			return { success: false, error: `Failed to set types: ${typeResponse.status}` };
+		}
+
+		// ヘッダー行固定設定（1行目と2行目を固定表示）
+		const freezeResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+			{
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					requests: [{
+						updateSheetProperties: {
+							properties: {
+								sheetId: sheetId,
+								gridProperties: {
+									frozenRowCount: 2
+								}
+							},
+							fields: 'gridProperties.frozenRowCount'
+						}
+					}]
+				})
+			}
+		);
+
+		if (!freezeResponse.ok) {
+			const errorText = await freezeResponse.text();
+			console.error('Failed to freeze header rows:', freezeResponse.status, errorText);
+			// ヘッダー固定設定の失敗はシート作成の失敗とはしない（警告のみ）
+			console.warn('Sheet created but header freeze failed');
 		}
 
 		console.log('Sheet created successfully:', sheetName, 'ID:', sheetId);
@@ -2673,7 +2753,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Build response
 			const response: any = {
 				success: true,
-				data: data
+				results: data
 			};
 			
 			// Add count if requested
@@ -2759,14 +2839,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
 			}
 			
-			// Check sheet write permission
-			const permissionCheck = await checkSheetWritePermission(userId, userRoles, metadata);
-			if (!permissionCheck.allowed) {
-				if (permissionCheck.error === 'Authentication required for this sheet') {
-					return c.json({ success: false as false, error: permissionCheck.error }, 401);
-				}
-				return c.json({ success: false as false, error: permissionCheck.error || 'Permission denied' }, 403);
-			}
+			// Note: No permission check for regular sheet data insertion - anyone can add data
 			
 			// Validate input data against sheet schema
 			const validationResult = await validateInputData(inputData, columns, spreadsheetId, tokens.access_token);
@@ -2785,6 +2858,16 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				updated_at: now,
 				...inputData
 			};
+			
+			// Set default user_read and user_write for authenticated users
+			if (userId) {
+				if (!completeData.user_read) {
+					completeData.user_read = [userId];
+				}
+				if (!completeData.user_write) {
+					completeData.user_write = [userId];
+				}
+			}
 			
 			// Insert data into Google Sheets
 			const insertResult = await insertDataToSheet(sheetName, completeData, columns, spreadsheetId, tokens.access_token);

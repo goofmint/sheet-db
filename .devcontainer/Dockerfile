@@ -12,6 +12,8 @@ WORKDIR /workspaces/app
 
 EXPOSE 8787
 
-# 非rootユーザーを追加（VS Code Dev Container 標準）
-RUN useradd -m vscode
-USER vscode
+USER node
+ENV NPM_CONFIG_PREFIX=/home/node/.npm-global
+ENV PATH=/home/node/.npm-global/bin:$PATH
+
+RUN mkdir -p /home/node/.npm-global && npm config set prefix /home/node/.npm-global
