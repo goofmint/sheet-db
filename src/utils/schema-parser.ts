@@ -3,7 +3,7 @@
  */
 
 export interface ColumnSchema {
-  type: 'string' | 'number' | 'boolean' | 'datetime' | 'json' | 'array';
+  type: 'string' | 'number' | 'boolean' | 'datetime' | 'pointer' | 'array' | 'object';
   required?: boolean;
   unique?: boolean;
   pattern?: string;
@@ -41,11 +41,14 @@ export function parseColumnSchema(cellValue: string): ColumnSchema {
   }
 
   // Fallback to simple type string
-  const validTypes = ['string', 'number', 'boolean', 'datetime', 'json', 'array'];
+  const validTypes = ['string', 'number', 'boolean', 'datetime', 'pointer', 'array', 'object'];
   const lowerType = trimmed.toLowerCase();
   
-  if (validTypes.includes(lowerType)) {
-    return { type: lowerType as ColumnSchema['type'] };
+  // Handle backward compatibility: map 'json' to 'object'
+  const mappedType = lowerType === 'json' ? 'object' : lowerType;
+  
+  if (validTypes.includes(mappedType)) {
+    return { type: mappedType as ColumnSchema['type'] };
   }
 
   // Default to string type
@@ -127,13 +130,20 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
       }
       break;
 
-    case 'json':
+    case 'object':
       if (typeof value === 'string') {
         try {
           JSON.parse(value);
         } catch (e) {
           return { valid: false, error: 'Value must be valid JSON' };
         }
+      }
+      break;
+
+    case 'pointer':
+      // Pointer type validation - should be a string representing an ID reference
+      if (typeof value !== 'string') {
+        return { valid: false, error: 'Pointer value must be a string' };
       }
       break;
 
@@ -165,6 +175,9 @@ export const SCHEMA_EXAMPLES = {
   number: { type: 'number' },
   boolean: { type: 'boolean' },
   datetime: { type: 'datetime' },
+  object: { type: 'object' },
+  pointer: { type: 'pointer' },
+  array: { type: 'array' },
   
   // Required fields
   requiredString: { type: 'string', required: true },
