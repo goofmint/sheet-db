@@ -2494,7 +2494,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Build response
 			const response: any = {
 				success: true,
-				results: data
+				data: data
 			};
 			
 			// Add count if requested
