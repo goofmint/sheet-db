@@ -41,7 +41,9 @@ import {
   UpdateColumnResponseSchema,
   GetColumnInfoResponseSchema,
   GetSheetDataQuerySchema,
-  GetSheetDataResponseSchema
+  GetSheetDataResponseSchema,
+  CreateSheetDataRequestSchema,
+  CreateSheetDataResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -1153,6 +1155,75 @@ export const getSheetDataRoute = createRoute({
         },
       },
       description: 'Permission denied - no read access to this sheet',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// POST /api/sheets/:id/data - Create sheet data
+export const createSheetDataRoute = createRoute({
+  method: 'post',
+  path: '/api/sheets/{id}/data',
+  summary: 'Create sheet data',
+  description: 'Creates a new row in the specified sheet. Authentication is optional - unauthenticated users can only create data in sheets with public_write=true. Fields id, created_at, and updated_at are automatically generated and cannot be specified. Returns the created data with generated fields if user has read access, otherwise returns empty object.',
+  tags: ['Data'],
+  request: {
+    params: SheetIdParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: CreateSheetDataRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: CreateSheetDataResponseSchema,
+        },
+      },
+      description: 'Data created successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+      description: 'Invalid request data or validation failed',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication required for this sheet',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no write access to this sheet',
     },
     404: {
       content: {
