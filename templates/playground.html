@@ -463,6 +463,59 @@
             <button onclick="deleteColumn()" class="danger">Delete Column</button>
             <p><small>⚠️ Warning: Column data will be cleared to prevent data misalignment during concurrent operations. System columns (id, created_at, etc.) cannot be deleted.</small></p>
 
+            <h3>Get Sheet Data</h3>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="getDataSheetId">Sheet ID or Name:</label>
+                        <input type="text" id="getDataSheetId" placeholder="e.g., 12345 or UserData">
+                    </div>
+                    <div class="form-group">
+                        <label for="getDataQuery">Text Search (optional):</label>
+                        <input type="text" id="getDataQuery" placeholder="Search text across all fields">
+                    </div>
+                    <div class="form-group">
+                        <label for="getDataOrder">Order By (optional):</label>
+                        <input type="text" id="getDataOrder" placeholder="e.g., name, score:desc, category,score:desc">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label for="getDataLimit">Limit (optional):</label>
+                        <input type="number" id="getDataLimit" placeholder="e.g., 10" min="1" max="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="getDataPage">Page (optional):</label>
+                        <input type="number" id="getDataPage" placeholder="e.g., 1" min="1">
+                    </div>
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="getDataCount">
+                            Include count
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="array-input">
+                <label>WHERE Conditions (optional, JSON format):</label>
+                <div class="form-group">
+                    <label for="getDataWhere">WHERE JSON:</label>
+                    <textarea id="getDataWhere" placeholder='{
+  "score": {"$gte": 1000, "$lte": 3000},
+  "category": {"$in": ["A", "B"]},
+  "status": {"$ne": "inactive"},
+  "email": {"$exists": true},
+  "name": {"$regex": "^John"},
+  "description": {"$text": "search term"}
+}' style="height: 150px;"></textarea>
+                </div>
+                <p><small>💡 Supported operators: $lt, $lte, $gt, $gte, $ne, $in, $nin, $exists, $regex, $text</small></p>
+                <p><small>💡 For equality, use: {"field": "value"}. For operators, use: {"field": {"$operator": "value"}}</small></p>
+            </div>
+            <button onclick="getSheetData()">Get Sheet Data</button>
+            <p><small>💡 This endpoint works without authentication for public sheets (public_read=true).</small></p>
+
             <div id="sheetsResult" class="result" style="display: none;"></div>
         </div>
     </div>
@@ -952,6 +1005,87 @@
                     document.getElementById('deleteColumnSheetId').value = '';
                     document.getElementById('deleteColumnName').value = '';
                 }
+            } catch (error) {
+                showResult('sheetsResult', { error: error.message }, true);
+            }
+        }
+
+        // Get sheet data with query support
+        async function getSheetData() {
+            try {
+                const sheetId = document.getElementById('getDataSheetId').value.trim();
+                if (!sheetId) {
+                    throw new Error('Sheet ID or Name is required');
+                }
+                
+                // Build query parameters
+                const params = new URLSearchParams();
+                
+                const query = document.getElementById('getDataQuery').value.trim();
+                if (query) params.append('query', query);
+                
+                const where = document.getElementById('getDataWhere').value.trim();
+                if (where) {
+                    try {
+                        JSON.parse(where); // Validate JSON
+                        params.append('where', where);
+                    } catch (e) {
+                        throw new Error('Invalid WHERE JSON format');
+                    }
+                }
+                
+                const limit = document.getElementById('getDataLimit').value.trim();
+                if (limit) params.append('limit', limit);
+                
+                const page = document.getElementById('getDataPage').value.trim();
+                if (page) params.append('page', page);
+                
+                const order = document.getElementById('getDataOrder').value.trim();
+                if (order) params.append('order', order);
+                
+                const count = document.getElementById('getDataCount').checked;
+                if (count) params.append('count', 'true');
+                
+                // Build URL
+                const url = `/api/sheets/${encodeURIComponent(sheetId)}/data${params.toString() ? '?' + params.toString() : ''}`;
+                
+                // Try without authentication first (for public sheets)
+                let headers = { 'Content-Type': 'application/json' };
+                const token = document.getElementById('sessionToken').value.trim();
+                if (token) {
+                    headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+                }
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                const data = await response.json();
+                
+                // Enhanced result display for data
+                if (data.success) {
+                    let displayData = {
+                        success: data.success,
+                        totalResults: data.results.length
+                    };
+                    
+                    if (data.count !== undefined) {
+                        displayData.totalCount = data.count;
+                    }
+                    
+                    displayData.results = data.results;
+                    
+                    // Add summary information
+                    if (data.results.length > 0) {
+                        displayData.sampleFields = Object.keys(data.results[0]);
+                    }
+                    
+                    showResult('sheetsResult', displayData, false);
+                } else {
+                    showResult('sheetsResult', data, true);
+                }
+                
             } catch (error) {
                 showResult('sheetsResult', { error: error.message }, true);
             }
