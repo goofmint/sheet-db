@@ -13,9 +13,10 @@
 		"@cloudflare/vitest-pool-workers": "^0.8.19",
 		"typescript": "^5.5.2",
 		"vitest": "~3.2.0",
-		"wrangler": "^4.23.0"
+		"wrangler": "^4.24.0"
 	},
 	"dependencies": {
+		"@anthropic-ai/claude-code": "^1.0.44",
 		"@hono/node-ws": "^1.2.0",
 		"@hono/swagger-ui": "^0.5.2",
 		"@hono/zod-openapi": "^0.19.9",

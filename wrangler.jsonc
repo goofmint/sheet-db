@@ -50,4 +50,8 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
 	 */
 	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
+	"dev": {
+		"ip": "0.0.0.0",
+		"port": 8787
+	}
 }
