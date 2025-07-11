@@ -471,3 +471,6 @@ export const UpdateSheetDataResponseSchema = z.object({
 	success: z.literal(true),
 	data: z.record(z.string(), z.any())
 });
+
+// Delete sheet data response schema
+export const DeleteSheetDataResponseSchema = z.object({});
