@@ -3,7 +3,7 @@
  */
 
 export interface ColumnSchema {
-  type: 'string' | 'number' | 'boolean' | 'datetime' | 'pointer' | 'array' | 'object';
+  type: 'string' | 'number' | 'boolean' | 'datetime' | 'pointer' | 'array' | 'object' | 'image';
   required?: boolean;
   unique?: boolean;
   pattern?: string;
@@ -41,7 +41,7 @@ export function parseColumnSchema(cellValue: string): ColumnSchema {
   }
 
   // Fallback to simple type string
-  const validTypes = ['string', 'number', 'boolean', 'datetime', 'pointer', 'array', 'object'];
+  const validTypes = ['string', 'number', 'boolean', 'datetime', 'pointer', 'array', 'object', 'image'];
   const lowerType = trimmed.toLowerCase();
   
   // Handle backward compatibility: map 'json' to 'object'
@@ -161,6 +161,39 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
         return { valid: false, error: 'Value must be an array' };
       }
       break;
+
+    case 'image':
+      if (typeof value !== 'string') {
+        return { valid: false, error: 'Image value must be a string' };
+      }
+      
+      // Validate image data URL or URL
+      if (value.startsWith('data:image/')) {
+        // Validate data URL format
+        const imageDataUrlRegex = /^data:image\/(png|jpg|jpeg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/;
+        if (!imageDataUrlRegex.test(value)) {
+          return { valid: false, error: 'Invalid image data URL format' };
+        }
+        
+        // Check size (approximate)
+        const base64Data = value.split(',')[1];
+        const imageSize = (base64Data.length * 3) / 4;
+        const maxImageSize = 5 * 1024 * 1024; // 5MB
+        
+        if (imageSize > maxImageSize) {
+          return { valid: false, error: `Image size exceeds limit of ${maxImageSize} bytes` };
+        }
+      } else if (value.startsWith('http://') || value.startsWith('https://')) {
+        // Validate URL format
+        try {
+          new URL(value);
+        } catch (e) {
+          return { valid: false, error: 'Invalid image URL' };
+        }
+      } else {
+        return { valid: false, error: 'Image value must be a data URL or HTTP(S) URL' };
+      }
+      break;
   }
 
   return { valid: true };
@@ -178,6 +211,7 @@ export const SCHEMA_EXAMPLES = {
   object: { type: 'object' },
   pointer: { type: 'pointer' },
   array: { type: 'array' },
+  image: { type: 'image' },
   
   // Required fields
   requiredString: { type: 'string', required: true },
@@ -202,4 +236,8 @@ export const SCHEMA_EXAMPLES = {
   // Arrays
   tags: { type: 'array' },
   roles: { type: 'array', required: true },
+  
+  // Images
+  profilePicture: { type: 'image' },
+  requiredAvatar: { type: 'image', required: true },
 };
