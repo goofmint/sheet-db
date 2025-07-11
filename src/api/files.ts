@@ -70,7 +70,8 @@ function isFileTypeAllowed(file: File, allowedExtensions: string): boolean {
 async function uploadToGoogleDrive(
 	db: DatabaseConnection,
 	file: File,
-	filename: string
+	filename: string,
+	makePublic: boolean = true
 ): Promise<{ url: string; fileId: string }> {
 	// Get valid Google tokens
 	let tokens = await getGoogleTokens(db);
@@ -115,21 +116,23 @@ async function uploadToGoogleDrive(
 	const uploadResult = await uploadResponse.json() as any;
 	const fileId = uploadResult.id;
 
-	// Make file public
-	await fetch(
-		`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
-		{
-			method: 'POST',
-			headers: {
-				'Authorization': `Bearer ${tokens.access_token}`,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				role: 'reader',
-				type: 'anyone'
-			})
-		}
-	);
+	// Make file public if requested
+	if (makePublic) {
+		await fetch(
+			`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
+			{
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${tokens.access_token}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					role: 'reader',
+					type: 'anyone'
+				})
+			}
+		);
+	}
 
 	const publicUrl = `https://drive.google.com/uc?id=${fileId}`;
 	
@@ -138,6 +141,7 @@ async function uploadToGoogleDrive(
 
 // Helper function to upload to R2
 async function uploadToR2(
+	db: DatabaseConnection,
 	bucket: R2Bucket,
 	file: File,
 	filename: string
@@ -152,8 +156,12 @@ async function uploadToR2(
 		}
 	});
 
-	// Generate public URL (this would need to be configured based on your R2 setup)
-	const publicUrl = `https://your-r2-domain.com/${filename}`;
+	// Get R2 public URL from configuration
+	const r2PublicUrl = await getConfig(db, 'R2_PUBLIC_URL');
+	if (!r2PublicUrl) {
+		throw new Error('R2 public URL not configured');
+	}
+	const publicUrl = `${r2PublicUrl}/${filename}`;
 	
 	return { url: publicUrl, key: filename };
 }
@@ -167,7 +175,8 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			// Get configuration values
 			const anonymousUpload = await getConfig(db, 'ANONYMOUS_FILE_UPLOAD');
 			const maxFileSize = await getConfig(db, 'MAX_FILE_SIZE');
-			const allowedExtensions = await getConfig(db, 'ALLOW_UPLOAD_EXTENSTION');
+			const allowedExtensions = await getConfig(db, 'ALLOW_UPLOAD_EXTENSION');
+			const fileUploadPublic = await getConfig(db, 'FILE_UPLOAD_PUBLIC');
 			
 			// Get upload destination
 			const uploadDestination = await getConfig(db, 'upload_destination');
@@ -232,9 +241,10 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 
 			// Upload file based on destination
 			let uploadResult: { url: string };
+			const makePublic = fileUploadPublic !== 'false'; // Default to true if not explicitly set to false
 
 			if (uploadDestination.toLowerCase() === 'google drive') {
-				uploadResult = await uploadToGoogleDrive(db, file, filename);
+				uploadResult = await uploadToGoogleDrive(db, file, filename, makePublic);
 			} else if (uploadDestination.toLowerCase() === 'r2') {
 				if (!c.env.R2_BUCKET) {
 					return c.json({
@@ -242,7 +252,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 						error: 'R2 bucket not configured'
 					}, 500);
 				}
-				uploadResult = await uploadToR2(c.env.R2_BUCKET, file, filename);
+				uploadResult = await uploadToR2(db, c.env.R2_BUCKET, file, filename);
 			} else {
 				return c.json({
 					success: false,

@@ -75,7 +75,7 @@ describe('File Upload API', () => {
 				body: formData
 			});
 
-			// This might pass if ALLOW_UPLOAD_EXTENSTION allows text files
+			// This might pass if ALLOW_UPLOAD_EXTENSION allows text files
 			// or fail with 415 if it doesn't
 			if (response.status === 415) {
 				const data = await response.json();
@@ -215,7 +215,7 @@ describe('File Upload API', () => {
 			}
 		});
 
-		it('should validate ALLOW_UPLOAD_EXTENSTION configuration', async () => {
+		it('should validate ALLOW_UPLOAD_EXTENSION configuration', async () => {
 			// Test different file types
 			const testFiles = [
 				{ name: 'test.jpg', type: 'image/jpeg', size: 1024 },
@@ -235,7 +235,7 @@ describe('File Upload API', () => {
 					body: formData
 				});
 
-				// Response should be consistent with ALLOW_UPLOAD_EXTENSTION setting
+				// Response should be consistent with ALLOW_UPLOAD_EXTENSION setting
 				if (response.status === 415) {
 					const data = await response.json();
 					expect(data.success).toBe(false);

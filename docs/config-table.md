@@ -51,11 +51,13 @@ The Config table stores key-value pairs for application configuration:
 | `upload_destination` | Selected file upload destination | `Google Drive` or `R2` |
 | `ANONYMOUS_FILE_UPLOAD` | Allow uploads without authentication | `true` or `false` |
 | `MAX_FILE_SIZE` | Maximum file size in bytes | `10485760` (10MB) |
-| `ALLOW_UPLOAD_EXTENSTION` | Allowed file extensions/types | `image/*` or `*.jpg,*.png` |
+| `ALLOW_UPLOAD_EXTENSION` | Allowed file extensions/types | `image/*` or `*.jpg,*.png` |
+| `FILE_UPLOAD_PUBLIC` | Make uploaded files publicly accessible | `true` or `false` |
 | `r2_bucket_name` | Cloudflare R2 bucket name | `my-bucket` |
 | `r2_access_key_id` | Cloudflare R2 Access Key ID | `xxxxxxxxxxxxxxxxxx` |
 | `r2_secret_access_key` | Cloudflare R2 Secret Access Key | `xxxxxxxxxxxxxxxxxx` |
 | `r2_account_id` | Cloudflare Account ID | `xxxxxxxxxxxxxxxxxx` |
+| `R2_PUBLIC_URL` | Base URL for R2 public file access | `https://your-r2-domain.com` |
 | `google_drive_folder_id` | Google Drive folder ID for uploads (optional) | `1A2B3C4D5E6F7G8H9I0J` |
 
 ### Security Settings

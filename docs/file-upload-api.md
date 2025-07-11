@@ -16,19 +16,20 @@ The file upload functionality is controlled by several configuration settings st
 |---------------|-------------|---------|
 | `ANONYMOUS_FILE_UPLOAD` | Allow uploads without authentication | `false` |
 | `MAX_FILE_SIZE` | Maximum file size in bytes | `10485760` (10MB) |
-| `ALLOW_UPLOAD_EXTENSTION` | Allowed file extensions/MIME types | `image/*` |
+| `ALLOW_UPLOAD_EXTENSION` | Allowed file extensions/MIME types | `image/*` |
+| `FILE_UPLOAD_PUBLIC` | Make uploaded files publicly accessible | `true` |
 | `upload_destination` | Storage destination | Required (must be set) |
 
 ## Storage Destinations
 
 ### Google Drive
 - Files are uploaded to Google Drive
-- Files are automatically made publicly accessible
+- Files can be made publicly accessible based on `FILE_UPLOAD_PUBLIC` setting
 - Requires valid Google OAuth tokens
 
 ### R2 (Cloudflare R2)
 - Files are uploaded to the configured R2 bucket
-- Files are stored with public access
+- Files can be stored with public access based on `FILE_UPLOAD_PUBLIC` setting
 - Requires R2 bucket configuration
 
 ## Authentication
@@ -115,7 +116,7 @@ multipart/form-data
 1. **Filename Generation**: Original filename is replaced with a random UUID-based filename while preserving the extension
 2. **File Validation**: File size and type are validated against configuration
 3. **Storage**: File is uploaded to the configured destination
-4. **Public Access**: Files are made publicly accessible via HTTPS URL
+4. **Public Access**: Files can be made publicly accessible via HTTPS URL based on `FILE_UPLOAD_PUBLIC` setting
 
 ## Examples
 
@@ -165,6 +166,6 @@ console.log(result);
 
 1. **Upload destination not configured**: Ensure `upload_destination` is set in Config table
 2. **File too large**: Check `MAX_FILE_SIZE` configuration
-3. **File type not allowed**: Verify file type matches `ALLOW_UPLOAD_EXTENSTION` patterns
+3. **File type not allowed**: Verify file type matches `ALLOW_UPLOAD_EXTENSION` patterns
 4. **Authentication required**: Check `ANONYMOUS_FILE_UPLOAD` setting and provide valid token
 5. **Storage service errors**: Verify Google Drive or R2 credentials and permissions
