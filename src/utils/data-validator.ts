@@ -151,7 +151,7 @@ export class DataValidator {
 	 * Sanitizes number data
 	 */
 	private sanitizeNumber(num: number): number {
-		if (!isFinite(num)) {
+		if (!Number.isFinite(num)) {
 			throw new Error('Number must be finite');
 		}
 		
