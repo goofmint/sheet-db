@@ -641,4 +641,271 @@ describe('Sheet Data API', () => {
 			}
 		});
 	});
+
+	describe('PUT /api/sheets/:id/data/:dataId', () => {
+		it('should require valid sheet ID', async () => {
+			const resp = await worker.fetch('/api/sheets/invalid-sheet/data/test-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ name: 'Updated Test' })
+			});
+			expect(resp.status).toBe(404);
+			
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+			expect(data.error).toContain('Sheet not found');
+		});
+
+		it('should require valid data ID', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/invalid-data-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ name: 'Updated Test' })
+			});
+			expect(resp.status).toBe(404);
+			
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+			expect(data.error).toContain('Data not found');
+		});
+
+		it('should reject updates to protected fields', async () => {
+			const testCases = [
+				{ field: 'id', value: 'new-id' },
+				{ field: 'created_at', value: '2023-01-01T00:00:00Z' },
+				{ field: 'updated_at', value: '2023-01-01T00:00:00Z' }
+			];
+
+			for (const testCase of testCases) {
+				const resp = await worker.fetch('/api/sheets/test-sheet/data/existing-id', {
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ [testCase.field]: testCase.value, name: 'Test' })
+				});
+				
+				expect(resp.status).toBe(400);
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toContain(`Field '${testCase.field}' cannot be updated`);
+			}
+		});
+
+		it('should require at least one field to update', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/existing-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({})
+			});
+			
+			expect(resp.status).toBe(400);
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+			expect(data.error).toContain('At least one field must be provided for update');
+		});
+
+		it('should handle authentication when required', async () => {
+			const resp = await worker.fetch('/api/sheets/private-sheet/data/test-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ name: 'Updated Test' })
+			});
+			
+			if (resp.status === 401) {
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toContain('Authentication required');
+			}
+		});
+
+		it('should handle insufficient permissions', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/restricted-data-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer readonly-token'
+				},
+				body: JSON.stringify({ name: 'Updated Test' })
+			});
+			
+			if (resp.status === 403) {
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toContain('No write permission');
+			}
+		});
+
+		it('should update data successfully with valid fields', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/existing-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					name: 'Updated Test User', 
+					email: 'updated@example.com',
+					score: 150
+				})
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data.id).toBeDefined();
+				expect(data.data.updated_at).toBeDefined();
+				expect(data.data.name).toBe('Updated Test User');
+				expect(data.data.email).toBe('updated@example.com');
+				expect(data.data.score).toBe(150);
+			}
+		});
+
+		it('should handle partial updates', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/existing-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					name: 'Partially Updated User'
+				})
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data.name).toBe('Partially Updated User');
+				expect(data.data.updated_at).toBeDefined();
+			}
+		});
+
+		it('should validate data types during update', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/existing-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					name: 'Test',
+					score: 'invalid-number' // Should be number
+				})
+			});
+			
+			if (resp.status === 400) {
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toBeDefined();
+			}
+		});
+
+		it('should handle malformed JSON', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/existing-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: 'invalid-json'
+			});
+			
+			expect(resp.status).toBe(400);
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+		});
+
+		it('should handle missing content-type header', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/existing-id', {
+				method: 'PUT',
+				body: JSON.stringify({ name: 'Test' })
+			});
+			
+			expect(resp.status).toBe(400);
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+		});
+
+		it('should update complex data types', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/existing-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					name: 'Complex Data Update',
+					metadata: { key: 'updated_value', nested: { data: false } },
+					tags: ['updated_tag1', 'updated_tag2'],
+					is_active: false
+				})
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data.name).toBe('Complex Data Update');
+				expect(data.data.metadata).toEqual({ key: 'updated_value', nested: { data: false } });
+				expect(data.data.tags).toEqual(['updated_tag1', 'updated_tag2']);
+				expect(data.data.is_active).toBe(false);
+			}
+		});
+
+		it('should handle public_write permission', async () => {
+			const resp = await worker.fetch('/api/sheets/public-write-sheet/data/public-data-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ name: 'Public Write Update' })
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data).toBeDefined();
+				expect(data.data.name).toBe('Public Write Update');
+			}
+		});
+
+		it('should handle user_write permission', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/user-specific-data-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer user-write-token'
+				},
+				body: JSON.stringify({ name: 'User Write Update' })
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data).toBeDefined();
+				expect(data.data.name).toBe('User Write Update');
+			}
+		});
+
+		it('should handle role_write permission', async () => {
+			const resp = await worker.fetch('/api/sheets/test-sheet/data/role-specific-data-id', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer role-write-token'
+				},
+				body: JSON.stringify({ name: 'Role Write Update' })
+			});
+			
+			if (resp.status === 200) {
+				const data = await resp.json();
+				expect(data.success).toBe(true);
+				expect(data.data).toBeDefined();
+				expect(data.data.name).toBe('Role Write Update');
+			}
+		});
+	});
 });

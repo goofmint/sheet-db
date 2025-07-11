@@ -43,7 +43,10 @@ import {
   GetSheetDataQuerySchema,
   GetSheetDataResponseSchema,
   CreateSheetDataRequestSchema,
-  CreateSheetDataResponseSchema
+  CreateSheetDataResponseSchema,
+  DataIdParamSchema,
+  UpdateSheetDataRequestSchema,
+  UpdateSheetDataResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -1232,6 +1235,75 @@ export const createSheetDataRoute = createRoute({
         },
       },
       description: 'Sheet not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// PUT /api/sheets/:id/data/:dataId - Update sheet data
+export const updateSheetDataRoute = createRoute({
+  method: 'put',
+  path: '/api/sheets/{id}/data/{dataId}',
+  summary: 'Update sheet data',
+  description: 'Updates an existing row in the specified sheet. Authentication is optional - unauthenticated users can only update data in sheets with public_write=true. Only authenticated users can update data where their user ID is in user_write or their role is in role_write. Fields id, created_at, and updated_at cannot be updated. Returns the updated data with all fields.',
+  tags: ['Data'],
+  request: {
+    params: DataIdParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateSheetDataRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: UpdateSheetDataResponseSchema,
+        },
+      },
+      description: 'Data updated successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ValidationErrorSchema,
+        },
+      },
+      description: 'Invalid request data or validation failed',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication required for this sheet',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no write access to this data',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet or data not found',
     },
     500: {
       content: {

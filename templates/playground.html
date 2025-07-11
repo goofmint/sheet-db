@@ -555,6 +555,29 @@
             <p><small>💡 This endpoint works without authentication for public sheets (public_write=true). Fields id, created_at, and updated_at are automatically generated.</small></p>
             
             <div id="createDataResult" class="result" style="display: none;"></div>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+            
+            <h3>Update Sheet Data</h3>
+            <div class="form-group">
+                <label for="updateDataSheetId">Sheet ID or Name:</label>
+                <input type="text" id="updateDataSheetId" placeholder="e.g., 12345 or UserData">
+            </div>
+            
+            <div class="form-group">
+                <label for="updateDataId">Data ID:</label>
+                <input type="text" id="updateDataId" placeholder="e.g., abc123-def456">
+            </div>
+            
+            <div class="form-group">
+                <label for="updateDataJson">Data to Update (JSON):</label>
+                <textarea id="updateDataJson" rows="8" placeholder='{"name": "Updated Name", "email": "updated@example.com"}'></textarea>
+            </div>
+            
+            <button onclick="updateSheetData()">Update Sheet Data</button>
+            <p><small>💡 This endpoint works without authentication for public data (public_write=true) or if your user ID is in user_write or your role is in role_write. Fields id, created_at, and updated_at cannot be updated.</small></p>
+            
+            <div id="updateDataResult" class="result" style="display: none;"></div>
         </div>
     </div>
 
@@ -1179,6 +1202,64 @@
                 
             } catch (error) {
                 showResult('createDataResult', { error: error.message }, true);
+            }
+        }
+
+        async function updateSheetData() {
+            try {
+                const sheetId = document.getElementById('updateDataSheetId').value.trim();
+                const dataId = document.getElementById('updateDataId').value.trim();
+                const jsonData = document.getElementById('updateDataJson').value.trim();
+                
+                if (!sheetId) {
+                    throw new Error('Sheet ID or Name is required');
+                }
+                
+                if (!dataId) {
+                    throw new Error('Data ID is required');
+                }
+                
+                if (!jsonData) {
+                    throw new Error('Data JSON is required');
+                }
+                
+                let bodyData;
+                try {
+                    bodyData = JSON.parse(jsonData);
+                } catch (parseError) {
+                    throw new Error('Invalid JSON format for data');
+                }
+                
+                // Try with authentication first, fallback to no auth if token is missing
+                let headers = { 'Content-Type': 'application/json' };
+                try {
+                    const token = document.getElementById('sessionToken').value.trim();
+                    if (token) {
+                        headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+                    }
+                } catch (authError) {
+                    // Continue without authentication for public data
+                }
+                
+                const response = await fetch(`/api/sheets/${encodeURIComponent(sheetId)}/data/${encodeURIComponent(dataId)}`, {
+                    method: 'PUT',
+                    headers: headers,
+                    body: JSON.stringify(bodyData)
+                });
+                
+                const data = await response.json();
+                
+                showResult('updateDataResult', data, !data.success);
+                
+                // Clear form on success
+                if (data.success) {
+                    document.getElementById('updateDataSheetId').value = '';
+                    document.getElementById('updateDataId').value = '';
+                    document.getElementById('updateDataJson').value = '';
+                }
+                
+            } catch (error) {
+                showResult('updateDataResult', { error: error.message }, true);
             }
         }
 

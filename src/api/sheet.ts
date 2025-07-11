@@ -12,7 +12,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute, deleteColumnRoute, updateColumnRoute, getColumnInfoRoute, getSheetDataRoute, createSheetDataRoute } from '../api-routes';
+import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute, deleteColumnRoute, updateColumnRoute, getColumnInfoRoute, getSheetDataRoute, createSheetDataRoute, updateSheetDataRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -1571,6 +1571,237 @@ async function insertDataToSheet(
 	}
 }
 
+async function checkDataWritePermission(
+	userId: string | null,
+	userRoles: string[],
+	dataRow: any
+): Promise<{ allowed: boolean; error?: string }> {
+	try {
+		// Check if public_write is true
+		if (dataRow.public_write === true || dataRow.public_write === 'true') {
+			return { allowed: true };
+		}
+		
+		// If no user is authenticated, no permission for non-public data
+		if (!userId) {
+			return { allowed: false, error: 'Authentication required for this data' };
+		}
+		
+		// Check if user ID is in user_write
+		if (dataRow.user_write) {
+			let userWriteArray = [];
+			if (typeof dataRow.user_write === 'string') {
+				try {
+					userWriteArray = JSON.parse(dataRow.user_write);
+				} catch (e) {
+					userWriteArray = [dataRow.user_write];
+				}
+			} else if (Array.isArray(dataRow.user_write)) {
+				userWriteArray = dataRow.user_write;
+			}
+			
+			if (userWriteArray.includes(userId)) {
+				return { allowed: true };
+			}
+		}
+		
+		// Check if user's roles are in role_write
+		if (dataRow.role_write && userRoles.length > 0) {
+			let roleWriteArray = [];
+			if (typeof dataRow.role_write === 'string') {
+				try {
+					roleWriteArray = JSON.parse(dataRow.role_write);
+				} catch (e) {
+					roleWriteArray = [dataRow.role_write];
+				}
+			} else if (Array.isArray(dataRow.role_write)) {
+				roleWriteArray = dataRow.role_write;
+			}
+			
+			const hasRequiredRole = userRoles.some(role => roleWriteArray.includes(role));
+			if (hasRequiredRole) {
+				return { allowed: true };
+			}
+		}
+		
+		return { allowed: false, error: 'No write permission for this data' };
+	} catch (error) {
+		console.error('Error checking data write permission:', error);
+		return { allowed: false, error: 'Failed to check permissions' };
+	}
+}
+
+async function getDataRowById(
+	sheetName: string,
+	dataId: string,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ data?: any; error?: string }> {
+	try {
+		const response = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+				},
+			}
+		);
+		
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error('Failed to get sheet data:', response.status, errorText);
+			return { error: `Failed to get sheet data: ${response.status}` };
+		}
+		
+		const data = await response.json();
+		const rows = data.values || [];
+		
+		if (rows.length < 3) {
+			return { error: 'Sheet has no data rows' };
+		}
+		
+		const headers = rows[0];
+		const idIndex = headers.findIndex((header: string) => header === 'id');
+		
+		if (idIndex === -1) {
+			return { error: 'Sheet does not have an id column' };
+		}
+		
+		// Find the row with the matching ID (skip headers row)
+		for (let i = 1; i < rows.length; i++) {
+			const row = rows[i];
+			if (row[idIndex] === dataId) {
+				// Convert row to object
+				const rowObject: any = {};
+				for (let j = 0; j < headers.length; j++) {
+					const header = headers[j];
+					let value = row[j] || '';
+					
+					// Try to parse JSON values for arrays/objects
+					if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {
+						try {
+							value = JSON.parse(value);
+						} catch (e) {
+							// Keep as string if JSON parsing fails
+						}
+					}
+					
+					// Convert boolean strings
+					if (value === 'true') value = true;
+					if (value === 'false') value = false;
+					
+					rowObject[header] = value;
+				}
+				
+				return { data: rowObject };
+			}
+		}
+		
+		return { error: 'Data not found' };
+	} catch (error) {
+		console.error('Error getting data row by ID:', error);
+		return { error: 'Failed to get data row' };
+	}
+}
+
+async function updateDataInSheet(
+	sheetName: string,
+	dataId: string,
+	updatedData: Record<string, any>,
+	columns: Record<string, string>,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ success: boolean; error?: string }> {
+	try {
+		// First, get the current sheet data to find the row index
+		const response = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+				},
+			}
+		);
+		
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error('Failed to get sheet data:', response.status, errorText);
+			return { success: false, error: `Failed to get sheet data: ${response.status}` };
+		}
+		
+		const data = await response.json();
+		const rows = data.values || [];
+		
+		if (rows.length < 2) {
+			return { success: false, error: 'Sheet has no data rows' };
+		}
+		
+		const headers = rows[0];
+		const idIndex = headers.findIndex((header: string) => header === 'id');
+		
+		if (idIndex === -1) {
+			return { success: false, error: 'Sheet does not have an id column' };
+		}
+		
+		// Find the row with the matching ID
+		let rowIndex = -1;
+		for (let i = 1; i < rows.length; i++) {
+			const row = rows[i];
+			if (row[idIndex] === dataId) {
+				rowIndex = i;
+				break;
+			}
+		}
+		
+		if (rowIndex === -1) {
+			return { success: false, error: 'Data not found' };
+		}
+		
+		// Get column names in order
+		const columnNames = Object.keys(columns);
+		
+		// Create row values in the correct order
+		const rowValues = columnNames.map(columnName => {
+			const value = updatedData[columnName];
+			// Convert value to string format suitable for Google Sheets
+			if (value === null || value === undefined) {
+				return '';
+			}
+			if (typeof value === 'object') {
+				return JSON.stringify(value);
+			}
+			return String(value);
+		});
+		
+		// Update the specific row
+		const updateResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A${rowIndex + 1}:${String.fromCharCode(65 + headers.length - 1)}${rowIndex + 1}?valueInputOption=RAW`,
+			{
+				method: 'PUT',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					values: [rowValues],
+					majorDimension: 'ROWS'
+				})
+			}
+		);
+		
+		if (!updateResponse.ok) {
+			const errorText = await updateResponse.text();
+			console.error('Failed to update data:', updateResponse.status, errorText);
+			return { success: false, error: `Failed to update data: ${updateResponse.status}` };
+		}
+		
+		return { success: true };
+	} catch (error) {
+		console.error('Error updating data in sheet:', error);
+		return { success: false, error: 'Failed to update data in sheet' };
+	}
+}
+
 export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// GET /api/sheets - シート一覧を取得 (OpenAPI)
 	app.openapi(getSheetsRoute, async (c) => {
@@ -3008,6 +3239,164 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in POST /api/sheets/:id/data:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// PUT /api/sheets/:id/data/:dataId - Update sheet data
+	app.openapi(updateSheetDataRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			const { id: sheetIdOrName, dataId } = c.req.valid('param');
+			const updateData = c.req.valid('json');
+			
+			// Optional authentication implementation
+			const authHeader = c.req.header('authorization');
+			let userId: string | null = null;
+			let userRoles: string[] = [];
+			let isAuthenticated = false;
+			
+			// Try authentication only if authorization header is provided
+			if (authHeader) {
+				const sessionId = authHeader.replace('Bearer ', '');
+				const authResult = await authenticateSession(db, sessionId);
+				if (authResult.valid && authResult.userId) {
+					userId = authResult.userId;
+					isAuthenticated = true;
+				}
+			}
+			
+			// Apply rate limiting
+			const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
+			const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+			const rateLimitKey = userId || clientIP;
+			
+			const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
+			if (!rateLimitResult.allowed) {
+				logger.warn('Rate limit exceeded for data update', { 
+					userId, 
+					clientIP,
+					rateLimitKey 
+				});
+				return c.json({ 
+					success: false as false, 
+					error: rateLimitResult.error || 'Rate limit exceeded',
+					retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+				}, 429);
+			}
+			
+			// Get Google Sheets configuration
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// Get valid Google tokens
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// Check token validity and refresh if needed
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// Get user information if authenticated
+			if (isAuthenticated && userId) {
+				const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+				if (user) {
+					userRoles = user.roles || [];
+				}
+			}
+			
+			// Get sheet information (ID or name search)
+			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { sheetName, sheetId, columns, metadata } = sheetInfo;
+			if (!sheetName || !sheetId || !columns || !metadata) {
+				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+			}
+			
+			// Get existing data row
+			const existingDataResult = await getDataRowById(sheetName, dataId, spreadsheetId, tokens.access_token);
+			if (existingDataResult.error) {
+				if (existingDataResult.error === 'Data not found') {
+					return c.json({ success: false as false, error: 'Data not found' }, 404);
+				}
+				return c.json({ success: false as false, error: existingDataResult.error }, 500);
+			}
+			
+			const existingData = existingDataResult.data;
+			if (!existingData) {
+				return c.json({ success: false as false, error: 'Data not found' }, 404);
+			}
+			
+			// Check data-specific write permissions
+			const dataPermissionCheck = await checkDataWritePermission(userId, userRoles, existingData);
+			if (!dataPermissionCheck.allowed) {
+				return c.json({ success: false as false, error: dataPermissionCheck.error || 'No write permission for this data' }, 403);
+			}
+			
+			// Log data update attempt for audit trail
+			logger.info('Data update attempted', {
+				userId: userId,
+				sheetId: spreadsheetId,
+				sheetName: sheetName,
+				dataId: dataId,
+				timestamp: new Date().toISOString()
+			});
+			
+			// Enhanced data validation for security
+			const securityValidation = await sheetDataValidator.validateInputData(updateData, 'sheet_data_update');
+			if (!securityValidation.valid) {
+				return c.json({ success: false as false, error: securityValidation.error }, 400);
+			}
+			
+			// Use sanitized data for further processing
+			const sanitizedData = securityValidation.sanitizedData;
+			
+			// Validate input data against sheet schema
+			const validationResult = await validateInputData(sanitizedData, columns, spreadsheetId, tokens.access_token);
+			if (!validationResult.valid) {
+				return c.json({ success: false as false, error: validationResult.error }, 400);
+			}
+			
+			// Update timestamp
+			const now = new Date().toISOString();
+			
+			// Create updated data object
+			const updatedData = {
+				...existingData,
+				...sanitizedData,
+				updated_at: now
+			};
+			
+			// Update data in Google Sheets
+			const updateResult = await updateDataInSheet(sheetName, dataId, updatedData, columns, spreadsheetId, tokens.access_token);
+			if (!updateResult.success) {
+				return c.json({ success: false as false, error: updateResult.error || 'Failed to update data' }, 500);
+			}
+			
+			// Return the updated data
+			return c.json({ success: true, data: updatedData });
+			
+		} catch (error) {
+			console.error('Error in PUT /api/sheets/:id/data/:dataId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}
