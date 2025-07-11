@@ -12,7 +12,7 @@ import {
   isTokenValid,
   type DatabaseConnection
 } from '../google-auth';
-import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute, deleteColumnRoute, updateColumnRoute, getColumnInfoRoute, getSheetDataRoute, createSheetDataRoute, updateSheetDataRoute } from '../api-routes';
+import { getSheetsRoute, createSheetRoute, updateSheetRoute, deleteSheetRoute, getSheetMetadataRoute, addColumnsRoute, deleteColumnRoute, updateColumnRoute, getColumnInfoRoute, getSheetDataRoute, createSheetDataRoute, updateSheetDataRoute, deleteSheetDataRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getMultipleConfigsFromSheet, getUserFromSheet } from '../utils/sheet-helpers';
 
@@ -1802,6 +1802,91 @@ async function updateDataInSheet(
 	}
 }
 
+// Clear data in sheet (used for deletion without row shifting)
+async function clearDataInSheet(
+	sheetName: string,
+	dataId: string,
+	columns: Record<string, string>,
+	spreadsheetId: string,
+	accessToken: string
+): Promise<{ success: boolean; error?: string }> {
+	try {
+		// First, get the current sheet data to find the row index
+		const response = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+				},
+			}
+		);
+		
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error('Failed to get sheet data:', response.status, errorText);
+			return { success: false, error: `Failed to get sheet data: ${response.status}` };
+		}
+		
+		const data = await response.json();
+		const rows = data.values || [];
+		
+		if (rows.length < 2) {
+			return { success: false, error: 'Sheet has no data rows' };
+		}
+		
+		const headers = rows[0];
+		const idIndex = headers.findIndex((header: string) => header === 'id');
+		
+		if (idIndex === -1) {
+			return { success: false, error: 'Sheet does not have an id column' };
+		}
+		
+		// Find the row with the matching ID (skip headers and types rows)
+		let rowIndex = -1;
+		for (let i = 2; i < rows.length; i++) {
+			const row = rows[i];
+			if (row[idIndex] === dataId) {
+				rowIndex = i;
+				break;
+			}
+		}
+		
+		if (rowIndex === -1) {
+			return { success: false, error: 'Data not found' };
+		}
+		
+		// Create empty row values to clear the data
+		const emptyRowValues = new Array(headers.length).fill('');
+		
+		// Clear the specific row
+		const updateResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A${rowIndex + 1}:${String.fromCharCode(65 + headers.length - 1)}${rowIndex + 1}?valueInputOption=RAW`,
+			{
+				method: 'PUT',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					values: [emptyRowValues],
+					majorDimension: 'ROWS'
+				})
+			}
+		);
+		
+		if (!updateResponse.ok) {
+			const errorText = await updateResponse.text();
+			console.error('Failed to clear data:', updateResponse.status, errorText);
+			return { success: false, error: `Failed to clear data: ${updateResponse.status}` };
+		}
+		
+		return { success: true };
+	} catch (error) {
+		console.error('Error in clearDataInSheet:', error);
+		return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+	}
+}
+
 export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	// GET /api/sheets - シート一覧を取得 (OpenAPI)
 	app.openapi(getSheetsRoute, async (c) => {
@@ -3400,6 +3485,147 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in PUT /api/sheets/:id/data/:dataId:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// DELETE /api/sheets/:id/data/:dataId - Delete sheet data
+	app.openapi(deleteSheetDataRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			const { id: sheetIdOrName, dataId } = c.req.valid('param');
+			
+			// Optional authentication implementation
+			const authHeader = c.req.header('authorization');
+			let userId: string | null = null;
+			let userRoles: string[] = [];
+			let isAuthenticated = false;
+			
+			// Try authentication only if authorization header is provided
+			if (authHeader) {
+				const sessionId = authHeader.replace('Bearer ', '');
+				const authResult = await authenticateSession(db, sessionId);
+				if (authResult.valid && authResult.userId) {
+					userId = authResult.userId;
+					isAuthenticated = true;
+				}
+			}
+			
+			// Apply rate limiting
+			const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
+			const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+			const rateLimitKey = userId || clientIP;
+			
+			const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
+			if (!rateLimitResult.allowed) {
+				logger.warn('Rate limit exceeded for data deletion', { 
+					userId, 
+					clientIP,
+					rateLimitKey 
+				});
+				return c.json({ 
+					success: false as false, 
+					error: rateLimitResult.error || 'Rate limit exceeded',
+					retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+				}, 429);
+			}
+			
+			// Get Google Sheets configuration
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// Get valid Google tokens
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// Check token validity and refresh if needed
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// Get user information if authenticated
+			if (isAuthenticated && userId) {
+				const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
+				if (user) {
+					userRoles = user.roles || [];
+				}
+			}
+			
+			// Get sheet information (ID or name search)
+			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
+					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+				}
+				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+			}
+			
+			const { sheetName, sheetId, columns, metadata } = sheetInfo;
+			if (!sheetName || !sheetId || !columns || !metadata) {
+				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+			}
+			
+			// Get existing data row
+			const existingDataResult = await getDataRowById(sheetName, dataId, spreadsheetId, tokens.access_token);
+			if (existingDataResult.error) {
+				if (existingDataResult.error === 'Data not found') {
+					return c.json({ success: false as false, error: 'Data not found' }, 404);
+				}
+				return c.json({ success: false as false, error: existingDataResult.error }, 500);
+			}
+			
+			const existingData = existingDataResult.data;
+			if (!existingData) {
+				return c.json({ success: false as false, error: 'Data not found' }, 404);
+			}
+			
+			// Check data-specific write permissions
+			const dataPermissionCheck = await checkDataWritePermission(userId, userRoles, existingData);
+			if (!dataPermissionCheck.allowed) {
+				return c.json({ success: false as false, error: dataPermissionCheck.error || 'No write permission for this data' }, 403);
+			}
+			
+			// Log data deletion attempt for audit trail
+			logger.info('Data deletion attempted', {
+				userId: userId,
+				sheetId: spreadsheetId,
+				sheetName: sheetName,
+				dataId: dataId,
+				timestamp: new Date().toISOString()
+			});
+			
+			// Clear data in Google Sheets (instead of deleting row to prevent row shifting)
+			const clearResult = await clearDataInSheet(sheetName, dataId, columns, spreadsheetId, tokens.access_token);
+			if (!clearResult.success) {
+				return c.json({ success: false as false, error: clearResult.error || 'Failed to delete data' }, 500);
+			}
+			
+			// Log successful deletion
+			logger.info('Data deletion successful', {
+				userId: userId,
+				sheetId: spreadsheetId,
+				sheetName: sheetName,
+				dataId: dataId,
+				timestamp: new Date().toISOString()
+			});
+			
+			// Return empty JSON response as specified in requirements
+			return c.json({});
+			
+		} catch (error) {
+			console.error('Error in DELETE /api/sheets/:id/data/:dataId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}

@@ -46,7 +46,8 @@ import {
   CreateSheetDataResponseSchema,
   DataIdParamSchema,
   UpdateSheetDataRequestSchema,
-  UpdateSheetDataResponseSchema
+  UpdateSheetDataResponseSchema,
+  DeleteSheetDataResponseSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -1280,6 +1281,60 @@ export const updateSheetDataRoute = createRoute({
         },
       },
       description: 'Invalid request data or validation failed',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication required for this sheet',
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ForbiddenErrorSchema,
+        },
+      },
+      description: 'Permission denied - no write access to this data',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'Sheet or data not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// DELETE /api/sheets/:id/data/:dataId - Delete sheet data
+export const deleteSheetDataRoute = createRoute({
+  method: 'delete',
+  path: '/api/sheets/{id}/data/{dataId}',
+  summary: 'Delete sheet data',
+  description: 'Deletes data from the specified sheet. Authentication is optional - unauthenticated users can only delete data from sheets with public_write=true. Only authenticated users can delete data where their user ID is in user_write or their role is in role_write. Data is cleared rather than deleted to prevent row shifting conflicts.',
+  tags: ['Data'],
+  request: {
+    params: DataIdParamSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DeleteSheetDataResponseSchema,
+        },
+      },
+      description: 'Data deleted successfully',
     },
     401: {
       content: {
