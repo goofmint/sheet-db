@@ -64,7 +64,8 @@ export function registerSetupMainRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 				'r2_access_key_id',
 				'r2_secret_access_key',
 				'r2_account_id',
-				'google_drive_folder_id'
+				'google_drive_folder_id',
+				'session_expired_seconds'
 			]);
 
 			// Embed configuration status into HTML
@@ -95,7 +96,9 @@ export function registerSetupMainRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 				r2AccessKeyId: configs.r2_access_key_id || '',
 				r2SecretAccessKey: configs.r2_secret_access_key || '',
 				r2AccountId: configs.r2_account_id || '',
-				googleDriveFolderId: configs.google_drive_folder_id || ''
+				googleDriveFolderId: configs.google_drive_folder_id || '',
+				// Session settings
+				sessionExpiredSeconds: configs.session_expired_seconds || '604800' // Default: 1 week
 			};
 
 			// Load template with configuration data injected
