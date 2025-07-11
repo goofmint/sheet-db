@@ -474,3 +474,19 @@ export const UpdateSheetDataResponseSchema = z.object({
 
 // Delete sheet data response schema
 export const DeleteSheetDataResponseSchema = z.object({});
+
+// File upload schemas
+export const FileUploadResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		url: z.string().describe("HTTPS URL to access the uploaded file"),
+		fileName: z.string().describe("Original filename"),
+		contentType: z.string().describe("Content-Type of the file"),
+		fileSize: z.number().describe("File size in bytes")
+	})
+});
+
+export const FileUploadErrorSchema = z.object({
+	success: z.literal(false),
+	error: z.string().describe("File upload error message")
+});

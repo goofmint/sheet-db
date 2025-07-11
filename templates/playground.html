@@ -47,6 +47,9 @@
         .sheets-section {
             background: #e8f5e8;
         }
+        .files-section {
+            background: #fff3e0;
+        }
         .form-group {
             margin-bottom: 15px;
         }
@@ -578,6 +581,28 @@
             <p><small>💡 This endpoint works without authentication for public data (public_write=true) or if your user ID is in user_write or your role is in role_write. Fields id, created_at, and updated_at cannot be updated.</small></p>
             
             <div id="updateDataResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- File Upload Section -->
+        <div class="section files-section">
+            <h2>📁 File Upload</h2>
+            <p>Upload files to the configured storage destination (Google Drive or R2). Authentication may be required based on configuration.</p>
+            
+            <div class="form-group">
+                <label for="fileInput">Select File:</label>
+                <input type="file" id="fileInput" accept="*/*">
+            </div>
+            
+            <button onclick="uploadFile()" class="success">Upload File</button>
+            <p><small>💡 File upload authentication requirements depend on ANONYMOUS_FILE_UPLOAD configuration. File size and type restrictions apply.</small></p>
+            
+            <div id="fileUploadResult" class="result" style="display: none;"></div>
+            
+            <!-- File Preview -->
+            <div id="filePreview" style="display: none; margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;">
+                <h4>Uploaded File Preview:</h4>
+                <div id="filePreviewContent"></div>
+            </div>
         </div>
     </div>
 
@@ -1261,6 +1286,85 @@
             } catch (error) {
                 showResult('updateDataResult', { error: error.message }, true);
             }
+        }
+
+        // File Upload Functions
+        async function uploadFile() {
+            try {
+                const fileInput = document.getElementById('fileInput');
+                const file = fileInput.files[0];
+                
+                if (!file) {
+                    showResult('fileUploadResult', { error: 'Please select a file to upload' }, true);
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                // Try with authentication first, fallback to no auth if token is missing
+                let headers = {};
+                try {
+                    const token = document.getElementById('sessionToken').value.trim();
+                    if (token) {
+                        headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+                    }
+                } catch (authError) {
+                    // Continue without authentication for anonymous uploads
+                }
+                
+                const response = await fetch('/api/files', {
+                    method: 'POST',
+                    headers: headers,
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                showResult('fileUploadResult', data, !data.success);
+                
+                // Show file preview if upload was successful
+                if (data.success) {
+                    showFilePreview(data.data);
+                    // Clear file input
+                    fileInput.value = '';
+                }
+                
+            } catch (error) {
+                showResult('fileUploadResult', { error: error.message }, true);
+            }
+        }
+
+        function showFilePreview(fileData) {
+            const previewDiv = document.getElementById('filePreview');
+            const previewContent = document.getElementById('filePreviewContent');
+            
+            let previewHtml = `
+                <p><strong>File:</strong> ${fileData.fileName}</p>
+                <p><strong>Size:</strong> ${formatFileSize(fileData.fileSize)}</p>
+                <p><strong>Type:</strong> ${fileData.contentType}</p>
+                <p><strong>URL:</strong> <a href="${fileData.url}" target="_blank">${fileData.url}</a></p>
+            `;
+            
+            // Add image preview if it's an image
+            if (fileData.contentType.startsWith('image/')) {
+                previewHtml += `
+                    <div style="margin-top: 10px;">
+                        <img src="${fileData.url}" alt="Uploaded image" style="max-width: 300px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                `;
+            }
+            
+            previewContent.innerHTML = previewHtml;
+            previewDiv.style.display = 'block';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
         // Initialize

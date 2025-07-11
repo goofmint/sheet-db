@@ -48,7 +48,10 @@ The Config table stores key-value pairs for application configuration:
 
 | Key | Description | Example |
 |-----|-------------|---------|
-| `upload_destination` | Selected file upload destination | `r2` or `google_drive` |
+| `upload_destination` | Selected file upload destination | `Google Drive` or `R2` |
+| `ANONYMOUS_FILE_UPLOAD` | Allow uploads without authentication | `true` or `false` |
+| `MAX_FILE_SIZE` | Maximum file size in bytes | `10485760` (10MB) |
+| `ALLOW_UPLOAD_EXTENSTION` | Allowed file extensions/types | `image/*` or `*.jpg,*.png` |
 | `r2_bucket_name` | Cloudflare R2 bucket name | `my-bucket` |
 | `r2_access_key_id` | Cloudflare R2 Access Key ID | `xxxxxxxxxxxxxxxxxx` |
 | `r2_secret_access_key` | Cloudflare R2 Secret Access Key | `xxxxxxxxxxxxxxxxxx` |
