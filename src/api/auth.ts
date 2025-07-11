@@ -54,6 +54,10 @@ export function registerAuthStartRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 			
 			// リダイレクトURI（POST /api/auth/callback → GET /api/auth のリダイレクト）
 			const redirectUri = `${new URL(c.req.url).origin}/api/auth/callback`;
+			console.log('Initial auth redirect URI:', redirectUri);
+			
+			// Stateを生成（後で検証に使用）
+			const state = crypto.randomUUID();
 			
 			// Auth0認証URLを構築
 			const params = new URLSearchParams({
@@ -61,7 +65,7 @@ export function registerAuthStartRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 				client_id: auth0ClientId,
 				redirect_uri: redirectUri,
 				scope: 'openid profile email',
-				state: crypto.randomUUID() // CSRF保護用
+				state: state // CSRF保護用
 			});
 			
 			if (auth0Audience) {
@@ -156,6 +160,12 @@ async function handleAuthCallback(c: any, db: DatabaseConnection, code: string):
 		
 		// リダイレクトURI
 		const redirectUri = `${new URL(c.req.url).origin}/api/auth/callback`;
+		console.log('Token exchange redirect URI:', redirectUri);
+		console.log('Request headers:', {
+			host: c.req.header('host'),
+			origin: c.req.header('origin'),
+			referer: c.req.header('referer')
+		});
 		
 		// 認証コードをアクセストークンに交換
 		const tokenResponse = await fetch(`https://${auth0Domain}/oauth/token`, {
@@ -175,10 +185,17 @@ async function handleAuthCallback(c: any, db: DatabaseConnection, code: string):
 		
 		if (!tokenResponse.ok) {
 			const errorText = await tokenResponse.text();
-			console.error('Token exchange failed:', tokenResponse.status, errorText);
+			console.error('Token exchange failed:', {
+				status: tokenResponse.status,
+				error: errorText,
+				redirectUri: redirectUri,
+				auth0Domain: auth0Domain,
+				clientId: auth0ClientId
+			});
 			return c.json({
 				success: false,
-				error: 'Failed to exchange authorization code for tokens'
+				error: 'Failed to exchange authorization code for tokens',
+				details: errorText
 			}, 400);
 		}
 		

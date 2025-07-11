@@ -102,20 +102,20 @@ export async function getUserFromSheet(userId: string, spreadsheetId: string, ac
 
 		// rolesフィールドの安全なパース
 		let roles: string[] = [];
-		if (userRow[9]) {
+		if (userRow[13]) {
 			try {
-				console.log(`[getUserFromSheet] Raw roles value: "${userRow[9]}"`);
-				roles = JSON.parse(userRow[9]);
+				console.log(`[getUserFromSheet] Raw roles value: "${userRow[13]}"`);
+				roles = JSON.parse(userRow[13]);
 				if (!Array.isArray(roles)) {
 					console.warn(`[getUserFromSheet] Roles is not an array, converting to array:`, roles);
 					roles = [roles];
 				}
 			} catch (parseError) {
-				console.error(`[getUserFromSheet] Failed to parse roles JSON: "${userRow[9]}"`, parseError);
+				console.error(`[getUserFromSheet] Failed to parse roles JSON: "${userRow[13]}"`, parseError);
 				// JSON形式でない場合、文字列として扱う
-				if (typeof userRow[9] === 'string' && userRow[9].trim()) {
+				if (typeof userRow[13] === 'string' && userRow[13].trim()) {
 					// カンマ区切りの文字列として扱う
-					roles = userRow[9].split(',').map(role => role.trim()).filter(role => role.length > 0);
+					roles = userRow[13].split(',').map(role => role.trim()).filter(role => role.length > 0);
 				} else {
 					roles = [];
 				}
@@ -123,21 +123,21 @@ export async function getUserFromSheet(userId: string, spreadsheetId: string, ac
 		}
 
 		// _Userシートのスキーマに基づいてユーザー情報を構築
-		// A: id, B: email, C: name, D: given_name, E: family_name, F: nickname, 
-		// G: picture, H: email_verified, I: locale, J: roles, K: created_at, L: updated_at, M: last_login
+		// A: id, B: name, C: email, D: given_name, E: family_name, F: nickname, 
+		// G: picture, H: email_verified, I: locale, J: created_at, K: updated_at, L: ?, M: ?, N: roles
 		const user = {
 			id: userRow[0] || '',
-			email: userRow[1] || '',
-			name: userRow[2] || undefined,
+			name: userRow[1] || '',
+			email: userRow[2] || '',
 			given_name: userRow[3] || undefined,
 			family_name: userRow[4] || undefined,
 			nickname: userRow[5] || undefined,
 			picture: userRow[6] || undefined,
 			email_verified: userRow[7] === 'TRUE' || undefined,
 			locale: userRow[8] || undefined,
+			created_at: userRow[9] || '',
+			updated_at: userRow[10] || '',
 			roles: roles,
-			created_at: userRow[10] || '',
-			updated_at: userRow[11] || '',
 			last_login: userRow[12] || undefined
 		};
 
