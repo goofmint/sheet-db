@@ -1667,8 +1667,8 @@ async function getDataRowById(
 			return { error: 'Sheet does not have an id column' };
 		}
 		
-		// Find the row with the matching ID (skip headers row)
-		for (let i = 1; i < rows.length; i++) {
+		// Find the row with the matching ID (skip headers and types rows)
+		for (let i = 2; i < rows.length; i++) {
 			const row = rows[i];
 			if (row[idIndex] === dataId) {
 				// Convert row to object
@@ -1743,9 +1743,9 @@ async function updateDataInSheet(
 			return { success: false, error: 'Sheet does not have an id column' };
 		}
 		
-		// Find the row with the matching ID
+		// Find the row with the matching ID (skip headers and types rows)
 		let rowIndex = -1;
-		for (let i = 1; i < rows.length; i++) {
+		for (let i = 2; i < rows.length; i++) {
 			const row = rows[i];
 			if (row[idIndex] === dataId) {
 				rowIndex = i;
@@ -3379,10 +3379,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Update timestamp
 			const now = new Date().toISOString();
 			
+			// Remove protected fields that cannot be updated
+			const { id: _id, created_at: _created, updated_at: _updated, ...filteredData } = sanitizedData;
+			
 			// Create updated data object
 			const updatedData = {
 				...existingData,
-				...sanitizedData,
+				...filteredData,
 				updated_at: now
 			};
 			
