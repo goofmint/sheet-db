@@ -314,7 +314,76 @@
         </div>
         
         <div class="section">
-            <h2>5. 🔒 Security Settings</h2>
+            <h2>5. 📁 File Upload Settings</h2>
+            
+            <div id="file-upload-success" class="success-info hidden">
+                <p><strong>✅ File upload configuration completed</strong></p>
+                <p>File upload destination is already configured in the database.</p>
+            </div>
+            
+            <div id="file-upload-form">
+                <div class="info">
+                    <p>Configure where uploaded files will be stored.</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="upload-destination">Upload Destination:</label>
+                    <select id="upload-destination" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
+                        <option value="">Select destination</option>
+                        <option value="r2">Cloudflare R2</option>
+                        <option value="google_drive">Google Drive</option>
+                    </select>
+                    <button type="button" id="reset-upload-destination" class="reset-btn hidden">Change</button>
+                </div>
+                
+                <div id="r2-settings" class="hidden" style="margin-top: 20px;">
+                    <h3>Cloudflare R2 Settings</h3>
+                    <div class="info">
+                        <p>Configure your Cloudflare R2 bucket for file storage.</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="r2-bucket-name">R2 Bucket Name:</label>
+                        <input type="text" id="r2-bucket-name" placeholder="your-bucket-name">
+                        <button type="button" id="reset-r2-bucket-name" class="reset-btn hidden">Change</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="r2-access-key-id">R2 Access Key ID:</label>
+                        <input type="text" id="r2-access-key-id" placeholder="Your R2 Access Key ID">
+                        <button type="button" id="reset-r2-access-key-id" class="reset-btn hidden">Change</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="r2-secret-access-key">R2 Secret Access Key:</label>
+                        <input type="text" id="r2-secret-access-key" placeholder="Your R2 Secret Access Key">
+                        <button type="button" id="reset-r2-secret-access-key" class="reset-btn hidden">Change</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="r2-account-id">R2 Account ID:</label>
+                        <input type="text" id="r2-account-id" placeholder="Your Cloudflare Account ID">
+                        <button type="button" id="reset-r2-account-id" class="reset-btn hidden">Change</button>
+                    </div>
+                </div>
+                
+                <div id="google-drive-settings" class="hidden" style="margin-top: 20px;">
+                    <h3>Google Drive Settings</h3>
+                    <div class="info">
+                        <p>Files will be uploaded to Google Drive using the same Google account connected above.</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="google-drive-folder-id">Google Drive Folder ID (Optional):</label>
+                        <input type="text" id="google-drive-folder-id" placeholder="Leave empty to use root folder">
+                        <button type="button" id="reset-google-drive-folder-id" class="reset-btn hidden">Change</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>6. 🔒 Security Settings</h2>
             <div class="info">
                 <p>Set the token required to reset the setup.</p>
                 <p><strong>⚠️ Important:</strong> Please store this token in a secure location. If lost, you will not be able to reset the configuration.</p>
@@ -335,7 +404,7 @@
         </div>
         
         <div class="section">
-            <h2>6. 🔐 Auth0 Authentication Test</h2>
+            <h2>7. 🔐 Auth0 Authentication Test</h2>
             
             <div id="auth0-test-not-ready" class="info">
                 <p>After completing Auth0 configuration and spreadsheet settings, you can test authentication.</p>
@@ -459,6 +528,63 @@
                 document.getElementById('reset-token').classList.add('readonly-field');
             }
             
+            // If file upload configuration already exists
+            if (config.uploadDestination) {
+                // Show success message
+                document.getElementById('file-upload-success').classList.remove('hidden');
+                
+                // Set upload destination
+                const uploadDestField = document.getElementById('upload-destination');
+                uploadDestField.value = config.uploadDestination;
+                uploadDestField.readOnly = true;
+                uploadDestField.classList.add('readonly-field');
+                document.getElementById('reset-upload-destination').classList.remove('hidden');
+                
+                // Trigger change event to show relevant settings
+                uploadDestField.dispatchEvent(new Event('change'));
+                
+                // Set R2 settings if applicable
+                if (config.uploadDestination === 'r2') {
+                    if (config.r2BucketName) {
+                        const bucketField = document.getElementById('r2-bucket-name');
+                        bucketField.value = config.r2BucketName;
+                        bucketField.readOnly = true;
+                        bucketField.classList.add('readonly-field');
+                        document.getElementById('reset-r2-bucket-name').classList.remove('hidden');
+                    }
+                    if (config.r2AccessKeyId) {
+                        const accessKeyField = document.getElementById('r2-access-key-id');
+                        accessKeyField.value = maskClientId(config.r2AccessKeyId);
+                        accessKeyField.readOnly = true;
+                        accessKeyField.classList.add('readonly-field');
+                        document.getElementById('reset-r2-access-key-id').classList.remove('hidden');
+                    }
+                    if (config.r2SecretAccessKey) {
+                        const secretKeyField = document.getElementById('r2-secret-access-key');
+                        secretKeyField.value = '••••••••••••••••••••••••••••••••';
+                        secretKeyField.readOnly = true;
+                        secretKeyField.classList.add('readonly-field');
+                        document.getElementById('reset-r2-secret-access-key').classList.remove('hidden');
+                    }
+                    if (config.r2AccountId) {
+                        const accountIdField = document.getElementById('r2-account-id');
+                        accountIdField.value = config.r2AccountId;
+                        accountIdField.readOnly = true;
+                        accountIdField.classList.add('readonly-field');
+                        document.getElementById('reset-r2-account-id').classList.remove('hidden');
+                    }
+                }
+                
+                // Set Google Drive settings if applicable
+                if (config.uploadDestination === 'google_drive' && config.googleDriveFolderId) {
+                    const folderIdField = document.getElementById('google-drive-folder-id');
+                    folderIdField.value = config.googleDriveFolderId;
+                    folderIdField.readOnly = true;
+                    folderIdField.classList.add('readonly-field');
+                    document.getElementById('reset-google-drive-folder-id').classList.remove('hidden');
+                }
+            }
+            
             // If connected=true parameter exists (after authentication completion)
             if (config.connected) {
                 // Show additional success message
@@ -546,6 +672,41 @@
             document.getElementById('auth0-success').classList.add('hidden');
         }
         
+        function resetFileUploadConfig() {
+            // Reset all file upload fields
+            const fileUploadFields = [
+                'upload-destination',
+                'r2-bucket-name',
+                'r2-access-key-id',
+                'r2-secret-access-key',
+                'r2-account-id',
+                'google-drive-folder-id'
+            ];
+            
+            fileUploadFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (fieldId === 'upload-destination') {
+                    field.value = '';
+                    // Trigger change event to hide settings
+                    field.dispatchEvent(new Event('change'));
+                } else {
+                    field.value = '';
+                }
+                field.readOnly = false;
+                field.classList.remove('readonly-field');
+                
+                // Hide corresponding reset button
+                const resetBtn = document.getElementById('reset-' + fieldId);
+                if (resetBtn) {
+                    resetBtn.classList.add('hidden');
+                }
+            });
+            
+            // Hide success message and show form
+            document.getElementById('file-upload-success').classList.add('hidden');
+            document.getElementById('file-upload-form').classList.remove('hidden');
+        }
+        
         // Token generation function
         function generateSecureToken() {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -573,6 +734,32 @@
                 const tokenField = document.getElementById('reset-token');
                 tokenField.value = generateSecureToken();
             });
+            
+            // File upload destination change event
+            document.getElementById('upload-destination').addEventListener('change', function(e) {
+                const value = e.target.value;
+                const r2Settings = document.getElementById('r2-settings');
+                const googleDriveSettings = document.getElementById('google-drive-settings');
+                
+                // Hide all settings first
+                r2Settings.classList.add('hidden');
+                googleDriveSettings.classList.add('hidden');
+                
+                // Show relevant settings
+                if (value === 'r2') {
+                    r2Settings.classList.remove('hidden');
+                } else if (value === 'google_drive') {
+                    googleDriveSettings.classList.remove('hidden');
+                }
+            });
+            
+            // File upload reset button event listeners
+            document.getElementById('reset-upload-destination').addEventListener('click', resetFileUploadConfig);
+            document.getElementById('reset-r2-bucket-name').addEventListener('click', resetFileUploadConfig);
+            document.getElementById('reset-r2-access-key-id').addEventListener('click', resetFileUploadConfig);
+            document.getElementById('reset-r2-secret-access-key').addEventListener('click', resetFileUploadConfig);
+            document.getElementById('reset-r2-account-id').addEventListener('click', resetFileUploadConfig);
+            document.getElementById('reset-google-drive-folder-id').addEventListener('click', resetFileUploadConfig);
         });
         
         function connectToGoogle() {
@@ -908,6 +1095,43 @@
                 configData.spreadsheetId = selectedSheet.id;
                 configData.spreadsheetName = selectedSheet.name;
                 configData.spreadsheetUrl = selectedSheet.url;
+            }
+            
+            // Process file upload settings
+            const uploadDestination = document.getElementById('upload-destination').value;
+            if (uploadDestination) {
+                configData.uploadDestination = uploadDestination;
+                
+                if (uploadDestination === 'r2') {
+                    // R2 settings
+                    const r2BucketName = document.getElementById('r2-bucket-name').value;
+                    const r2AccessKeyId = document.getElementById('r2-access-key-id').value;
+                    const r2SecretAccessKey = document.getElementById('r2-secret-access-key').value;
+                    const r2AccountId = document.getElementById('r2-account-id').value;
+                    
+                    if (!r2BucketName || !r2AccessKeyId || !r2SecretAccessKey || !r2AccountId) {
+                        alert('Please fill in all R2 configuration fields.');
+                        return;
+                    }
+                    
+                    configData.r2BucketName = r2BucketName;
+                    
+                    // Only send non-masked values
+                    if (!r2AccessKeyId.includes('•')) {
+                        configData.r2AccessKeyId = r2AccessKeyId;
+                    }
+                    if (!r2SecretAccessKey.includes('•')) {
+                        configData.r2SecretAccessKey = r2SecretAccessKey;
+                    }
+                    configData.r2AccountId = r2AccountId;
+                    
+                } else if (uploadDestination === 'google_drive') {
+                    // Google Drive settings
+                    const googleDriveFolderId = document.getElementById('google-drive-folder-id').value;
+                    if (googleDriveFolderId) {
+                        configData.googleDriveFolderId = googleDriveFolderId;
+                    }
+                }
             }
             
             // Debug: Output data being sent to console
