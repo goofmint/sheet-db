@@ -375,26 +375,86 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 				await setConfig(db, 'spreadsheet_url', body.spreadsheetUrl);
 			}
 
-			// Save file upload settings
+			// Validate and save file upload settings
 			if (body.uploadDestination) {
-				await setConfig(db, 'upload_destination', body.uploadDestination);
+				// Validate upload destination type
+				if (!['r2', 'google_drive'].includes(body.uploadDestination)) {
+					return c.json({
+						success: false,
+						error: 'Invalid upload destination. Must be either "r2" or "google_drive"'
+					}, 400);
+				}
 				
 				if (body.uploadDestination === 'r2') {
-					// Save R2 settings
-					if (body.r2BucketName) {
-						await setConfig(db, 'r2_bucket_name', body.r2BucketName);
+					// Validate R2 settings - all fields are required
+					if (!body.r2BucketName || !body.r2AccessKeyId || !body.r2SecretAccessKey || !body.r2AccountId) {
+						return c.json({
+							success: false,
+							error: 'All R2 configuration fields are required: bucket name, access key ID, secret access key, and account ID'
+						}, 400);
 					}
-					if (body.r2AccessKeyId) {
-						await setConfig(db, 'r2_access_key_id', body.r2AccessKeyId);
+					
+					// Validate R2 field formats
+					if (body.r2BucketName.length === 0 || body.r2BucketName.length > 63) {
+						return c.json({
+							success: false,
+							error: 'R2 bucket name must be between 1 and 63 characters'
+						}, 400);
 					}
-					if (body.r2SecretAccessKey) {
-						await setConfig(db, 'r2_secret_access_key', body.r2SecretAccessKey);
+					
+					// Check if the access key ID looks like a masked value
+					if (body.r2AccessKeyId.includes('•')) {
+						return c.json({
+							success: false,
+							error: 'Invalid R2 access key ID: masked values cannot be saved'
+						}, 400);
 					}
-					if (body.r2AccountId) {
-						await setConfig(db, 'r2_account_id', body.r2AccountId);
+					
+					// Check if the secret access key looks like a masked value
+					if (body.r2SecretAccessKey.includes('•')) {
+						return c.json({
+							success: false,
+							error: 'Invalid R2 secret access key: masked values cannot be saved'
+						}, 400);
 					}
+					
+					// Validate account ID format (should be alphanumeric)
+					if (!/^[a-zA-Z0-9]+$/.test(body.r2AccountId)) {
+						return c.json({
+							success: false,
+							error: 'R2 account ID must contain only alphanumeric characters'
+						}, 400);
+					}
+					
+					// Save validated R2 settings
+					await setConfig(db, 'upload_destination', body.uploadDestination);
+					await setConfig(db, 'r2_bucket_name', body.r2BucketName);
+					await setConfig(db, 'r2_access_key_id', body.r2AccessKeyId);
+					await setConfig(db, 'r2_secret_access_key', body.r2SecretAccessKey);
+					await setConfig(db, 'r2_account_id', body.r2AccountId);
+					
 				} else if (body.uploadDestination === 'google_drive') {
-					// Save Google Drive settings
+					// Validate Google Drive settings
+					if (body.googleDriveFolderId) {
+						// Validate folder ID format (should be alphanumeric with possible hyphens/underscores)
+						if (!/^[a-zA-Z0-9_-]+$/.test(body.googleDriveFolderId)) {
+							return c.json({
+								success: false,
+								error: 'Google Drive folder ID must contain only alphanumeric characters, hyphens, and underscores'
+							}, 400);
+						}
+						
+						// Typical Google Drive folder IDs are around 20-50 characters
+						if (body.googleDriveFolderId.length > 100) {
+							return c.json({
+								success: false,
+								error: 'Google Drive folder ID seems too long. Please verify the folder ID'
+							}, 400);
+						}
+					}
+					
+					// Save validated Google Drive settings
+					await setConfig(db, 'upload_destination', body.uploadDestination);
 					if (body.googleDriveFolderId) {
 						await setConfig(db, 'google_drive_folder_id', body.googleDriveFolderId);
 					}
