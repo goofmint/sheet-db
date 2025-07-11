@@ -58,7 +58,13 @@ export function registerSetupMainRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 				'spreadsheet_url',
 				'sheets_initialized',
 				'sheet_setup_status',
-				'sheet_setup_progress'
+				'sheet_setup_progress',
+				'upload_destination',
+				'r2_bucket_name',
+				'r2_access_key_id',
+				'r2_secret_access_key',
+				'r2_account_id',
+				'google_drive_folder_id'
 			]);
 
 			// Embed configuration status into HTML
@@ -82,7 +88,14 @@ export function registerSetupMainRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 				hasSpreadsheet: !!configs.spreadsheet_id,
 				sheetsInitialized: configs.sheets_initialized === 'true',
 				sheetSetupStatus: configs.sheet_setup_status || '',
-				sheetSetupProgress: configs.sheet_setup_progress || ''
+				sheetSetupProgress: configs.sheet_setup_progress || '',
+				// File upload settings
+				uploadDestination: configs.upload_destination || '',
+				r2BucketName: configs.r2_bucket_name || '',
+				r2AccessKeyId: configs.r2_access_key_id || '',
+				r2SecretAccessKey: configs.r2_secret_access_key || '',
+				r2AccountId: configs.r2_account_id || '',
+				googleDriveFolderId: configs.google_drive_folder_id || ''
 			};
 
 			// Load template with configuration data injected
@@ -360,6 +373,32 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 			}
 			if (body.spreadsheetUrl) {
 				await setConfig(db, 'spreadsheet_url', body.spreadsheetUrl);
+			}
+
+			// Save file upload settings
+			if (body.uploadDestination) {
+				await setConfig(db, 'upload_destination', body.uploadDestination);
+				
+				if (body.uploadDestination === 'r2') {
+					// Save R2 settings
+					if (body.r2BucketName) {
+						await setConfig(db, 'r2_bucket_name', body.r2BucketName);
+					}
+					if (body.r2AccessKeyId) {
+						await setConfig(db, 'r2_access_key_id', body.r2AccessKeyId);
+					}
+					if (body.r2SecretAccessKey) {
+						await setConfig(db, 'r2_secret_access_key', body.r2SecretAccessKey);
+					}
+					if (body.r2AccountId) {
+						await setConfig(db, 'r2_account_id', body.r2AccountId);
+					}
+				} else if (body.uploadDestination === 'google_drive') {
+					// Save Google Drive settings
+					if (body.googleDriveFolderId) {
+						await setConfig(db, 'google_drive_folder_id', body.googleDriveFolderId);
+					}
+				}
 			}
 
 			// Set setup completion flag
