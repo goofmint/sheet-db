@@ -446,3 +446,28 @@ export const CreateSheetDataResponseSchema = z.object({
 	success: z.literal(true),
 	data: z.record(z.string(), z.any())
 });
+
+// Update sheet data schemas
+export const DataIdParamSchema = z.object({
+	id: z.string().min(1, "Sheet ID is required"),
+	dataId: z.string().min(1, "Data ID is required")
+});
+
+export const UpdateSheetDataRequestSchema = z.record(z.string(), z.any())
+	.refine((data) => !Object.hasOwn(data, 'id'), {
+		message: "Field 'id' cannot be updated"
+	})
+	.refine((data) => !Object.hasOwn(data, 'created_at'), {
+		message: "Field 'created_at' cannot be updated"
+	})
+	.refine((data) => !Object.hasOwn(data, 'updated_at'), {
+		message: "Field 'updated_at' cannot be updated"
+	})
+	.refine((data) => Object.keys(data).length > 0, {
+		message: "At least one field must be provided for update"
+	});
+
+export const UpdateSheetDataResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.record(z.string(), z.any())
+});
