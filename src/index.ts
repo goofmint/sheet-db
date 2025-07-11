@@ -8,12 +8,14 @@ import { registerSwaggerUI, registerOpenAPISpec } from './api/openapi';
 import { registerRoleRoutes } from './api/role';
 import { registerUserRoutes } from './api/user';
 import { registerSheetRoutes } from './api/sheet';
+import { registerFileRoutes } from './api/files';
 import { loadTemplate } from './utils/template-loader';
 import { isSetupCompleted } from './google-auth';
 
 type Bindings = {
 	DB: D1Database;
 	ASSETS: Fetcher;
+	R2_BUCKET?: R2Bucket;
 };
 
 const app = new OpenAPIHono<{ Bindings: Bindings }>();
@@ -67,5 +69,6 @@ registerSetupRoutes(app);         // /setup-page/* and /api/setup/*
 registerRoleRoutes(app);          // /api/roles/*
 registerUserRoutes(app);          // /api/users/*
 registerSheetRoutes(app);         // /api/sheets/*
+registerFileRoutes(app);          // /api/files/*
 
 export default app;

@@ -47,7 +47,9 @@ import {
   DataIdParamSchema,
   UpdateSheetDataRequestSchema,
   UpdateSheetDataResponseSchema,
-  DeleteSheetDataResponseSchema
+  DeleteSheetDataResponseSchema,
+  FileUploadResponseSchema,
+  FileUploadErrorSchema
 } from './api-schemas';
 
 // GET /api/roles - Get list of roles
@@ -1359,6 +1361,66 @@ export const deleteSheetDataRoute = createRoute({
         },
       },
       description: 'Sheet or data not found',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
+// POST /api/files - Upload a file
+export const uploadFileRoute = createRoute({
+  method: 'post',
+  path: '/api/files',
+  summary: 'Upload a file',
+  description: 'Uploads a file to the configured storage destination (Google Drive or R2). Authentication is optional based on ANONYMOUS_FILE_UPLOAD configuration. File size and extension restrictions apply based on configuration.',
+  tags: ['Files'],
+  request: {},
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: FileUploadResponseSchema,
+        },
+      },
+      description: 'File uploaded successfully',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: FileUploadErrorSchema,
+        },
+      },
+      description: 'Invalid file or configuration error',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication required',
+    },
+    413: {
+      content: {
+        'application/json': {
+          schema: FileUploadErrorSchema,
+        },
+      },
+      description: 'File too large',
+    },
+    415: {
+      content: {
+        'application/json': {
+          schema: FileUploadErrorSchema,
+        },
+      },
+      description: 'Unsupported file type',
     },
     500: {
       content: {
