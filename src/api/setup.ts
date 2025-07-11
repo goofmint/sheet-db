@@ -98,7 +98,7 @@ export function registerSetupMainRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 				r2AccountId: configs.r2_account_id || '',
 				googleDriveFolderId: configs.google_drive_folder_id || '',
 				// Session settings
-				sessionExpiredSeconds: configs.session_expired_seconds || '604800' // Default: 1 week
+				sessionExpiredSeconds: configs.session_expired_seconds || '3600' // Default: 1 hour
 			};
 
 			// Load template with configuration data injected

@@ -415,7 +415,14 @@ async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, use
 		// 現在の日時と有効期限（設定可能）
 		const now = new Date();
 		const sessionExpiredSeconds = await getConfig(db, CONFIG_KEYS.SESSION_EXPIRED_SECONDS);
-		const expiredSeconds = sessionExpiredSeconds ? parseInt(sessionExpiredSeconds) : 604800; // デフォルト: 1週間
+		let expiredSeconds = sessionExpiredSeconds ? parseInt(sessionExpiredSeconds, 10) : 3600; // デフォルト: 1時間
+		
+		// セッション有効期限の検証（1分〜30日の範囲）
+		if (isNaN(expiredSeconds) || expiredSeconds < 60 || expiredSeconds > 2592000) {
+			console.warn('Invalid session expiration time:', sessionExpiredSeconds, 'using default 3600 seconds');
+			expiredSeconds = 3600; // デフォルト: 1時間
+		}
+		
 		const expiresAt = new Date(now.getTime() + expiredSeconds * 1000);
 		
 		// セッションデータを準備
