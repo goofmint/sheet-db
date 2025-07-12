@@ -34,7 +34,7 @@ async function deleteUserFromSheet(
 		// Check if target user exists
 		const targetUser = await getUserFromSheet(targetUserId, spreadsheetId, accessToken);
 		if (!targetUser) {
-			return { success: false, error: 'Target user not found' };
+			return { success: false as const, error: 'Target user not found' };
 		}
 
 		// Perform permission check if required
@@ -49,7 +49,7 @@ async function deleteUserFromSheet(
 			
 			if (!hasPermission) {
 				return { 
-					success: false, 
+					success: false as const, 
 					error: 'Permission denied - no write access to this user' 
 				};
 			}
@@ -67,7 +67,7 @@ async function deleteUserFromSheet(
 		);
 		
 		if (!userResponse.ok) {
-			return { success: false, error: 'Failed to fetch user data' };
+			return { success: false as const, error: 'Failed to fetch user data' };
 		}
 		
 		const userData = await userResponse.json() as any;
@@ -79,7 +79,7 @@ async function deleteUserFromSheet(
 		);
 		
 		if (userRowIndex === -1) {
-			return { success: false, error: 'User not found in _User sheet' };
+			return { success: false as const, error: 'User not found in _User sheet' };
 		}
 		
 		const targetRowNumber = userRowIndex + 1; // Convert to sheet row number
@@ -107,7 +107,7 @@ async function deleteUserFromSheet(
 		if (!clearResponse.ok) {
 			const errorText = await clearResponse.text();
 			console.error('Failed to clear user data:', clearResponse.status, errorText);
-			return { success: false, error: `Failed to delete user: ${clearResponse.status}` };
+			return { success: false as const, error: `Failed to delete user: ${clearResponse.status}` };
 		}
 		
 		console.log('User data cleared successfully:', targetUserId);
@@ -120,7 +120,7 @@ async function deleteUserFromSheet(
 	} catch (error) {
 		console.error('Error in deleteUserFromSheet:', error);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		return { success: false, error: errorMessage };
+		return { success: false as const, error: errorMessage };
 	}
 }
 
@@ -316,7 +316,7 @@ async function validateUpdateDataAgainstSchema(
 
 // User management endpoints
 export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
-	// GET /api/users/me - 認証されたユーザーの情報を取得 (OpenAPI)
+	// GET /api/users/me - Get authenticated user information (OpenAPI)
 	app.openapi(getUserMeRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
@@ -328,25 +328,25 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
-			// 認証されたユーザーIDを取得
+			// Get authenticated user ID
 			const userId = authResult.userId;
 			if (!userId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if necessary
@@ -357,19 +357,19 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
-			// _Userシートからユーザー情報を取得
+			// Get user information from _User sheet
 			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 			if (!user) {
-				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 404);
+				return c.json({ success: false as const, error: 'User not found in _User sheet' }, 404);
 			}
 			
 			console.log('User information retrieved successfully for user:', userId);
 			
-			// ユーザー情報を返す
+			// Return user information
 			return c.json({
 				success: true as true,
 				data: user
@@ -378,11 +378,11 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in GET /api/users/me:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
-	// PUT /api/users/:id - ユーザー情報更新 (OpenAPI)
+	// PUT /api/users/:id - Update user information (OpenAPI)
 	app.openapi(updateUserRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
@@ -394,23 +394,23 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const currentUserId = authResult.userId;
 			if (!currentUserId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			const { id: targetUserId } = c.req.valid('param');
 			const updateData = c.req.valid('json');
 			
-			// 更新不可フィールドのチェック
+			// Check for read-only fields
 			const readOnlyFields = ['id', 'created_at', 'updated_at', 'email_verified'];
 			for (const field of readOnlyFields) {
 				if ((updateData as any)[field] !== undefined) {
 					return c.json({ 
-						success: false as false, 
+						success: false as const, 
 						error: `Field '${field}' is read-only and cannot be updated` 
 					}, 400);
 				}
@@ -419,13 +419,13 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if necessary
@@ -436,20 +436,20 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
 			// Get current user information (for permission check)
 			const currentUser = await getUserFromSheet(currentUserId, spreadsheetId, tokens.access_token);
 			if (!currentUser) {
-				return c.json({ success: false as false, error: 'Current user not found' }, 401);
+				return c.json({ success: false as const, error: 'Current user not found' }, 401);
 			}
 			
 			// Check target user existence
 			const targetUser = await getUserFromSheet(targetUserId, spreadsheetId, tokens.access_token);
 			if (!targetUser) {
-				return c.json({ success: false as false, error: 'Target user not found' }, 404);
+				return c.json({ success: false as const, error: 'Target user not found' }, 404);
 			}
 			
 			// Permission check
@@ -463,12 +463,12 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!hasPermission) {
 				return c.json({ 
-					success: false as false, 
+					success: false as const, 
 					error: 'Permission denied - no write access to this user' 
 				}, 403);
 			}
 			
-			// スキーマ検証（ターゲットユーザーIDを渡してユニーク制約チェックで自分自身を除外）
+			// Schema validation (pass target user ID to exclude self from unique constraint check)
 			const schemaValidation = await validateUpdateDataAgainstSchema(
 				updateData,
 				spreadsheetId,
@@ -478,12 +478,12 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!schemaValidation.valid) {
 				return c.json({ 
-					success: false as false, 
-					error: schemaValidation.error || 'Schema validation failed' 
+					success: false as const, 
+					error: schemaValidation.error ?? 'Schema validation failed' 
 				}, 400);
 			}
 			
-			// 現在のユーザーデータを取得して更新
+			// Get current user data and update
 			const userResponse = await fetch(
 				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
 				{
@@ -495,7 +495,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (!userResponse.ok) {
-				return c.json({ success: false as false, error: 'Failed to fetch user data' }, 500);
+				return c.json({ success: false as const, error: 'Failed to fetch user data' }, 500);
 			}
 			
 			const userData = await userResponse.json() as any;
@@ -507,27 +507,27 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (userRowIndex === -1) {
-				return c.json({ success: false as false, error: 'User not found' }, 404);
+				return c.json({ success: false as const, error: 'User not found' }, 404);
 			}
 			
 			const userRow = users[userRowIndex];
 			const targetRowNumber = userRowIndex + 1; // Convert to sheet row number
 			
-			// 更新データを準備
+			// Prepare update data
 			const now = new Date().toISOString();
 			const updatedUserData = [
-				targetUserId, // id（変更不可）
+				targetUserId, // id (immutable)
 				updateData.name !== undefined ? updateData.name : userRow[1], // name
 				updateData.email !== undefined ? updateData.email : userRow[2], // email
 				updateData.given_name !== undefined ? updateData.given_name : userRow[3], // given_name
 				updateData.family_name !== undefined ? updateData.family_name : userRow[4], // family_name
 				updateData.nickname !== undefined ? updateData.nickname : userRow[5], // nickname
 				updateData.picture !== undefined ? updateData.picture : userRow[6], // picture
-				// emailが更新された場合はemail_verifiedをfalseに、そうでなければ現在の値を保持
+				// If email is updated, set email_verified to false, otherwise keep current value
 				updateData.email !== undefined ? 'FALSE' : (userRow[7] || 'FALSE'), // email_verified
 				updateData.locale !== undefined ? updateData.locale : userRow[8], // locale
-				userRow[9] || now, // created_at（保持）
-				now, // updated_at（更新）
+				userRow[9] || now, // created_at (keep)
+				now, // updated_at (update)
 				updateData.public_read !== undefined ? (updateData.public_read ? 'TRUE' : 'FALSE') : (userRow[11] || 'FALSE'), // public_read
 				updateData.public_write !== undefined ? (updateData.public_write ? 'TRUE' : 'FALSE') : (userRow[12] || 'FALSE'), // public_write
 				updateData.role_read !== undefined ? JSON.stringify(updateData.role_read) : (userRow[13] || '[]'), // role_read
@@ -536,7 +536,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				updateData.user_write !== undefined ? JSON.stringify(updateData.user_write) : (userRow[16] || '[]') // user_write
 			];
 			
-			// データを更新
+			// Update data
 			const updateResponse = await fetch(
 				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:Q${targetRowNumber}?valueInputOption=RAW`,
 				{
@@ -554,12 +554,12 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			if (!updateResponse.ok) {
 				const errorText = await updateResponse.text();
 				console.error('Failed to update user:', updateResponse.status, errorText);
-				return c.json({ success: false as false, error: `Failed to update user: ${updateResponse.status}` }, 500);
+				return c.json({ success: false as const, error: `Failed to update user: ${updateResponse.status}` }, 500);
 			}
 			
 			console.log('User updated successfully:', targetUserId);
 			
-			// 更新されたユーザー情報を返す
+			// Return updated user information
 			const updatedUser = {
 				id: updatedUserData[0],
 				name: updatedUserData[1],
@@ -588,11 +588,11 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in PUT /api/users/:id:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
-	// DELETE /api/users/:id - ユーザー情報削除 (OpenAPI)
+	// DELETE /api/users/:id - Delete user information (OpenAPI)
 	app.openapi(deleteUserRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
@@ -604,12 +604,12 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const currentUserId = authResult.userId;
 			if (!currentUserId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			const { id: targetUserId } = c.req.valid('param');
@@ -617,13 +617,13 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if necessary
@@ -634,14 +634,14 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
 			// Get current user information (for permission check)
 			const currentUser = await getUserFromSheet(currentUserId, spreadsheetId, tokens.access_token);
 			if (!currentUser) {
-				return c.json({ success: false as false, error: 'Current user not found' }, 401);
+				return c.json({ success: false as const, error: 'Current user not found' }, 401);
 			}
 			
 			// Use helper function to delete user with permission check
@@ -657,9 +657,9 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (!deleteResult.success) {
-				const statusCode = deleteResult.error?.includes('Permission denied') ? 403 :
-								 deleteResult.error?.includes('not found') ? 404 : 500;
-				return c.json({ success: false as false, error: deleteResult.error }, statusCode);
+				const statusCode = deleteResult.error ?? 'Failed to delete user'?.includes('Permission denied') ? 403 :
+								 deleteResult.error ?? 'Failed to delete user'?.includes('not found') ? 404 : 500;
+				return c.json({ success: false as const, error: deleteResult.error ?? 'Failed to delete user' }, statusCode);
 			}
 			
 			return c.json({
@@ -670,7 +670,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in DELETE /api/users/:id:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -686,24 +686,24 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const currentUserId = authResult.userId;
 			if (!currentUserId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if necessary
@@ -714,7 +714,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
@@ -729,8 +729,8 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (!deleteResult.success) {
-				const statusCode = deleteResult.error?.includes('not found') ? 404 : 500;
-				return c.json({ success: false as false, error: deleteResult.error }, statusCode);
+				const statusCode = deleteResult.error ?? 'Failed to delete user'?.includes('not found') ? 404 : 500;
+				return c.json({ success: false as const, error: deleteResult.error ?? 'Failed to delete user' }, statusCode);
 			}
 			
 			return c.json({
@@ -741,7 +741,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in DELETE /api/users/me:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }

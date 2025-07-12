@@ -252,7 +252,7 @@ export function registerGoogleAuthRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 
 			if (!clientId) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Google Client ID is required'
 				}, 400);
 			}
@@ -290,7 +290,7 @@ export function registerGoogleAuthRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 		} catch (error) {
 			console.error('Error in POST /api/setup:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }
@@ -323,7 +323,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 				if (isMaskedToken) {
 					console.log('Masked reset token received - rejecting');
 					return c.json({
-						success: false,
+						success: false as const,
 						error: 'Masked reset token received. Please provide a valid token.'
 					}, 400);
 				}
@@ -331,7 +331,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 				if (!body.resetToken || body.resetToken.length < 16) {
 					console.log('Reset token validation failed');
 					return c.json({
-						success: false,
+						success: false as const,
 						error: 'Reset token must be at least 16 characters long'
 					}, 400);
 				}
@@ -345,7 +345,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 				if (!existingToken || existingToken.length < 16) {
 					console.log('No valid reset token found');
 					return c.json({
-						success: false,
+						success: false as const,
 						error: 'Reset token is required and must be at least 16 characters long'
 					}, 400);
 				}
@@ -382,7 +382,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 				// Validate upload destination type
 				if (!['r2', 'google_drive'].includes(body.uploadDestination)) {
 					return c.json({
-						success: false,
+						success: false as const,
 						error: 'Invalid upload destination. Must be either "r2" or "google_drive"'
 					}, 400);
 				}
@@ -391,7 +391,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 					// Validate R2 settings - all fields are required
 					if (!body.r2BucketName || !body.r2AccessKeyId || !body.r2SecretAccessKey || !body.r2AccountId) {
 						return c.json({
-							success: false,
+							success: false as const,
 							error: 'All R2 configuration fields are required: bucket name, access key ID, secret access key, and account ID'
 						}, 400);
 					}
@@ -399,7 +399,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 					// Validate R2 field formats
 					if (body.r2BucketName.length === 0 || body.r2BucketName.length > 63) {
 						return c.json({
-							success: false,
+							success: false as const,
 							error: 'R2 bucket name must be between 1 and 63 characters'
 						}, 400);
 					}
@@ -407,7 +407,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 					// Check if the access key ID looks like a masked value
 					if (body.r2AccessKeyId.includes('•')) {
 						return c.json({
-							success: false,
+							success: false as const,
 							error: 'Invalid R2 access key ID: masked values cannot be saved'
 						}, 400);
 					}
@@ -415,7 +415,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 					// Check if the secret access key looks like a masked value
 					if (body.r2SecretAccessKey.includes('•')) {
 						return c.json({
-							success: false,
+							success: false as const,
 							error: 'Invalid R2 secret access key: masked values cannot be saved'
 						}, 400);
 					}
@@ -423,7 +423,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 					// Validate account ID format (should be alphanumeric)
 					if (!/^[a-zA-Z0-9]+$/.test(body.r2AccountId)) {
 						return c.json({
-							success: false,
+							success: false as const,
 							error: 'R2 account ID must contain only alphanumeric characters'
 						}, 400);
 					}
@@ -441,7 +441,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 						// Validate folder ID format (should be alphanumeric with possible hyphens/underscores)
 						if (!/^[a-zA-Z0-9_-]+$/.test(body.googleDriveFolderId)) {
 							return c.json({
-								success: false,
+								success: false as const,
 								error: 'Google Drive folder ID must contain only alphanumeric characters, hyphens, and underscores'
 							}, 400);
 						}
@@ -449,7 +449,7 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 						// Typical Google Drive folder IDs are around 20-50 characters
 						if (body.googleDriveFolderId.length > 100) {
 							return c.json({
-								success: false,
+								success: false as const,
 								error: 'Google Drive folder ID seems too long. Please verify the folder ID'
 							}, 400);
 						}
@@ -466,12 +466,12 @@ export function registerApiSetupRoute(app: OpenAPIHono<{ Bindings: Bindings }>) 
 			// Set setup completion flag
 			await setConfig(db, 'setup_completed', 'true');
 
-			return c.json({ success: true });
+			return c.json({ success: true as const });
 
 		} catch (error) {
 			console.error('Error in /api/setup:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }
@@ -487,14 +487,14 @@ export function registerApiResetSetupRoute(app: OpenAPIHono<{ Bindings: Bindings
 			const storedToken = await getConfig(db, 'reset_token');
 			if (!storedToken) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'No reset token is configured. Setup may not be completed yet.'
 				}, 400);
 			}
 
 			if (!body.token || body.token !== storedToken) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Invalid reset token provided'
 				}, 401);
 			}
@@ -507,7 +507,7 @@ export function registerApiResetSetupRoute(app: OpenAPIHono<{ Bindings: Bindings
 		} catch (error) {
 			console.error('Error in /api/reset-setup:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }
@@ -597,7 +597,7 @@ export function registerApiSpreadsheetsSelectRoute(app: OpenAPIHono<{ Bindings: 
 
 			if (!spreadsheetId || !spreadsheetName) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Spreadsheet ID and name are required'
 				}, 400);
 			}
@@ -652,7 +652,7 @@ export function registerApiSpreadsheetsSelectRoute(app: OpenAPIHono<{ Bindings: 
 		} catch (error) {
 			console.error('Error in /api/spreadsheets/select:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }
@@ -723,7 +723,7 @@ export function registerApiSetupSheetsRoute(app: OpenAPIHono<{ Bindings: Binding
 		} catch (error) {
 			console.error('Error in /api/setup/sheets:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }
@@ -783,7 +783,7 @@ export function registerApiSetupSheetsResetRoute(app: OpenAPIHono<{ Bindings: Bi
 		} catch (error) {
 			console.error('Error in /api/setup/sheets/reset:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }
@@ -859,7 +859,7 @@ export function registerApiSetupSheetsCompleteRoute(app: OpenAPIHono<{ Bindings:
 				} else {
 					const missingSheets = requiredSheets.filter(sheet => !foundSheets.includes(sheet));
 					return c.json({
-						success: false,
+						success: false as const,
 						error: `Missing sheets: ${missingSheets.join(', ')}`,
 						foundSheets: foundSheets,
 						missingSheets: missingSheets
@@ -869,7 +869,7 @@ export function registerApiSetupSheetsCompleteRoute(app: OpenAPIHono<{ Bindings:
 			} catch (verifyError) {
 				console.error('Error verifying sheets:', verifyError);
 				return c.json({
-					success: false,
+					success: false as const,
 					error: `Failed to verify sheets: ${verifyError instanceof Error ? verifyError.message : 'Unknown error'}`
 				});
 			}
@@ -877,7 +877,7 @@ export function registerApiSetupSheetsCompleteRoute(app: OpenAPIHono<{ Bindings:
 		} catch (error) {
 			console.error('Error in /api/setup/sheets/complete:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }

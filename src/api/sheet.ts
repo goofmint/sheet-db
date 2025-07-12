@@ -22,7 +22,7 @@ type Bindings = {
 };
 
 
-// シート作成権限をチェックするヘルパー関数
+// Helper function to check sheet creation permissions
 async function checkSheetCreationPermission(
 	userId: string,
 	userRoles: string[],
@@ -30,7 +30,7 @@ async function checkSheetCreationPermission(
 	accessToken: string
 ): Promise<{ allowed: boolean; error?: string }> {
 	try {
-		// _Configシートから複数の設定を一度に取得（パフォーマンス改善）
+		// Get multiple settings from _Config sheet at once (performance improvement)
 		const configs = await getMultipleConfigsFromSheet(
 			['CREATE_SHEET_BY_API', 'CREATE_SHEET_USER', 'CREATE_SHEET_ROLE'], 
 			spreadsheetId, 
@@ -41,12 +41,12 @@ async function checkSheetCreationPermission(
 		const createSheetUser = configs['CREATE_SHEET_USER'];
 		const createSheetRole = configs['CREATE_SHEET_ROLE'];
 
-		// CREATE_SHEET_BY_APIがfalseの場合は、API経由でのシート作成は禁止
+		// If CREATE_SHEET_BY_API is false, sheet creation via API is prohibited
 		if (createSheetByApi === 'false') {
 			return { allowed: false, error: 'Sheet creation via API is disabled' };
 		}
 
-		// CREATE_SHEET_USERが設定されている場合、指定されたユーザーのみ作成可能
+		// If CREATE_SHEET_USER is set, only specified users can create
 		if (createSheetUser && createSheetUser !== '') {
 			try {
 				const allowedUsers = JSON.parse(createSheetUser);
@@ -54,14 +54,14 @@ async function checkSheetCreationPermission(
 					return { allowed: false, error: 'User not authorized to create sheets' };
 				}
 			} catch (e) {
-				// JSON解析エラーの場合は単一のユーザーIDとして扱う
+				// In case of JSON parsing error, treat as single user ID
 				if (createSheetUser !== userId) {
 					return { allowed: false, error: 'User not authorized to create sheets' };
 				}
 			}
 		}
 
-		// CREATE_SHEET_ROLEが設定されている場合、指定されたロールを持つユーザーのみ作成可能
+		// If CREATE_SHEET_ROLE is set, only users with specified roles can create
 		if (createSheetRole && createSheetRole !== '') {
 			try {
 				const allowedRoles = JSON.parse(createSheetRole);
@@ -72,7 +72,7 @@ async function checkSheetCreationPermission(
 					}
 				}
 			} catch (e) {
-				// JSON解析エラーの場合は単一のロール名として扱う
+				// In case of JSON parsing error, treat as single role name
 				if (!userRoles.includes(createSheetRole)) {
 					return { allowed: false, error: 'User role not authorized to create sheets' };
 				}
@@ -86,27 +86,27 @@ async function checkSheetCreationPermission(
 	}
 }
 
-// シート更新権限をチェックするヘルパー関数（シート固有の権限をチェック）
+// Helper function to check sheet update permissions (check sheet-specific permissions)
 async function checkSheetUpdatePermission(
 	userId: string,
 	userRoles: string[],
 	sheetMetadata: any
 ): Promise<{ allowed: boolean; error?: string }> {
 	try {
-		// シートのメタデータから権限情報を取得
+		// Get permission information from sheet metadata
 		const { public_write, role_write, user_write } = sheetMetadata;
 
-		// 1. public_write = true の場合、誰でも更新可能
+		// 1. If public_write = true, anyone can update
 		if (public_write === true) {
 			return { allowed: true };
 		}
 
-		// 2. user_writeに該当ユーザーIDが含まれている場合
+		// 2. If the user ID is included in user_write
 		if (user_write && Array.isArray(user_write) && user_write.includes(userId)) {
 			return { allowed: true };
 		}
 
-		// 3. role_writeに該当ユーザーのロールが含まれている場合
+		// 3. If the user's role is included in role_write
 		if (role_write && Array.isArray(role_write) && userRoles) {
 			const hasRequiredRole = userRoles.some(role => role_write.includes(role));
 			if (hasRequiredRole) {
@@ -271,32 +271,32 @@ async function checkColumnModifyPermission(
 	}
 }
 
-// シート読み取り権限をチェックするヘルパー関数
+// Helper function to check sheet read permissions
 async function checkSheetReadPermission(
 	userId: string | null,
 	userRoles: string[],
 	sheetMetadata: any
 ): Promise<{ allowed: boolean; error?: string }> {
 	try {
-		// シートのメタデータから権限情報を取得
+		// Get permission information from sheet metadata
 		const { public_read, role_read, user_read } = sheetMetadata;
 
-		// 1. public_read = true の場合、誰でも読み取り可能
+		// 1. If public_read = true, anyone can read
 		if (public_read === true) {
 			return { allowed: true };
 		}
 
-		// 認証されていないユーザーは public_read = false の場合アクセス不可
+		// Unauthenticated users cannot access if public_read = false
 		if (!userId) {
 			return { allowed: false, error: 'Authentication required for this sheet' };
 		}
 
-		// 2. user_readに該当ユーザーIDが含まれている場合
+		// 2. If the user ID is included in user_read
 		if (user_read && Array.isArray(user_read) && user_read.includes(userId)) {
 			return { allowed: true };
 		}
 
-		// 3. role_readに該当ユーザーのロールが含まれている場合
+		// 3. If the user's role is included in role_read
 		if (role_read && Array.isArray(role_read) && userRoles) {
 			const hasRequiredRole = userRoles.some(role => role_read.includes(role));
 			if (hasRequiredRole) {
@@ -311,14 +311,14 @@ async function checkSheetReadPermission(
 	}
 }
 
-// シート情報を取得するヘルパー関数（シートIDまたはシート名で検索）
+// Helper function to get sheet information (search by sheet ID or sheet name)
 async function getSheetInfo(
 	sheetIdOrName: string,
 	spreadsheetId: string,
 	accessToken: string
 ): Promise<{ sheetName?: string; sheetId?: number; columns?: Record<string, string>; metadata?: any; error?: string }> {
 	try {
-		// スプレッドシートのメタデータを取得してシート名を確認
+		// Get spreadsheet metadata to check sheet names
 		const metadataResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
 			{
@@ -335,15 +335,15 @@ async function getSheetInfo(
 
 		const metadata = await metadataResponse.json() as any;
 		
-		// シートIDまたはシート名で検索
+		// Search by sheet ID or sheet name
 		let sheet;
 		const isNumeric = /^\d+$/.test(sheetIdOrName);
 		
 		if (isNumeric) {
-			// 数値の場合はシートIDとして検索
+			// If numeric, search as sheet ID
 			sheet = metadata.sheets?.find((s: any) => s.properties.sheetId.toString() === sheetIdOrName);
 		} else {
-			// 文字列の場合はシート名として検索
+			// If string, search as sheet name
 			sheet = metadata.sheets?.find((s: any) => s.properties.title === sheetIdOrName);
 		}
 		
@@ -354,7 +354,7 @@ async function getSheetInfo(
 		const sheetName = sheet.properties.title;
 		const sheetId = sheet.properties.sheetId;
 
-		// シートの列情報を取得（1行目：ヘッダー、2行目：型定義）
+		// Get sheet column information (row 1: header, row 2: type definition)
 		const valuesResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:ZZ2`,
 			{
@@ -379,7 +379,7 @@ async function getSheetInfo(
 		const headers = rows[0] || [];
 		const types = rows[1] || [];
 		
-		// 列名と型のマッピングを作成
+		// Create mapping of column names and types
 		const columns: Record<string, string> = {};
 		for (let i = 0; i < headers.length; i++) {
 			if (headers[i] && types[i]) {
@@ -387,7 +387,7 @@ async function getSheetInfo(
 			}
 		}
 
-		// シートの最初のデータ行からメタデータを取得（3行目以降）
+		// Get metadata from the first data row of the sheet (row 3 onwards)
 		const dataResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A3:ZZ3`,
 			{
@@ -413,7 +413,7 @@ async function getSheetInfo(
 			
 			if (dataRows.length > 0 && dataRows[0]) {
 				const dataRow = dataRows[0];
-				// データ行から権限情報を取得（各列の順序に従って）
+				// Get permission information from data row (according to column order)
 				const headerIndexes: Record<string, number> = {};
 				headers.forEach((header: string, index: number) => {
 					headerIndexes[header] = index;
@@ -463,7 +463,7 @@ async function getSheetInfo(
 	}
 }
 
-// 新しいシートを作成するヘルパー関数
+// Helper function to create a new sheet
 async function createGoogleSheet(
 	sheetName: string,
 	spreadsheetId: string,
@@ -485,11 +485,11 @@ async function createGoogleSheet(
 			'array', 'array', 'array', 'array'
 		];
 
-		// 全カラム名と型を結合
+		// Combine all column names and types
 		const allColumnNames = [...defaultColumns];
 		const allColumnTypes = [...defaultColumnTypes];
 
-		// 新しいシートを作成
+		// Create new sheet
 		const createSheetResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
 			{
@@ -513,17 +513,17 @@ async function createGoogleSheet(
 		if (!createSheetResponse.ok) {
 			const errorText = await createSheetResponse.text();
 			console.error('Failed to create sheet:', createSheetResponse.status, errorText);
-			return { success: false, error: `Failed to create sheet: ${createSheetResponse.status}` };
+			return { success: false as const, error: `Failed to create sheet: ${createSheetResponse.status}` };
 		}
 
 		const createResult = await createSheetResponse.json() as any;
 		const sheetId = createResult.replies?.[0]?.addSheet?.properties?.sheetId;
 
 		if (!sheetId) {
-			return { success: false, error: 'Failed to get new sheet ID' };
+			return { success: false as const, error: 'Failed to get new sheet ID' };
 		}
 
-		// ヘッダー行（1行目）に列名を設定
+		// Set column names in header row (row 1)
 		const headerResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:${String.fromCharCode(65 + allColumnNames.length - 1)}1?valueInputOption=RAW`,
 			{
@@ -541,10 +541,10 @@ async function createGoogleSheet(
 		if (!headerResponse.ok) {
 			const errorText = await headerResponse.text();
 			console.error('Failed to set headers:', headerResponse.status, errorText);
-			return { success: false, error: `Failed to set headers: ${headerResponse.status}` };
+			return { success: false as const, error: `Failed to set headers: ${headerResponse.status}` };
 		}
 
-		// 型定義行（2行目）に型情報を設定
+		// Set type information in type definition row (row 2)
 		const typeResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2:${String.fromCharCode(65 + allColumnTypes.length - 1)}2?valueInputOption=RAW`,
 			{
@@ -562,10 +562,10 @@ async function createGoogleSheet(
 		if (!typeResponse.ok) {
 			const errorText = await typeResponse.text();
 			console.error('Failed to set types:', typeResponse.status, errorText);
-			return { success: false, error: `Failed to set types: ${typeResponse.status}` };
+			return { success: false as const, error: `Failed to set types: ${typeResponse.status}` };
 		}
 
-		// ヘッダー行固定設定（1行目と2行目を固定表示）
+		// Header row freeze settings (freeze rows 1 and 2 for display)
 		const freezeResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
 			{
@@ -609,11 +609,11 @@ async function createGoogleSheet(
 		return { success: true, sheetId };
 	} catch (error) {
 		logger.error('Error creating Google sheet', { error });
-		return { success: false, error: 'Failed to create sheet' };
+		return { success: false as const, error: 'Failed to create sheet' };
 	}
 }
 
-// シートを更新するヘルパー関数
+// Helper function to update sheet
 async function updateGoogleSheet(
 	sheetId: string,
 	sheetName: string,
@@ -626,7 +626,7 @@ async function updateGoogleSheet(
 		let requests: any[] = [];
 		const newSheetName = updateData.name || sheetName;
 
-		// シート名の変更
+		// Change sheet name
 		if (updateData.name && updateData.name !== sheetName) {
 			requests.push({
 				updateSheetProperties: {
@@ -639,7 +639,7 @@ async function updateGoogleSheet(
 			});
 		}
 
-		// 更新されたメタデータを作成
+		// Create updated metadata
 		const updatedMetadata = {
 			public_read: updateData.public_read !== undefined ? updateData.public_read : currentMetadata.public_read,
 			public_write: updateData.public_write !== undefined ? updateData.public_write : currentMetadata.public_write,
@@ -649,8 +649,8 @@ async function updateGoogleSheet(
 			user_write: updateData.user_write !== undefined ? updateData.user_write : currentMetadata.user_write
 		};
 
-		// 権限データを3行目の適切な位置に更新
-		// まず列のヘッダー情報を取得
+		// Update permission data to appropriate positions in row 3
+		// First get column header information
 		const headersResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${newSheetName}!A1:ZZ1`,
 			{
@@ -665,16 +665,16 @@ async function updateGoogleSheet(
 			const headersData = await headersResponse.json() as any;
 			const headers = headersData.values?.[0] || [];
 			
-			// ヘッダーのインデックスマップを作成
+			// Create header index map
 			const headerIndexes: Record<string, number> = {};
 			headers.forEach((header: string, index: number) => {
 				headerIndexes[header] = index;
 			});
 
-			// 3行目のデータを更新
+			// Update row 3 data
 			const rowData: string[] = new Array(headers.length).fill('');
 			
-			// 各権限フィールドを適切な位置に設定
+			// Set each permission field to appropriate position
 			if (headerIndexes['public_read'] !== undefined) {
 				rowData[headerIndexes['public_read']] = updatedMetadata.public_read.toString();
 			}
@@ -694,12 +694,12 @@ async function updateGoogleSheet(
 				rowData[headerIndexes['user_write']] = JSON.stringify(updatedMetadata.user_write);
 			}
 
-			// セルの更新をリクエストに追加
+			// Add cell update to request
 			requests.push({
 				updateCells: {
 					range: {
 						sheetId: parseInt(sheetId),
-						startRowIndex: 2, // 3行目（0ベースで2）
+						startRowIndex: 2, // Row 3 (0-based index 2)
 						endRowIndex: 3,
 						startColumnIndex: 0,
 						endColumnIndex: rowData.length
@@ -714,7 +714,7 @@ async function updateGoogleSheet(
 			});
 		}
 
-		// すべての更新をバッチで実行
+		// Execute all updates in batch
 		if (requests.length > 0) {
 			const batchUpdateResponse = await fetch(
 				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
@@ -731,7 +731,7 @@ async function updateGoogleSheet(
 			if (!batchUpdateResponse.ok) {
 				const errorText = await batchUpdateResponse.text();
 				console.error('Failed to update sheet:', batchUpdateResponse.status, errorText);
-				return { success: false, error: `Failed to update sheet: ${batchUpdateResponse.status}` };
+				return { success: false as const, error: `Failed to update sheet: ${batchUpdateResponse.status}` };
 			}
 		}
 
@@ -739,7 +739,7 @@ async function updateGoogleSheet(
 		return { success: true, updatedMetadata };
 	} catch (error) {
 		console.error('Error updating Google sheet:', error);
-		return { success: false, error: 'Failed to update sheet' };
+		return { success: false as const, error: 'Failed to update sheet' };
 	}
 }
 
@@ -754,7 +754,7 @@ function getColumnLetter(columnNumber: number): string {
 	return letter;
 }
 
-// シートに列を追加するヘルパー関数
+// Helper function to add columns to sheet
 async function addColumnsToGoogleSheet(
 	sheetId: string,
 	sheetName: string,
@@ -763,7 +763,7 @@ async function addColumnsToGoogleSheet(
 	accessToken: string
 ): Promise<{ success: boolean; addedColumns?: Array<{ name: string; type: string; [key: string]: any }>; error?: string }> {
 	try {
-		// 現在のシートの列情報を取得
+		// Get current sheet column information
 		const headersResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:ZZ2`,
 			{
@@ -775,30 +775,30 @@ async function addColumnsToGoogleSheet(
 		);
 
 		if (!headersResponse.ok) {
-			return { success: false, error: 'Failed to fetch current sheet structure' };
+			return { success: false as const, error: 'Failed to fetch current sheet structure' };
 		}
 
 		const headersData = await headersResponse.json() as any;
 		const rows = headersData.values || [];
 		
 		if (rows.length < 2) {
-			return { success: false, error: 'Invalid sheet structure - missing header or type rows' };
+			return { success: false as const, error: 'Invalid sheet structure - missing header or type rows' };
 		}
 
 		const currentHeaders = rows[0] || [];
 		const currentTypes = rows[1] || [];
 
-		// 既存の列名をチェック
+		// Check existing column names
 		const existingColumns = new Set(currentHeaders.filter(h => h && h.trim()));
 		const newColumnNames = Object.keys(newColumns);
 		
-		// 重複チェック
+		// Check for duplicates
 		const duplicateColumns = newColumnNames.filter(name => existingColumns.has(name));
 		if (duplicateColumns.length > 0) {
-			return { success: false, error: `Column(s) already exist: ${duplicateColumns.join(', ')}` };
+			return { success: false as const, error: `Column(s) already exist: ${duplicateColumns.join(', ')}` };
 		}
 
-		// 新しい列のヘッダーと型を準備
+		// Prepare new column headers and types
 		const newHeaders = [...currentHeaders, ...newColumnNames];
 		const newTypes = [...currentTypes, ...newColumnNames.map(name => {
 			if (!newColumns[name].type) {
@@ -807,7 +807,7 @@ async function addColumnsToGoogleSheet(
 			return newColumns[name].type;
 		})];
 
-		// ヘッダー行を更新
+		// Update header row
 		const headerUpdateResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A1:${getColumnLetter(newHeaders.length)}1?valueInputOption=RAW`,
 			{
@@ -825,10 +825,10 @@ async function addColumnsToGoogleSheet(
 		if (!headerUpdateResponse.ok) {
 			const errorText = await headerUpdateResponse.text();
 			console.error('Failed to update headers:', headerUpdateResponse.status, errorText);
-			return { success: false, error: `Failed to update headers: ${headerUpdateResponse.status}` };
+			return { success: false as const, error: `Failed to update headers: ${headerUpdateResponse.status}` };
 		}
 
-		// 型行を更新
+		// Update type row
 		const typeUpdateResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetName}!A2:${getColumnLetter(newTypes.length)}2?valueInputOption=RAW`,
 			{
@@ -846,10 +846,10 @@ async function addColumnsToGoogleSheet(
 		if (!typeUpdateResponse.ok) {
 			const errorText = await typeUpdateResponse.text();
 			console.error('Failed to update types:', typeUpdateResponse.status, errorText);
-			return { success: false, error: `Failed to update types: ${typeUpdateResponse.status}` };
+			return { success: false as const, error: `Failed to update types: ${typeUpdateResponse.status}` };
 		}
 
-		// 追加された列の情報を準備
+		// Prepare information for added columns
 		const addedColumns = newColumnNames.map(name => ({
 			name,
 			type: newColumns[name].type,
@@ -862,7 +862,7 @@ async function addColumnsToGoogleSheet(
 		return { success: true, addedColumns };
 	} catch (error) {
 		console.error('Error adding columns to Google sheet:', error);
-		return { success: false, error: 'Failed to add columns to sheet' };
+		return { success: false as const, error: 'Failed to add columns to sheet' };
 	}
 }
 
@@ -896,14 +896,14 @@ async function updateColumnInGoogleSheet(
 		);
 
 		if (!headersResponse.ok) {
-			return { success: false, error: 'Failed to fetch current sheet structure' };
+			return { success: false as const, error: 'Failed to fetch current sheet structure' };
 		}
 
 		const headersData = await headersResponse.json() as any;
 		const rows = headersData.values || [];
 		
 		if (rows.length < 2) {
-			return { success: false, error: 'Invalid sheet structure - missing header or type rows' };
+			return { success: false as const, error: 'Invalid sheet structure - missing header or type rows' };
 		}
 
 		const currentHeaders = rows[0] || [];
@@ -912,19 +912,19 @@ async function updateColumnInGoogleSheet(
 		// Find the column index
 		const columnIndex = currentHeaders.findIndex((header: string) => header === columnName);
 		if (columnIndex === -1) {
-			return { success: false, error: 'Column not found' };
+			return { success: false as const, error: 'Column not found' };
 		}
 
 		// Check if this is a system column that cannot be modified
 		const systemColumns = ['id', 'created_at', 'updated_at', 'public_read', 'public_write', 'role_read', 'role_write', 'user_read', 'user_write'];
 		if (systemColumns.includes(columnName)) {
-			return { success: false, error: 'System columns cannot be modified' };
+			return { success: false as const, error: 'System columns cannot be modified' };
 		}
 
 		// Get the current column type
 		const currentType = currentTypes[columnIndex];
 		if (!currentType) {
-			return { success: false, error: 'Column type not found' };
+			return { success: false as const, error: 'Column type not found' };
 		}
 
 		// Parse current type definition to get existing metadata
@@ -947,7 +947,7 @@ async function updateColumnInGoogleSheet(
 			// Check if new name already exists
 			const existingColumnIndex = currentHeaders.findIndex((header: string) => header === updateData.name);
 			if (existingColumnIndex !== -1 && existingColumnIndex !== columnIndex) {
-				return { success: false, error: 'Column name already exists' };
+				return { success: false as const, error: 'Column name already exists' };
 			}
 
 			// Update header
@@ -971,7 +971,7 @@ async function updateColumnInGoogleSheet(
 			if (!headerUpdateResponse.ok) {
 				const errorText = await headerUpdateResponse.text();
 				console.error('Failed to update headers:', headerUpdateResponse.status, errorText);
-				return { success: false, error: `Failed to update headers: ${headerUpdateResponse.status}` };
+				return { success: false as const, error: `Failed to update headers: ${headerUpdateResponse.status}` };
 			}
 		}
 
@@ -1010,7 +1010,7 @@ async function updateColumnInGoogleSheet(
 		if (!typeUpdateResponse.ok) {
 			const errorText = await typeUpdateResponse.text();
 			console.error('Failed to update types:', typeUpdateResponse.status, errorText);
-			return { success: false, error: `Failed to update types: ${typeUpdateResponse.status}` };
+			return { success: false as const, error: `Failed to update types: ${typeUpdateResponse.status}` };
 		}
 		
 		const updatedColumn = {
@@ -1028,7 +1028,7 @@ async function updateColumnInGoogleSheet(
 		return { success: true, updatedColumn };
 	} catch (error) {
 		console.error('Error updating column in Google sheet:', error);
-		return { success: false, error: 'Failed to update column in sheet' };
+		return { success: false as const, error: 'Failed to update column in sheet' };
 	}
 }
 
@@ -1053,14 +1053,14 @@ async function deleteColumnFromGoogleSheet(
 		);
 
 		if (!headersResponse.ok) {
-			return { success: false, error: 'Failed to fetch current sheet structure' };
+			return { success: false as const, error: 'Failed to fetch current sheet structure' };
 		}
 
 		const headersData = await headersResponse.json() as any;
 		const rows = headersData.values || [];
 		
 		if (rows.length < 2) {
-			return { success: false, error: 'Invalid sheet structure - missing header or type rows' };
+			return { success: false as const, error: 'Invalid sheet structure - missing header or type rows' };
 		}
 
 		const currentHeaders = rows[0] || [];
@@ -1069,13 +1069,13 @@ async function deleteColumnFromGoogleSheet(
 		// Find the column index
 		const columnIndex = currentHeaders.findIndex((header: string) => header === columnName);
 		if (columnIndex === -1) {
-			return { success: false, error: 'Column not found' };
+			return { success: false as const, error: 'Column not found' };
 		}
 
 		// Check if this is a system column that cannot be deleted
 		const systemColumns = ['id', 'created_at', 'updated_at', 'public_read', 'public_write', 'role_read', 'role_write', 'user_read', 'user_write'];
 		if (systemColumns.includes(columnName)) {
-			return { success: false, error: 'System columns cannot be deleted' };
+			return { success: false as const, error: 'System columns cannot be deleted' };
 		}
 
 		// For safety, we'll clear the column data instead of deleting the column entirely
@@ -1097,7 +1097,7 @@ async function deleteColumnFromGoogleSheet(
 		if (!clearResponse.ok) {
 			const errorText = await clearResponse.text();
 			console.error('Failed to clear column data:', clearResponse.status, errorText);
-			return { success: false, error: `Failed to clear column data: ${clearResponse.status}` };
+			return { success: false as const, error: `Failed to clear column data: ${clearResponse.status}` };
 		}
 
 		// Update headers to remove the column name
@@ -1122,7 +1122,7 @@ async function deleteColumnFromGoogleSheet(
 		if (!headerUpdateResponse.ok) {
 			const errorText = await headerUpdateResponse.text();
 			console.error('Failed to update headers:', headerUpdateResponse.status, errorText);
-			return { success: false, error: `Failed to update headers: ${headerUpdateResponse.status}` };
+			return { success: false as const, error: `Failed to update headers: ${headerUpdateResponse.status}` };
 		}
 
 		// Update type row
@@ -1143,25 +1143,25 @@ async function deleteColumnFromGoogleSheet(
 		if (!typeUpdateResponse.ok) {
 			const errorText = await typeUpdateResponse.text();
 			console.error('Failed to update types:', typeUpdateResponse.status, errorText);
-			return { success: false, error: `Failed to update types: ${typeUpdateResponse.status}` };
+			return { success: false as const, error: `Failed to update types: ${typeUpdateResponse.status}` };
 		}
 
 		console.log('Column cleared successfully:', columnName);
 		return { success: true, action: 'cleared' };
 	} catch (error) {
 		console.error('Error deleting column from Google sheet:', error);
-		return { success: false, error: 'Failed to delete column from sheet' };
+		return { success: false as const, error: 'Failed to delete column from sheet' };
 	}
 }
 
-// シートを削除するヘルパー関数
+// Helper function to delete sheet
 async function deleteGoogleSheet(
 	sheetId: string,
 	spreadsheetId: string,
 	accessToken: string
 ): Promise<{ success: boolean; error?: string }> {
 	try {
-		// シートを削除
+		// Delete sheet
 		const deleteResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
 			{
@@ -1183,14 +1183,14 @@ async function deleteGoogleSheet(
 		if (!deleteResponse.ok) {
 			const errorText = await deleteResponse.text();
 			console.error('Failed to delete sheet:', deleteResponse.status, errorText);
-			return { success: false, error: `Failed to delete sheet: ${deleteResponse.status}` };
+			return { success: false as const, error: `Failed to delete sheet: ${deleteResponse.status}` };
 		}
 
 		console.log('Sheet deleted successfully:', sheetId);
 		return { success: true };
 	} catch (error) {
 		console.error('Error deleting Google sheet:', error);
-		return { success: false, error: 'Failed to delete sheet' };
+		return { success: false as const, error: 'Failed to delete sheet' };
 	}
 }
 
@@ -1350,14 +1350,14 @@ async function getSheetDataFromGoogleSheets(
 		);
 
 		if (!headersResponse.ok) {
-			return { success: false, error: 'Failed to fetch sheet headers' };
+			return { success: false as const, error: 'Failed to fetch sheet headers' };
 		}
 
 		const headersData = await headersResponse.json() as any;
 		const rows = headersData.values || [];
 		
 		if (rows.length < 2) {
-			return { success: false, error: 'Invalid sheet structure' };
+			return { success: false as const, error: 'Invalid sheet structure' };
 		}
 
 		const headers = rows[0] || [];
@@ -1375,7 +1375,7 @@ async function getSheetDataFromGoogleSheets(
 		);
 
 		if (!dataResponse.ok) {
-			return { success: false, error: 'Failed to fetch sheet data' };
+			return { success: false as const, error: 'Failed to fetch sheet data' };
 		}
 
 		const dataResult = await dataResponse.json() as any;
@@ -1459,7 +1459,7 @@ async function getSheetDataFromGoogleSheets(
 		return { success: true, data };
 	} catch (error) {
 		console.error('Error fetching sheet data:', error);
-		return { success: false, error: 'Failed to fetch sheet data' };
+		return { success: false as const, error: 'Failed to fetch sheet data' };
 	}
 }
 
@@ -1503,7 +1503,7 @@ async function validateInputData(
 					const schema = parseColumnSchema(schemaText);
 					const validationResult = validateValue(value, schema);
 					if (!validationResult.valid) {
-						return { valid: false, error: `Field '${field}': ${validationResult.error}` };
+						return { valid: false, error: `Field '${field}': ${validationResult.error ?? 'Validation failed'}` };
 					}
 				} catch (error) {
 					// If schema parsing fails, continue without validation
@@ -1561,13 +1561,13 @@ async function insertDataToSheet(
 		
 		if (!appendResponse.ok) {
 			const error = await appendResponse.text();
-			return { success: false, error: `Failed to insert data: ${error}` };
+			return { success: false as const, error: `Failed to insert data: ${error}` };
 		}
 		
 		return { success: true };
 	} catch (error) {
 		console.error('Error inserting data to sheet:', error);
-		return { success: false, error: 'Failed to insert data to sheet' };
+		return { success: false as const, error: 'Failed to insert data to sheet' };
 	}
 }
 
@@ -1726,21 +1726,21 @@ async function updateDataInSheet(
 		if (!response.ok) {
 			const errorText = await response.text();
 			console.error('Failed to get sheet data:', response.status, errorText);
-			return { success: false, error: `Failed to get sheet data: ${response.status}` };
+			return { success: false as const, error: `Failed to get sheet data: ${response.status}` };
 		}
 		
 		const data = await response.json();
 		const rows = data.values || [];
 		
 		if (rows.length < 2) {
-			return { success: false, error: 'Sheet has no data rows' };
+			return { success: false as const, error: 'Sheet has no data rows' };
 		}
 		
 		const headers = rows[0];
 		const idIndex = headers.findIndex((header: string) => header === 'id');
 		
 		if (idIndex === -1) {
-			return { success: false, error: 'Sheet does not have an id column' };
+			return { success: false as const, error: 'Sheet does not have an id column' };
 		}
 		
 		// Find the row with the matching ID (skip headers and types rows)
@@ -1754,7 +1754,7 @@ async function updateDataInSheet(
 		}
 		
 		if (rowIndex === -1) {
-			return { success: false, error: 'Data not found' };
+			return { success: false as const, error: 'Data not found' };
 		}
 		
 		// Get column names in order
@@ -1792,13 +1792,13 @@ async function updateDataInSheet(
 		if (!updateResponse.ok) {
 			const errorText = await updateResponse.text();
 			console.error('Failed to update data:', updateResponse.status, errorText);
-			return { success: false, error: `Failed to update data: ${updateResponse.status}` };
+			return { success: false as const, error: `Failed to update data: ${updateResponse.status}` };
 		}
 		
 		return { success: true };
 	} catch (error) {
 		console.error('Error updating data in sheet:', error);
-		return { success: false, error: 'Failed to update data in sheet' };
+		return { success: false as const, error: 'Failed to update data in sheet' };
 	}
 }
 
@@ -1824,21 +1824,21 @@ async function clearDataInSheet(
 		if (!response.ok) {
 			const errorText = await response.text();
 			console.error('Failed to get sheet data:', response.status, errorText);
-			return { success: false, error: `Failed to get sheet data: ${response.status}` };
+			return { success: false as const, error: `Failed to get sheet data: ${response.status}` };
 		}
 		
 		const data = await response.json();
 		const rows = data.values || [];
 		
 		if (rows.length < 2) {
-			return { success: false, error: 'Sheet has no data rows' };
+			return { success: false as const, error: 'Sheet has no data rows' };
 		}
 		
 		const headers = rows[0];
 		const idIndex = headers.findIndex((header: string) => header === 'id');
 		
 		if (idIndex === -1) {
-			return { success: false, error: 'Sheet does not have an id column' };
+			return { success: false as const, error: 'Sheet does not have an id column' };
 		}
 		
 		// Find the row with the matching ID (skip headers and types rows)
@@ -1852,7 +1852,7 @@ async function clearDataInSheet(
 		}
 		
 		if (rowIndex === -1) {
-			return { success: false, error: 'Data not found' };
+			return { success: false as const, error: 'Data not found' };
 		}
 		
 		// Create empty row values to clear the data
@@ -1877,50 +1877,50 @@ async function clearDataInSheet(
 		if (!updateResponse.ok) {
 			const errorText = await updateResponse.text();
 			console.error('Failed to clear data:', updateResponse.status, errorText);
-			return { success: false, error: `Failed to clear data: ${updateResponse.status}` };
+			return { success: false as const, error: `Failed to clear data: ${updateResponse.status}` };
 		}
 		
 		return { success: true };
 	} catch (error) {
 		console.error('Error in clearDataInSheet:', error);
-		return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+		return { success: false as const, error: error instanceof Error ? error.message : 'Unknown error' };
 	}
 }
 
 export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
-	// GET /api/sheets - シート一覧を取得 (OpenAPI)
+	// GET /api/sheets - Get sheet list (OpenAPI)
 	app.openapi(getSheetsRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const userId = authResult.userId;
 			if (!userId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -1928,11 +1928,11 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
-			// スプレッドシートのメタデータを取得してシート一覧を取得
+			// Get spreadsheet metadata to get sheet list
 			try {
 				const metadataResponse = await fetch(
 					`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`,
@@ -1945,13 +1945,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				);
 
 				if (!metadataResponse.ok) {
-					return c.json({ success: false as false, error: 'Failed to fetch spreadsheet metadata' }, 500);
+					return c.json({ success: false as const, error: 'Failed to fetch spreadsheet metadata' }, 500);
 				}
 
 				const metadata = await metadataResponse.json() as any;
 				const sheets = metadata.sheets || [];
 				
-				// システムシート（_で始まるシート）を除外してシート一覧を作成
+				// Create sheet list excluding system sheets (sheets starting with _)
 				const sheetList = sheets
 					.filter((sheet: any) => !sheet.properties.title.startsWith('_'))
 					.map((sheet: any) => ({
@@ -1961,7 +1961,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				
 				console.log('Sheets retrieved successfully:', sheetList.length);
 				
-				// 成功レスポンスを返す
+				// Return success response
 				return c.json({
 					success: true as true,
 					data: {
@@ -1971,52 +1971,52 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				
 			} catch (error) {
 				console.error('Error fetching sheets:', error);
-				return c.json({ success: false as false, error: 'Failed to fetch sheet list' }, 500);
+				return c.json({ success: false as const, error: 'Failed to fetch sheet list' }, 500);
 			}
 			
 		} catch (error) {
 			console.error('Error in GET /api/sheets:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
-	// POST /api/sheets - 新しいシートを作成 (OpenAPI)
+	// POST /api/sheets - Create new sheet (OpenAPI)
 	app.openapi(createSheetRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const userId = authResult.userId;
 			if (!userId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			const requestData = c.req.valid('json');
 			const { name, public_read, public_write, role_read, role_write, user_read, user_write } = requestData;
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -2024,17 +2024,17 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
-			// ユーザー情報を取得（権限チェック用）
+			// Get user information (for permission check)
 			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 			if (!user) {
-				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+				return c.json({ success: false as const, error: 'User not found in _User sheet' }, 401);
 			}
 			
-			// シート作成権限をチェック
+			// Check sheet creation permissions
 			const permissionCheck = await checkSheetCreationPermission(
 				userId,
 				user.roles || [],
@@ -2044,15 +2044,15 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!permissionCheck.allowed) {
 				return c.json({ 
-					success: false as false, 
-					error: permissionCheck.error || 'Permission denied' 
+					success: false as const, 
+					error: permissionCheck.error ?? 'Permission denied' 
 				}, 403);
 			}
 			
-			// user_writeのデフォルト値を設定（作成したユーザIDを含む）
+			// Set default value for user_write (include creating user ID)
 			const finalUserWrite = user_write.length > 0 ? user_write : [userId];
 			
-			// 新しいシートを作成
+			// Create new sheet
 			const createResult = await createGoogleSheet(
 				name,
 				spreadsheetId,
@@ -2061,14 +2061,14 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!createResult.success) {
 				return c.json({ 
-					success: false as false, 
-					error: createResult.error || 'Failed to create sheet' 
+					success: false as const, 
+					error: createResult.error ?? 'Failed to create sheet' 
 				}, 500);
 			}
 			
 			console.log('Sheet created successfully:', name);
 			
-			// 成功レスポンスを返す
+			// Return success response
 			return c.json({
 				success: true as true,
 				data: {
@@ -2087,46 +2087,46 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in POST /api/sheets:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
-	// PUT /api/sheets/:id - シートを更新 (OpenAPI)
+	// PUT /api/sheets/:id - Update sheet (OpenAPI)
 	app.openapi(updateSheetRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const userId = authResult.userId;
 			if (!userId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			const { id: sheetId } = c.req.valid('param');
 			const updateData = c.req.valid('json');
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -2134,31 +2134,31 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
-			// ユーザー情報を取得（権限チェック用）
+			// Get user information (for permission check)
 			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 			if (!user) {
-				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+				return c.json({ success: false as const, error: 'User not found in _User sheet' }, 401);
 			}
 			
-			// 現在のシート情報を取得
+			// Get current sheet information
 			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId: actualSheetId, metadata } = sheetInfo;
 			if (!sheetName || !actualSheetId || !metadata) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
-			// シート更新権限をチェック
+			// Check sheet update permissions
 			const permissionCheck = await checkSheetUpdatePermission(
 				userId,
 				user.roles || [],
@@ -2167,12 +2167,12 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!permissionCheck.allowed) {
 				return c.json({ 
-					success: false as false, 
-					error: permissionCheck.error || 'Permission denied' 
+					success: false as const, 
+					error: permissionCheck.error ?? 'Permission denied' 
 				}, 403);
 			}
 			
-			// シートを更新
+			// Update sheet
 			const updateResult = await updateGoogleSheet(
 				actualSheetId.toString(),
 				sheetName,
@@ -2184,8 +2184,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!updateResult.success) {
 				return c.json({ 
-					success: false as false, 
-					error: updateResult.error || 'Failed to update sheet' 
+					success: false as const, 
+					error: updateResult.error ?? 'Failed to update sheet' 
 				}, 500);
 			}
 			
@@ -2193,7 +2193,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			const finalMetadata = updateResult.updatedMetadata || metadata;
 			
-			// 成功レスポンスを返す
+			// Return success response
 			return c.json({
 				success: true as true,
 				data: {
@@ -2212,45 +2212,45 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in PUT /api/sheets/:id:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
-	// DELETE /api/sheets/:id - シートを削除 (OpenAPI)
+	// DELETE /api/sheets/:id - Delete sheet (OpenAPI)
 	app.openapi(deleteSheetRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const userId = authResult.userId;
 			if (!userId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			const { id: sheetId } = c.req.valid('param');
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -2258,31 +2258,31 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
-			// ユーザー情報を取得（権限チェック用）
+			// Get user information (for permission check)
 			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 			if (!user) {
-				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+				return c.json({ success: false as const, error: 'User not found in _User sheet' }, 401);
 			}
 			
-			// 現在のシート情報を取得
+			// Get current sheet information
 			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId: actualSheetId, metadata } = sheetInfo;
 			if (!sheetName || !actualSheetId || !metadata) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
-			// シート削除権限をチェック（更新権限と同じチェック）
+			// Check sheet deletion permissions (same check as update permissions)
 			const permissionCheck = await checkSheetUpdatePermission(
 				userId,
 				user.roles || [],
@@ -2291,12 +2291,12 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!permissionCheck.allowed) {
 				return c.json({ 
-					success: false as false, 
-					error: permissionCheck.error || 'Permission denied' 
+					success: false as const, 
+					error: permissionCheck.error ?? 'Permission denied' 
 				}, 403);
 			}
 			
-			// シートを削除
+			// Delete sheet
 			const deleteResult = await deleteGoogleSheet(
 				actualSheetId.toString(),
 				spreadsheetId,
@@ -2305,14 +2305,14 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!deleteResult.success) {
 				return c.json({ 
-					success: false as false, 
-					error: deleteResult.error || 'Failed to delete sheet' 
+					success: false as const, 
+					error: deleteResult.error ?? 'Failed to delete sheet' 
 				}, 500);
 			}
 			
 			console.log('Sheet deleted successfully:', sheetId, sheetName);
 			
-			// 成功レスポンスを返す
+			// Return success response
 			return c.json({
 				success: true as true,
 				data: {}
@@ -2321,23 +2321,23 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in DELETE /api/sheets/:id:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
-	// GET /api/sheets/:id - シートメタデータを取得 (OpenAPI)
+	// GET /api/sheets/:id - Get sheet metadata (OpenAPI)
 	app.openapi(getSheetMetadataRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
 			const { id: sheetIdOrName } = c.req.valid('param');
 			
-			// オプション認証の実装
+			// Optional authentication implementation
 			const authHeader = c.req.header('authorization');
 			let userId: string | null = null;
 			let userRoles: string[] = [];
 			let isAuthenticated = false;
 			
-			// 認証ヘッダーが提供されている場合のみ認証を試行
+			// Only attempt authentication if authentication header is provided
 			if (authHeader) {
 				const sessionId = authHeader.replace('Bearer ', '');
 				const authResult = await authenticateSession(db, sessionId);
@@ -2347,19 +2347,19 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -2367,11 +2367,11 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
-			// 認証されている場合、ユーザー情報を取得
+			// If authenticated, get user information
 			if (isAuthenticated && userId) {
 				const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 				if (user) {
@@ -2379,39 +2379,39 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// シート情報を取得（IDまたは名前で検索）
+			// Get sheet information (search by ID or name)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId, columns, metadata } = sheetInfo;
 			if (!sheetName || !sheetId || !columns || !metadata) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
-			// シート読み取り権限をチェック
+			// Check sheet read permissions
 			const permissionCheck = await checkSheetReadPermission(userId, userRoles, metadata);
 			if (!permissionCheck.allowed) {
 				if (permissionCheck.error === 'Authentication required for this sheet') {
-					return c.json({ success: false as false, error: permissionCheck.error }, 401);
+					return c.json({ success: false as const, error: permissionCheck.error ?? 'Permission denied' }, 401);
 				}
-				return c.json({ success: false as false, error: permissionCheck.error || 'Permission denied' }, 403);
+				return c.json({ success: false as const, error: permissionCheck.error ?? 'Permission denied' }, 403);
 			}
 			
-			// カラム情報を変換（名前、型、必須フラグ）
+			// Convert column information (name, type, required flag)
 			const formattedColumns = Object.entries(columns).map(([name, type]) => ({
 				name,
 				type: type as 'string' | 'number' | 'datetime' | 'boolean' | 'pointer' | 'array' | 'object',
-				required: ['id', 'created_at', 'updated_at'].includes(name) // デフォルトで必須フィールドを設定
+				required: ['id', 'created_at', 'updated_at'].includes(name) // Set default required fields
 			}));
 			
 			console.log('Sheet metadata retrieved successfully:', sheetIdOrName, sheetName, sheetId);
 			
-			// 成功レスポンスを返す
+			// Return success response
 			return c.json({
 				success: true as true,
 				data: {
@@ -2430,46 +2430,46 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in GET /api/sheets/:id:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
-	// POST /api/sheets/:id/columns - シートに列を追加 (OpenAPI)
+	// POST /api/sheets/:id/columns - Add columns to sheet (OpenAPI)
 	app.openapi(addColumnsRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// 認証ヘッダーからセッションIDを取得
+			// Get session ID from authentication header
 			const authHeader = c.req.valid('header').authorization;
 			const sessionId = authHeader.replace('Bearer ', '');
 			
-			// セッション認証
+			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const userId = authResult.userId;
 			if (!userId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			const { id: sheetId } = c.req.valid('param');
 			const newColumns = c.req.valid('json');
 			
-			// Google Sheetsの設定を取得
+			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
-			// 有効なGoogleトークンを取得
+			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
-			// トークンの有効性を確認し、必要に応じてリフレッシュ
+			// Check token validity and refresh if necessary
 			const isValid = await isTokenValid(db);
 			if (!isValid) {
 				const credentials = await getGoogleCredentials(db);
@@ -2477,28 +2477,28 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
-			// ユーザー情報を取得（権限チェック用）
+			// Get user information (for permission check)
 			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 			if (!user) {
-				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+				return c.json({ success: false as const, error: 'User not found in _User sheet' }, 401);
 			}
 			
-			// シート情報を取得
+			// Get sheet information
 			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId: actualSheetId, metadata } = sheetInfo;
 			if (!sheetName || !actualSheetId || !metadata) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
 			// Check column modification permission
@@ -2511,12 +2511,12 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!permissionCheck.allowed) {
 				return c.json({ 
-					success: false as false, 
-					error: permissionCheck.error || 'Permission denied' 
+					success: false as const, 
+					error: permissionCheck.error ?? 'Permission denied' 
 				}, 403);
 			}
 			
-			// 列をシートに追加
+			// Add columns to sheet
 			const addResult = await addColumnsToGoogleSheet(
 				actualSheetId.toString(),
 				sheetName,
@@ -2528,19 +2528,19 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			if (!addResult.success) {
 				if (addResult.error?.includes('already exist')) {
 					return c.json({ 
-						success: false as false, 
-						error: addResult.error 
+						success: false as const, 
+						error: addResult.error ?? 'Failed to add column' 
 					}, 400);
 				}
 				return c.json({ 
-					success: false as false, 
-					error: addResult.error || 'Failed to add columns' 
+					success: false as const, 
+					error: addResult.error ?? 'Failed to add columns' 
 				}, 500);
 			}
 			
 			console.log('Columns added successfully to sheet:', sheetId, sheetName);
 			
-			// 成功レスポンスを返す
+			// Return success response
 			return c.json({
 				success: true as true,
 				data: {
@@ -2554,7 +2554,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in POST /api/sheets/:id/columns:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -2570,12 +2570,12 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Authenticate session
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const userId = authResult.userId;
 			if (!userId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			const { id: sheetId, columnId: columnName } = c.req.valid('param');
@@ -2593,8 +2593,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				rateLimitKey 
 			});
 			return c.json({ 
-				success: false as false, 
-				error: rateLimitResult.error || 'Rate limit exceeded',
+				success: false as const, 
+				error: rateLimitResult.error ?? 'Rate limit exceeded',
 				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
 			}, 429);
 		}
@@ -2602,13 +2602,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google tokens
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if needed
@@ -2619,28 +2619,28 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
 			// Get user information (for permission check)
 			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 			if (!user) {
-				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+				return c.json({ success: false as const, error: 'User not found in _User sheet' }, 401);
 			}
 			
 			// Get sheet information
 			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId: actualSheetId } = sheetInfo;
 			if (!sheetName || !actualSheetId) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
 			// Check column modification permission
@@ -2653,8 +2653,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!permissionCheck.allowed) {
 				return c.json({ 
-					success: false as false, 
-					error: permissionCheck.error || 'Permission denied' 
+					success: false as const, 
+					error: permissionCheck.error ?? 'Permission denied' 
 				}, 403);
 			}
 			
@@ -2670,19 +2670,19 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			if (!deleteResult.success) {
 				if (deleteResult.error === 'Column not found') {
 					return c.json({ 
-						success: false as false, 
+						success: false as const, 
 						error: 'Column not found' 
 					}, 404);
 				}
 				if (deleteResult.error === 'System columns cannot be deleted') {
 					return c.json({ 
-						success: false as false, 
+						success: false as const, 
 						error: 'System columns cannot be deleted' 
 					}, 400);
 				}
 				return c.json({ 
-					success: false as false, 
-					error: deleteResult.error || 'Failed to delete column' 
+					success: false as const, 
+					error: deleteResult.error ?? 'Failed to delete column' 
 				}, 500);
 			}
 			
@@ -2695,15 +2695,15 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					sheetId: actualSheetId,
 					name: sheetName,
 					columnName: columnName,
-					action: deleteResult.action || 'cleared',
-					message: `Column '${columnName}' ${deleteResult.action || 'cleared'} successfully from sheet '${sheetName}'`
+					action: deleteResult.action ?? 'cleared',
+					message: `Column '${columnName}' ${deleteResult.action ?? 'cleared'} successfully from sheet '${sheetName}'`
 				}
 			});
 			
 		} catch (error) {
 			console.error('Error in DELETE /api/sheets/:id/columns/:columnId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -2719,12 +2719,12 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Authenticate session
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const userId = authResult.userId;
 			if (!userId) {
-				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+				return c.json({ success: false as const, error: 'User ID not found in session' }, 401);
 			}
 			
 			const { id: sheetId, columnId: columnName } = c.req.valid('param');
@@ -2733,7 +2733,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Validate that type is not being modified
 			if ('type' in updateData) {
 				return c.json({ 
-					success: false as false, 
+					success: false as const, 
 					error: 'Type modification is not allowed' 
 				}, 400);
 			}
@@ -2751,8 +2751,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				rateLimitKey 
 			});
 			return c.json({ 
-				success: false as false, 
-				error: rateLimitResult.error || 'Rate limit exceeded',
+				success: false as const, 
+				error: rateLimitResult.error ?? 'Rate limit exceeded',
 				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
 			}, 429);
 		}
@@ -2760,13 +2760,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google tokens
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if needed
@@ -2777,28 +2777,28 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
 			// Get user information (for permission check)
 			const user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 			if (!user) {
-				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+				return c.json({ success: false as const, error: 'User not found in _User sheet' }, 401);
 			}
 			
 			// Get sheet information
 			const sheetInfo = await getSheetInfo(sheetId, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId: actualSheetId } = sheetInfo;
 			if (!sheetName || !actualSheetId) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
 			// Check column modification permission
@@ -2811,8 +2811,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!permissionCheck.allowed) {
 				return c.json({ 
-					success: false as false, 
-					error: permissionCheck.error || 'Permission denied' 
+					success: false as const, 
+					error: permissionCheck.error ?? 'Permission denied' 
 				}, 403);
 			}
 			
@@ -2829,25 +2829,25 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			if (!updateResult.success) {
 				if (updateResult.error === 'Column not found') {
 					return c.json({ 
-						success: false as false, 
+						success: false as const, 
 						error: 'Column not found' 
 					}, 404);
 				}
 				if (updateResult.error === 'System columns cannot be modified') {
 					return c.json({ 
-						success: false as false, 
+						success: false as const, 
 						error: 'System columns cannot be modified' 
 					}, 400);
 				}
 				if (updateResult.error === 'Column name already exists') {
 					return c.json({ 
-						success: false as false, 
+						success: false as const, 
 						error: 'Column name already exists' 
 					}, 400);
 				}
 				return c.json({ 
-					success: false as false, 
-					error: updateResult.error || 'Failed to update column' 
+					success: false as const, 
+					error: updateResult.error ?? 'Failed to update column' 
 				}, 500);
 			}
 			
@@ -2868,7 +2868,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in PUT /api/sheets/:id/columns/:columnId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -2907,8 +2907,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				rateLimitKey 
 			});
 			return c.json({ 
-				success: false as false, 
-				error: rateLimitResult.error || 'Rate limit exceeded',
+				success: false as const, 
+				error: rateLimitResult.error ?? 'Rate limit exceeded',
 				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
 			}, 429);
 		}
@@ -2916,13 +2916,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google tokens
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if needed
@@ -2933,7 +2933,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
@@ -2947,30 +2947,30 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId, columns, metadata } = sheetInfo;
 			if (!sheetName || !sheetId || !columns || !metadata) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
 			// Check sheet read permission
 			const permissionCheck = await checkSheetReadPermission(userId, userRoles, metadata);
 			if (!permissionCheck.allowed) {
 				if (permissionCheck.error === 'Authentication required for this sheet') {
-					return c.json({ success: false as false, error: permissionCheck.error }, 401);
+					return c.json({ success: false as const, error: permissionCheck.error ?? 'Permission denied' }, 401);
 				}
-				return c.json({ success: false as false, error: permissionCheck.error || 'Permission denied' }, 403);
+				return c.json({ success: false as const, error: permissionCheck.error ?? 'Permission denied' }, 403);
 			}
 			
 			// Check if column exists
 			if (!columns[columnName]) {
-				return c.json({ success: false as false, error: 'Column not found' }, 404);
+				return c.json({ success: false as const, error: 'Column not found' }, 404);
 			}
 			
 			// Parse column schema using schema parser
@@ -3003,7 +3003,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in GET /api/sheets/:id/columns/:columnId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -3043,8 +3043,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				rateLimitKey 
 			});
 			return c.json({ 
-				success: false as false, 
-				error: rateLimitResult.error || 'Rate limit exceeded',
+				success: false as const, 
+				error: rateLimitResult.error ?? 'Rate limit exceeded',
 				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
 			}, 429);
 		}
@@ -3052,13 +3052,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google tokens
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if needed
@@ -3069,7 +3069,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
@@ -3083,31 +3083,31 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId, metadata } = sheetInfo;
 			if (!sheetName || !sheetId || !metadata) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
 			// Check sheet read permission
 			const permissionCheck = await checkSheetReadPermission(userId, userRoles, metadata);
 			if (!permissionCheck.allowed) {
 				if (permissionCheck.error === 'Authentication required for this sheet') {
-					return c.json({ success: false as false, error: permissionCheck.error }, 401);
+					return c.json({ success: false as const, error: permissionCheck.error ?? 'Permission denied' }, 401);
 				}
-				return c.json({ success: false as false, error: permissionCheck.error || 'Permission denied' }, 403);
+				return c.json({ success: false as const, error: permissionCheck.error ?? 'Permission denied' }, 403);
 			}
 			
 			// Get sheet data
 			const dataResult = await getSheetDataFromGoogleSheets(sheetName, spreadsheetId, tokens.access_token);
 			if (!dataResult.success) {
-				return c.json({ success: false as false, error: dataResult.error || 'Failed to get sheet data' }, 500);
+				return c.json({ success: false as const, error: dataResult.error ?? 'Failed to get sheet data' }, 500);
 			}
 			
 			let data = dataResult.data || [];
@@ -3123,7 +3123,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					const whereCondition = parseWhereCondition(where);
 					data = data.filter(row => matchesWhereCondition(row, whereCondition));
 				} catch (error) {
-					return c.json({ success: false as false, error: 'Invalid WHERE condition format' }, 400);
+					return c.json({ success: false as const, error: 'Invalid WHERE condition format' }, 400);
 				}
 			}
 			
@@ -3135,7 +3135,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				try {
 					data = applyOrdering(data, order);
 				} catch (error) {
-					return c.json({ success: false as false, error: 'Invalid order format' }, 400);
+					return c.json({ success: false as const, error: 'Invalid order format' }, 400);
 				}
 			}
 			
@@ -3162,7 +3162,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in GET /api/sheets/:id/data:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -3202,8 +3202,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				rateLimitKey 
 			});
 			return c.json({ 
-				success: false as false, 
-				error: rateLimitResult.error || 'Rate limit exceeded',
+				success: false as const, 
+				error: rateLimitResult.error ?? 'Rate limit exceeded',
 				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
 			}, 429);
 		}
@@ -3211,13 +3211,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google tokens
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if needed
@@ -3228,7 +3228,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
@@ -3242,22 +3242,22 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId, columns, metadata } = sheetInfo;
 			if (!sheetName || !sheetId || !columns || !metadata) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
 			// Check write permissions for data insertion
 			const permissionCheck = await checkSheetWritePermission(userId, userRoles, metadata);
 			if (!permissionCheck.allowed) {
-				return c.json({ success: false as false, error: permissionCheck.error || 'No write permission for this sheet' }, 403);
+				return c.json({ success: false as const, error: permissionCheck.error ?? 'No write permission for this sheet' }, 403);
 			}
 			
 			// Log data insertion attempt for audit trail
@@ -3271,7 +3271,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Enhanced data validation for security
 			const securityValidation = await sheetDataValidator.validateInputData(inputData, 'sheet_data_insertion');
 			if (!securityValidation.valid) {
-				return c.json({ success: false as false, error: securityValidation.error }, 400);
+				return c.json({ success: false as const, error: securityValidation.error ?? 'Security validation failed' }, 400);
 			}
 			
 			// Use sanitized data for further processing
@@ -3280,7 +3280,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Validate input data against sheet schema
 			const validationResult = await validateInputData(sanitizedData, columns, spreadsheetId, tokens.access_token);
 			if (!validationResult.valid) {
-				return c.json({ success: false as false, error: validationResult.error }, 400);
+				return c.json({ success: false as const, error: validationResult.error ?? 'Validation failed' }, 400);
 			}
 			
 			// Generate ID and timestamps
@@ -3309,7 +3309,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Insert data into Google Sheets
 			const insertResult = await insertDataToSheet(sheetName, completeData, columns, spreadsheetId, tokens.access_token);
 			if (!insertResult.success) {
-				return c.json({ success: false as false, error: insertResult.error || 'Failed to insert data' }, 500);
+				return c.json({ success: false as const, error: insertResult.error ?? 'Failed to insert data' }, 500);
 			}
 			
 			// Check if user has read permission to return the data
@@ -3325,7 +3325,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in POST /api/sheets/:id/data:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -3365,8 +3365,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					rateLimitKey 
 				});
 				return c.json({ 
-					success: false as false, 
-					error: rateLimitResult.error || 'Rate limit exceeded',
+					success: false as const, 
+					error: rateLimitResult.error ?? 'Rate limit exceeded',
 					retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
 				}, 429);
 			}
@@ -3374,13 +3374,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google tokens
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if needed
@@ -3391,7 +3391,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
@@ -3405,36 +3405,36 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId, columns, metadata } = sheetInfo;
 			if (!sheetName || !sheetId || !columns || !metadata) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
 			// Get existing data row
 			const existingDataResult = await getDataRowById(sheetName, dataId, spreadsheetId, tokens.access_token);
-			if (existingDataResult.error) {
-				if (existingDataResult.error === 'Data not found') {
-					return c.json({ success: false as false, error: 'Data not found' }, 404);
+			if (existingDataResult.error ?? 'Failed to get existing data') {
+				if (existingDataResult.error ?? 'Failed to get existing data' === 'Data not found') {
+					return c.json({ success: false as const, error: 'Data not found' }, 404);
 				}
-				return c.json({ success: false as false, error: existingDataResult.error }, 500);
+				return c.json({ success: false as const, error: existingDataResult.error ?? 'Failed to get existing data' }, 500);
 			}
 			
 			const existingData = existingDataResult.data;
 			if (!existingData) {
-				return c.json({ success: false as false, error: 'Data not found' }, 404);
+				return c.json({ success: false as const, error: 'Data not found' }, 404);
 			}
 			
 			// Check data-specific write permissions
 			const dataPermissionCheck = await checkDataWritePermission(userId, userRoles, existingData);
 			if (!dataPermissionCheck.allowed) {
-				return c.json({ success: false as false, error: dataPermissionCheck.error || 'No write permission for this data' }, 403);
+				return c.json({ success: false as const, error: dataPermissionCheck.error ?? 'No write permission for this data' }, 403);
 			}
 			
 			// Log data update attempt for audit trail
@@ -3449,7 +3449,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Enhanced data validation for security
 			const securityValidation = await sheetDataValidator.validateInputData(updateData, 'sheet_data_update');
 			if (!securityValidation.valid) {
-				return c.json({ success: false as false, error: securityValidation.error }, 400);
+				return c.json({ success: false as const, error: securityValidation.error ?? 'Security validation failed' }, 400);
 			}
 			
 			// Use sanitized data for further processing
@@ -3458,7 +3458,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Validate input data against sheet schema
 			const validationResult = await validateInputData(sanitizedData, columns, spreadsheetId, tokens.access_token);
 			if (!validationResult.valid) {
-				return c.json({ success: false as false, error: validationResult.error }, 400);
+				return c.json({ success: false as const, error: validationResult.error ?? 'Validation failed' }, 400);
 			}
 			
 			// Update timestamp
@@ -3477,7 +3477,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Update data in Google Sheets
 			const updateResult = await updateDataInSheet(sheetName, dataId, updatedData, columns, spreadsheetId, tokens.access_token);
 			if (!updateResult.success) {
-				return c.json({ success: false as false, error: updateResult.error || 'Failed to update data' }, 500);
+				return c.json({ success: false as const, error: updateResult.error ?? 'Failed to update data' }, 500);
 			}
 			
 			// Return the updated data
@@ -3486,7 +3486,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in PUT /api/sheets/:id/data/:dataId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -3525,8 +3525,8 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					rateLimitKey 
 				});
 				return c.json({ 
-					success: false as false, 
-					error: rateLimitResult.error || 'Rate limit exceeded',
+					success: false as const, 
+					error: rateLimitResult.error ?? 'Rate limit exceeded',
 					retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
 				}, 429);
 			}
@@ -3534,13 +3534,13 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google tokens
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if needed
@@ -3551,7 +3551,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
@@ -3565,36 +3565,36 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error) {
-				if (sheetInfo.error === 'Sheet not found') {
-					return c.json({ success: false as false, error: 'Sheet not found' }, 404);
+			if (sheetInfo.error ?? 'Failed to get sheet info') {
+				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as false, error: sheetInfo.error }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
 			}
 			
 			const { sheetName, sheetId, columns, metadata } = sheetInfo;
 			if (!sheetName || !sheetId || !columns || !metadata) {
-				return c.json({ success: false as false, error: 'Failed to get sheet information' }, 500);
+				return c.json({ success: false as const, error: 'Failed to get sheet information' }, 500);
 			}
 			
 			// Get existing data row
 			const existingDataResult = await getDataRowById(sheetName, dataId, spreadsheetId, tokens.access_token);
-			if (existingDataResult.error) {
-				if (existingDataResult.error === 'Data not found') {
-					return c.json({ success: false as false, error: 'Data not found' }, 404);
+			if (existingDataResult.error ?? 'Failed to get existing data') {
+				if (existingDataResult.error ?? 'Failed to get existing data' === 'Data not found') {
+					return c.json({ success: false as const, error: 'Data not found' }, 404);
 				}
-				return c.json({ success: false as false, error: existingDataResult.error }, 500);
+				return c.json({ success: false as const, error: existingDataResult.error ?? 'Failed to get existing data' }, 500);
 			}
 			
 			const existingData = existingDataResult.data;
 			if (!existingData) {
-				return c.json({ success: false as false, error: 'Data not found' }, 404);
+				return c.json({ success: false as const, error: 'Data not found' }, 404);
 			}
 			
 			// Check data-specific write permissions
 			const dataPermissionCheck = await checkDataWritePermission(userId, userRoles, existingData);
 			if (!dataPermissionCheck.allowed) {
-				return c.json({ success: false as false, error: dataPermissionCheck.error || 'No write permission for this data' }, 403);
+				return c.json({ success: false as const, error: dataPermissionCheck.error ?? 'No write permission for this data' }, 403);
 			}
 			
 			// Log data deletion attempt for audit trail
@@ -3609,7 +3609,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Clear data in Google Sheets (instead of deleting row to prevent row shifting)
 			const clearResult = await clearDataInSheet(sheetName, dataId, columns, spreadsheetId, tokens.access_token);
 			if (!clearResult.success) {
-				return c.json({ success: false as false, error: clearResult.error || 'Failed to delete data' }, 500);
+				return c.json({ success: false as const, error: clearResult.error ?? 'Failed to delete data' }, 500);
 			}
 			
 			// Log successful deletion
@@ -3627,7 +3627,7 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in DELETE /api/sheets/:id/data/:dataId:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }

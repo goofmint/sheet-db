@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { env } from 'cloudflare:test';
 
 // ローカル開発サーバーのベースURL
 const BASE_URL = 'http://localhost:8787';
@@ -7,9 +8,9 @@ describe('Role API', () => {
 	let testSessionId: string;
 	let validAuthToken: string;
 	
-	// Auth0テスト用の環境変数
-	const auth0TestEmail = process.env.AUTH0_TEST_EMAIL;
-	const auth0TestPassword = process.env.AUTH0_TEST_PASSWORD;
+	// Auth0 test environment variables from cloudflare:test
+	const auth0TestEmail = env.AUTH0_TEST_EMAIL;
+	const auth0TestPassword = env.AUTH0_TEST_PASSWORD;
 
 	beforeAll(async () => {
 		// 実際のAuth0認証フローを通じてセッションIDを取得
