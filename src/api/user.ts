@@ -8,7 +8,7 @@ import {
   refreshAccessToken,
   isTokenValid
 } from '../google-auth';
-import { getUserMeRoute, updateUserRoute, deleteUserRoute } from '../api-routes';
+import { getUserMeRoute, updateUserRoute, deleteUserRoute, deleteUserMeRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getUserFromSheet } from '../utils/sheet-helpers';
 import { parseColumnSchema, validateValue } from '../utils/schema-parser';
@@ -625,6 +625,125 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 		} catch (error) {
 			console.error('Error in DELETE /api/users/:id:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// DELETE /api/users/me - Delete current authenticated user
+	app.openapi(deleteUserMeRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// Get session ID from authentication header
+			const authHeader = c.req.valid('header').authorization;
+			const sessionId = authHeader.replace('Bearer ', '');
+			
+			// Session authentication
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+			}
+			
+			const currentUserId = authResult.userId;
+			if (!currentUserId) {
+				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+			}
+			
+			// Get Google Sheets settings
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// Get valid Google token
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// Check token validity and refresh if necessary
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// Check if user exists in _User sheet
+			const targetUser = await getUserFromSheet(currentUserId, spreadsheetId, tokens.access_token);
+			if (!targetUser) {
+				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 404);
+			}
+			
+			// Get current user data to find row position
+			const userResponse = await fetch(
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
+				{
+					headers: {
+						'Authorization': `Bearer ${tokens.access_token}`,
+						'Content-Type': 'application/json',
+					}
+				}
+			);
+			
+			if (!userResponse.ok) {
+				return c.json({ success: false as false, error: 'Failed to fetch user data' }, 500);
+			}
+			
+			const userData = await userResponse.json() as any;
+			const users = userData.values || [];
+			
+			// Search for user (from row 3)
+			const userRowIndex = users.findIndex((row: string[], index: number) => 
+				index >= 2 && row[0] === currentUserId
+			);
+			
+			if (userRowIndex === -1) {
+				return c.json({ success: false as false, error: 'User not found in _User sheet' }, 404);
+			}
+			
+			const targetRowNumber = userRowIndex + 1; // Convert to sheet row number
+			
+			// Clear user data to prevent row shifting conflicts
+			// Create empty data array matching the header row length
+			const headerRow = users[0] || [];
+			const emptyData = new Array(headerRow.length).fill('');
+			
+			// Clear the user data (keep the row but clear all data)
+			const clearResponse = await fetch(
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:Q${targetRowNumber}?valueInputOption=RAW`,
+				{
+					method: 'PUT',
+					headers: {
+						'Authorization': `Bearer ${tokens.access_token}`,
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						values: [emptyData]
+					})
+				}
+			);
+			
+			if (!clearResponse.ok) {
+				const errorText = await clearResponse.text();
+				console.error('Failed to clear user data:', clearResponse.status, errorText);
+				return c.json({ success: false as false, error: `Failed to delete user: ${clearResponse.status}` }, 500);
+			}
+			
+			console.log('User data cleared successfully:', currentUserId);
+			
+			return c.json({
+				success: true as true,
+				message: 'User account has been successfully deleted'
+			});
+			
+		} catch (error) {
+			console.error('Error in DELETE /api/users/me:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}

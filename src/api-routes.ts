@@ -487,6 +487,55 @@ export const getUserMeRoute = createRoute({
   },
 });
 
+// DELETE /api/users/me - Delete current authenticated user
+export const deleteUserMeRoute = createRoute({
+  method: 'delete',
+  path: '/api/users/me',
+  summary: 'Delete current user',
+  description: 'Deletes the authenticated user\'s own data from the _User sheet. Data is cleared rather than deleted to prevent row shifting conflicts.',
+  tags: ['Users'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    headers: z.object({
+      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DeleteUserResponseSchema,
+        },
+      },
+      description: 'User deleted successfully',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: NotFoundErrorSchema,
+        },
+      },
+      description: 'User not found in _User sheet',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
+    },
+  },
+});
+
 // PUT /api/users/:id - Update user information
 export const updateUserRoute = createRoute({
   method: 'put',
