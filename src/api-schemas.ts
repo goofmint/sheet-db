@@ -199,7 +199,7 @@ export const DeleteUserResponseSchema = z.object({
 });
 
 // Sheet関連のスキーマ
-export const ColumnTypeEnum = z.enum(['string', 'number', 'datetime', 'boolean', 'pointer', 'array', 'object']);
+export const ColumnTypeEnum = z.enum(['string', 'number', 'datetime', 'boolean', 'pointer', 'array', 'object', 'image']);
 
 export const CreateSheetRequestSchema = z.object({
 	name: z.string().min(1, "Sheet name is required").max(100, "Sheet name must be 100 characters or less"),

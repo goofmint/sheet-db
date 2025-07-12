@@ -1,6 +1,6 @@
 export interface SheetColumn {
   name: string;
-  type: 'string' | 'number' | 'datetime' | 'boolean' | 'array' | 'object' | 'json';
+  type: 'string' | 'number' | 'datetime' | 'boolean' | 'array' | 'object' | 'json' | 'image';
   required?: boolean;
   unique?: boolean;
   pattern?: string;
