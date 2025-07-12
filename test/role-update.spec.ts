@@ -1,6 +1,92 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { env } from 'cloudflare:test';
 
+// Auth0 authentication helper for tests
+async function authenticateWithAuth0(): Promise<string | null> {
+	try {
+		const auth0Domain = env.AUTH0_DOMAIN;
+		const auth0ClientId = env.AUTH0_CLIENT_ID;
+		const auth0ClientSecret = env.AUTH0_CLIENT_SECRET;
+		const testEmail = env.AUTH0_TEST_EMAIL;
+		const testPassword = env.AUTH0_TEST_PASSWORD;
+
+		if (!auth0Domain || !auth0ClientId || !auth0ClientSecret || !testEmail || !testPassword) {
+			console.log('Missing Auth0 configuration for authentication');
+			return null;
+		}
+
+		console.log('Attempting Auth0 Resource Owner Password Grant authentication...');
+
+		// Step 1: Get Auth0 access token using Resource Owner Password Grant
+		const tokenResponse = await fetch(`https://${auth0Domain}/oauth/token`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			body: new URLSearchParams({
+				grant_type: 'password',
+				username: testEmail,
+				password: testPassword,
+				client_id: auth0ClientId,
+				client_secret: auth0ClientSecret,
+				scope: 'openid profile email'
+			})
+		});
+
+		if (!tokenResponse.ok) {
+			const errorText = await tokenResponse.text();
+			console.error('Auth0 token request failed:', tokenResponse.status, errorText);
+			console.log('This is expected if Resource Owner Password Grant is not enabled for the Auth0 client');
+			return null;
+		}
+
+		const tokens = await tokenResponse.json();
+		console.log('Successfully obtained Auth0 access token');
+
+		// Step 2: Get user info from Auth0
+		const userInfoResponse = await fetch(`https://${auth0Domain}/userinfo`, {
+			headers: {
+				'Authorization': `Bearer ${tokens.access_token}`
+			}
+		});
+
+		if (!userInfoResponse.ok) {
+			const errorText = await userInfoResponse.text();
+			console.error('Auth0 userinfo request failed:', userInfoResponse.status, errorText);
+			return null;
+		}
+
+		const userInfo = await userInfoResponse.json();
+		console.log('Successfully obtained user info:', { sub: userInfo.sub, email: userInfo.email });
+
+		// Step 3: Create a simulated authorization code and attempt to authenticate
+		// We'll use a mock approach since the real Auth0 flow requires a browser redirect
+		
+		// Try to get auth URL and see if we can use that to establish session
+		const authStartResponse = await fetch(`${BASE_URL}/api/auth`, {
+			method: 'GET'
+		});
+
+		if (authStartResponse.ok) {
+			const authData = await authStartResponse.json();
+			console.log('Auth start successful:', authData.success);
+			
+			// For testing purposes, we'll generate a session ID
+			// In a real scenario, this would come from completing the Auth0 flow
+			const sessionId = `test-session-${userInfo.sub}-${Date.now()}`;
+			console.log('Generated test session ID:', sessionId);
+			return sessionId;
+		} else {
+			console.error('Auth start failed:', authStartResponse.status);
+			return null;
+		}
+
+	} catch (error) {
+		console.error('Auth0 authentication failed:', error);
+		return null;
+	}
+}
+
 // Local development server base URL
 const BASE_URL = 'http://localhost:8787';
 
@@ -13,13 +99,23 @@ describe('Role Update API', () => {
 	const auth0TestPassword = env.AUTH0_TEST_PASSWORD;
 
 	beforeAll(async () => {
-		// Get session ID through Auth0 authentication flow
+		// Try to get real session ID through Auth0 authentication flow
 		if (auth0TestEmail && auth0TestPassword) {
-			console.log('Setting up real authentication for role update tests...');
+			console.log('Setting up authentication for role update tests...');
 			
-			// Temporary session ID (should be obtained from authentication flow in actual implementation)
-			testSessionId = 'integration-test-session-id';
-			validAuthToken = `Bearer ${testSessionId}`;
+			// Try Auth0 authentication first
+			const realSessionId = await authenticateWithAuth0();
+			if (realSessionId) {
+				testSessionId = realSessionId;
+				validAuthToken = `Bearer ${testSessionId}`;
+				console.log('Using Auth0-derived session ID for testing');
+			} else {
+				// Use a deterministic test session ID for consistent error reporting
+				console.log('Auth0 authentication not available, using fallback test session');
+				testSessionId = `test-session-${auth0TestEmail || 'unknown'}-${Date.now()}`;
+				validAuthToken = `Bearer ${testSessionId}`;
+				console.log('Note: Integration tests will fail without proper authentication setup');
+			}
 		} else {
 			console.log('Skipping real authentication - using test session for basic validation tests');
 			testSessionId = 'test-session-uuid-123';
@@ -218,11 +314,10 @@ describe('Role Update API', () => {
 			expect(response.ok).toBe(false);
 		});
 
-		it.skip('should update role successfully (integration test)', async () => {
-			// This integration test can only be executed in actual authentication environment
+		it('should update role successfully (integration test)', async () => {
+			// This integration test requires authentication
 			if (!auth0TestEmail || !auth0TestPassword) {
-				console.log('Skipping integration test: AUTH0_TEST_EMAIL or AUTH0_TEST_PASSWORD not configured');
-				return;
+				throw new Error('Integration test requires AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables');
 			}
 
 			// First, create a test role
@@ -240,11 +335,13 @@ describe('Role Update API', () => {
 				})
 			});
 
-			if (createResponse.status === 401 || createResponse.status === 500) {
-				// Skip test due to authentication or system issues
+			if (createResponse.status === 401) {
 				const data = await createResponse.json() as { success: boolean; error: string };
-				console.log('Skipping test due to auth/system issue:', data.error);
-				return;
+				throw new Error(`Authentication failed: ${data.error}. This test requires valid authentication to create roles.`);
+			}
+			if (createResponse.status === 500) {
+				const data = await createResponse.json() as { success: boolean; error: string };
+				throw new Error(`System error: ${data.error}. Check Google Sheets configuration and permissions.`);
 			}
 
 			expect(createResponse.status).toBe(200);
@@ -264,11 +361,13 @@ describe('Role Update API', () => {
 				})
 			});
 
-			if (updateResponse.status === 401 || updateResponse.status === 500) {
-				// Skip test due to authentication or system issues
+			if (updateResponse.status === 401) {
 				const data = await updateResponse.json() as { success: boolean; error: string };
-				console.log('Skipping test due to auth/system issue:', data.error);
-				return;
+				throw new Error(`Authentication failed during update: ${data.error}`);
+			}
+			if (updateResponse.status === 500) {
+				const data = await updateResponse.json() as { success: boolean; error: string };
+				throw new Error(`System error during update: ${data.error}`);
 			}
 
 			expect(updateResponse.status).toBe(200);
@@ -293,11 +392,10 @@ describe('Role Update API', () => {
 			expect(updateData.data.updated_at).toBeDefined();
 		});
 
-		it.skip('should prevent duplicate names when updating (integration test)', async () => {
-			// This integration test can only be executed in actual authentication environment
+		it('should prevent duplicate names when updating (integration test)', async () => {
+			// This integration test requires authentication
 			if (!auth0TestEmail || !auth0TestPassword) {
-				console.log('Skipping integration test: AUTH0_TEST_EMAIL or AUTH0_TEST_PASSWORD not configured');
-				return;
+				throw new Error('Integration test requires AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables');
 			}
 
 			const timestamp = Date.now();
@@ -331,9 +429,13 @@ describe('Role Update API', () => {
 				})
 			});
 
-			if (createFirst.status !== 200 || createSecond.status !== 200) {
-				console.log('Skipping test due to role creation failure');
-				return;
+			if (createFirst.status !== 200) {
+				const data = await createFirst.json() as { success: boolean; error: string };
+				throw new Error(`Failed to create first role: ${createFirst.status} - ${data.error}`);
+			}
+			if (createSecond.status !== 200) {
+				const data = await createSecond.json() as { success: boolean; error: string };
+				throw new Error(`Failed to create second role: ${createSecond.status} - ${data.error}`);
 			}
 
 			// Try to change the name of the second role to be the same as the first role (duplicate error expected)
@@ -504,11 +606,10 @@ describe('Role Update API', () => {
 			expect(data.success).toBe(false);
 		});
 
-		it.skip('should delete role successfully (integration test)', async () => {
-			// This integration test can only be executed in actual authentication environment
+		it('should delete role successfully (integration test)', async () => {
+			// This integration test requires authentication
 			if (!auth0TestEmail || !auth0TestPassword) {
-				console.log('Skipping integration test: AUTH0_TEST_EMAIL or AUTH0_TEST_PASSWORD not configured');
-				return;
+				throw new Error('Integration test requires AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables');
 			}
 
 			// First, create a test role
@@ -526,11 +627,13 @@ describe('Role Update API', () => {
 				})
 			});
 
-			if (createResponse.status === 401 || createResponse.status === 500) {
-				// Skip test due to authentication or system issues
+			if (createResponse.status === 401) {
 				const data = await createResponse.json() as { success: boolean; error: string };
-				console.log('Skipping test due to auth/system issue:', data.error);
-				return;
+				throw new Error(`Authentication failed: ${data.error}. This test requires valid authentication to create roles.`);
+			}
+			if (createResponse.status === 500) {
+				const data = await createResponse.json() as { success: boolean; error: string };
+				throw new Error(`System error: ${data.error}. Check Google Sheets configuration and permissions.`);
 			}
 
 			expect(createResponse.status).toBe(200);
@@ -544,11 +647,13 @@ describe('Role Update API', () => {
 				}
 			});
 
-			if (deleteResponse.status === 401 || deleteResponse.status === 500) {
-				// Skip test due to authentication or system issues
+			if (deleteResponse.status === 401) {
 				const data = await deleteResponse.json() as { success?: boolean; error?: string };
-				console.log('Skipping test due to auth/system issue:', data.error || 'Unknown error');
-				return;
+				throw new Error(`Authentication failed during deletion: ${data.error || 'Unknown auth error'}`);
+			}
+			if (deleteResponse.status === 500) {
+				const data = await deleteResponse.json() as { success?: boolean; error?: string };
+				throw new Error(`System error during deletion: ${data.error || 'Unknown system error'}`);
 			}
 
 			expect(deleteResponse.status).toBe(200);
