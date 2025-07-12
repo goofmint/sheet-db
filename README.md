@@ -208,6 +208,102 @@ Authorization: Bearer <session-token>
 }
 ```
 
+### Role Management APIs
+
+#### Create Role
+**POST** `/api/roles`
+
+Creates a new role with specified permissions.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "name": "admin",
+  "public_read": true,
+  "public_write": false,
+  "role_read": ["manager"],
+  "role_write": [],
+  "user_read": ["user123"],
+  "user_write": [],
+  "users": ["user456"],
+  "roles": ["parent-role"]
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "name": "admin",
+    "users": ["user456"],
+    "roles": ["parent-role"],
+    "created_at": "2023-01-01T12:00:00Z",
+    "updated_at": "2023-01-01T12:00:00Z",
+    "public_read": true,
+    "public_write": false,
+    "role_read": ["manager"],
+    "role_write": [],
+    "user_read": ["user123"],
+    "user_write": []
+  }
+}
+```
+
+#### Update Role
+**PUT** `/api/roles/{roleName}`
+
+Updates an existing role's permissions.
+
+**Authentication:** Required
+
+**Request Body:** Partial role object with fields to update
+
+**Example Request:**
+```bash
+PUT /api/roles/admin
+Content-Type: application/json
+Authorization: Bearer <session-token>
+
+{
+  "public_write": true,
+  "role_write": ["editor"]
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "name": "admin",
+    "public_write": true,
+    "role_write": ["editor"],
+    "updated_at": "2023-01-01T12:30:00Z"
+  }
+}
+```
+
+#### Delete Role
+**DELETE** `/api/roles/{roleName}`
+
+Deletes a role from the system.
+
+**Authentication:** Required
+
+**Example Request:**
+```bash
+DELETE /api/roles/admin
+Authorization: Bearer <session-token>
+```
+
+**Example Response:**
+```json
+{}
+```
+
 ### Permission System
 
 Sheet access is controlled by the following fields in the sheet metadata:
