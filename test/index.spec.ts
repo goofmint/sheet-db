@@ -1,8 +1,8 @@
 import { env, createExecutionContext, waitOnExecutionContext, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
-import { configTable } from '../src/db/schema';
-import { sql } from 'drizzle-orm';
+import { configTable, cacheTable, queueTable, sessionTable } from '../src/db/schema';
+import { getTableColumns, sql } from 'drizzle-orm';
 import app from '../src/index';
 
 // For now, you'll need to do something like this to get a correctly-typed
@@ -14,15 +14,45 @@ describe('Sheet DB API', () => {
 		// Setup database for testing
 		const db = drizzle(env.DB);
 		
-		// Create tables if they don't exist
+		// Create tables using Drizzle schema definitions - create the tables as they are defined in the schema
 		try {
-			await db.run(sql`CREATE TABLE IF NOT EXISTS Config (Id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)`);
-			await db.run(sql`CREATE TABLE IF NOT EXISTS Cache (Id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)`);
-			await db.run(sql`CREATE TABLE IF NOT EXISTS Queue (Id INTEGER PRIMARY KEY, UserId TEXT, Action TEXT, Value TEXT, Response TEXT, Status TEXT)`);
-			await db.run(sql`CREATE TABLE IF NOT EXISTS Session (Id INTEGER PRIMARY KEY, UserId TEXT, Value TEXT, ExpiresAt INTEGER)`);
+			// Create Config table based on configTable schema with unique constraint
+			await db.run(sql`CREATE TABLE IF NOT EXISTS "Config" (
+				"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+				"name" text NOT NULL UNIQUE,
+				"value" text NOT NULL
+			)`);
 			
-			// Insert setup_completed config to indicate setup is done
-			await db.run(sql`INSERT OR REPLACE INTO Config (Name, Value) VALUES ('setup_completed', 'true')`);
+			// Create Cache table based on cacheTable schema
+			await db.run(sql`CREATE TABLE IF NOT EXISTS "Cache" (
+				"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+				"name" text NOT NULL,
+				"value" text NOT NULL
+			)`);
+			
+			// Create Queue table based on queueTable schema
+			await db.run(sql`CREATE TABLE IF NOT EXISTS "Queue" (
+				"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+				"userId" text NOT NULL,
+				"action" text NOT NULL,
+				"value" text NOT NULL
+			)`);
+			
+			// Create Session table based on sessionTable schema
+			await db.run(sql`CREATE TABLE IF NOT EXISTS "Session" (
+				"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+				"userId" text NOT NULL,
+				"value" text NOT NULL,
+				"expiresAt" integer NOT NULL
+			)`);
+			
+			// Insert setup_completed config to indicate setup is done using Drizzle's API
+			await db.insert(configTable)
+				.values({ name: 'setup_completed', value: 'true' })
+				.onConflictDoUpdate({
+					target: configTable.name,
+					set: { value: 'true' }
+				});
 		} catch (error) {
 			console.warn('Database setup error:', error);
 		}
