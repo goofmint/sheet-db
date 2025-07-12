@@ -2,14 +2,14 @@
  * Shared utility functions for Google Sheets operations
  */
 
-// _Configシートから複数の設定値を一度に取得するヘルパー関数
+// Helper function to get multiple configuration values from _Config sheet at once
 export async function getMultipleConfigsFromSheet(
 	keys: string[], 
 	spreadsheetId: string, 
 	accessToken: string
 ): Promise<Record<string, string>> {
 	try {
-		// _Configシートから設定情報を取得
+		// Get configuration information from _Config sheet
 		const response = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_Config!A:B`,
 			{
@@ -28,10 +28,10 @@ export async function getMultipleConfigsFromSheet(
 		const data = await response.json() as any;
 		const rows = data.values || [];
 		
-		// 結果を格納するオブジェクト
+		// Object to store results
 		const configs: Record<string, string> = {};
 		
-		// ヘッダー行をスキップして、2行目以降から設定を検索
+		// Skip header row and search for configuration from row 2 onwards
 		for (const row of rows.slice(1)) {
 			if (row[0] && keys.includes(row[0]) && row[1]) {
 				configs[row[0]] = row[1];
@@ -45,18 +45,18 @@ export async function getMultipleConfigsFromSheet(
 	}
 }
 
-// _Configシートから単一の設定値を取得するヘルパー関数
+// Helper function to get a single configuration value from _Config sheet
 export async function getConfigFromSheet(key: string, spreadsheetId: string, accessToken: string): Promise<string | null> {
 	const configs = await getMultipleConfigsFromSheet([key], spreadsheetId, accessToken);
 	return configs[key] || null;
 }
 
-// ユーザー情報をGoogle Sheetsから取得するヘルパー関数
+// Helper function to get user information from Google Sheets
 export async function getUserFromSheet(userId: string, spreadsheetId: string, accessToken: string): Promise<any | null> {
 	try {
 		console.log(`[getUserFromSheet] Searching for user ID: "${userId}"`);
 		
-		// _Userシートからユーザー情報を取得
+		// Get user information from _User sheet
 		const response = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:N`,
 			{
@@ -79,7 +79,7 @@ export async function getUserFromSheet(userId: string, spreadsheetId: string, ac
 		console.log(`[getUserFromSheet] Header row (row 0):`, rows[0]);
 		console.log(`[getUserFromSheet] Type row (row 1):`, rows[1]);
 		
-		// 3行目以降（データ行）の最初の数行をログ出力
+		// Log output for the first few rows from row 3 onwards (data rows)
 		for (let i = 2; i < Math.min(rows.length, 7); i++) {
 			console.log(`[getUserFromSheet] Data row ${i} (sheet row ${i+1}):`, rows[i]);
 			if (rows[i] && rows[i][0]) {
@@ -88,7 +88,7 @@ export async function getUserFromSheet(userId: string, spreadsheetId: string, ac
 			}
 		}
 		
-		// ヘッダー行（1行目）と型定義行（2行目）をスキップして、3行目以降からユーザーを検索
+		// Skip header row (row 1) and type definition row (row 2), search for user from row 3 onwards
 		const userRow = rows.find((row: string[], index: number) => 
 			index >= 2 && row[0] === userId
 		);
@@ -100,7 +100,7 @@ export async function getUserFromSheet(userId: string, spreadsheetId: string, ac
 		
 		console.log(`[getUserFromSheet] User found:`, userRow);
 
-		// rolesフィールドの安全なパース
+		// Safe parsing of roles field
 		let roles: string[] = [];
 		if (userRow[13]) {
 			try {
@@ -112,9 +112,9 @@ export async function getUserFromSheet(userId: string, spreadsheetId: string, ac
 				}
 			} catch (parseError) {
 				console.error(`[getUserFromSheet] Failed to parse roles JSON: "${userRow[13]}"`, parseError);
-				// JSON形式でない場合、文字列として扱う
+				// If not JSON format, treat as string
 				if (typeof userRow[13] === 'string' && userRow[13].trim()) {
-					// カンマ区切りの文字列として扱う
+					// Treat as comma-separated string
 					roles = userRow[13].split(',').map(role => role.trim()).filter(role => role.length > 0);
 				} else {
 					roles = [];
@@ -122,7 +122,7 @@ export async function getUserFromSheet(userId: string, spreadsheetId: string, ac
 			}
 		}
 
-		// _Userシートのスキーマに基づいてユーザー情報を構築
+		// Build user information based on _User sheet schema
 		// A: id, B: name, C: email, D: given_name, E: family_name, F: nickname, 
 		// G: picture, H: email_verified, I: locale, J: created_at, K: updated_at, L: ?, M: ?, N: roles
 		const user = {

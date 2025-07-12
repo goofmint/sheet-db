@@ -15,7 +15,7 @@ export function registerSwaggerUI(app: OpenAPIHono<{ Bindings: Bindings }>) {
 export function registerOpenAPISpec(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	app.get('/doc/openapi.json', (c) => {
 		try {
-			// 手動でOpenAPI仕様書を構築
+			// Manually build OpenAPI specification
 			const openAPISpec = {
 				openapi: '3.0.0',
 				info: {
@@ -29,7 +29,7 @@ export function registerOpenAPISpec(app: OpenAPIHono<{ Bindings: Bindings }>) {
 						description: 'Current server'
 					}
 				],
-				// セキュリティスキームを手動で定義
+				// Manually define security schemes
 				components: {
 					securitySchemes: {
 						BearerAuth: {
@@ -40,11 +40,11 @@ export function registerOpenAPISpec(app: OpenAPIHono<{ Bindings: Bindings }>) {
 						}
 					}
 				},
-				// パスの定義
+				// Path definitions
 				paths: {}
 			};
 
-			// アプリケーションで定義されたルートを取得してパスに追加
+			// Get routes defined in application and add to paths
 			if (app.getOpenAPIDocument) {
 				try {
 					const appSpec = app.getOpenAPIDocument({
@@ -57,7 +57,7 @@ export function registerOpenAPISpec(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					if (appSpec && appSpec.paths) {
 						openAPISpec.paths = appSpec.paths;
 					}
-					// components.schemasも統合
+					// Also integrate components.schemas
 					if (appSpec && appSpec.components) {
 						openAPISpec.components = {
 							...openAPISpec.components,

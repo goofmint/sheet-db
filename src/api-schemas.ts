@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// 共通スキーマ
+// Common schemas
 export const ErrorResponseSchema = z.object({
 	success: z.literal(false),
 	error: z.string()
@@ -10,7 +10,7 @@ export const BearerAuthSchema = z.object({
 	Authorization: z.string().regex(/^Bearer .+/, "Authorization header must be in format 'Bearer <token>'")
 });
 
-// Role関連のスキーマ
+// Role-related schemas
 export const RoleSchema = z.object({
 	name: z.string().min(1, "Role name is required"),
 	users: z.array(z.string()).default([]),
@@ -204,7 +204,7 @@ export const DeleteUserResponseSchema = z.object({
 	message: z.string()
 });
 
-// Sheet関連のスキーマ
+// Sheet-related schemas
 export const ColumnTypeEnum = z.enum(['string', 'number', 'datetime', 'boolean', 'pointer', 'array', 'object', 'image']);
 
 export const CreateSheetRequestSchema = z.object({

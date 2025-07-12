@@ -18,56 +18,56 @@ type Bindings = {
 	ASSETS: Fetcher;
 };
 
-// Auth0認証開始エンドポイント (OpenAPI)
+// Auth0 authentication start endpoint (OpenAPI)
 export function registerAuthStartRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	app.openapi(authStartRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// クエリパラメータを確認（コールバックからのリダイレクトの場合）
+			// Check query parameters (in case of redirect from callback)
 			const { code, error } = c.req.valid('query');
 			
-			// 認証エラーがある場合
+			// If there is an authentication error
 			if (error) {
 				console.error('Auth0 authentication error:', error);
 				return c.json({ 
-					success: false,
+					success: false as const,
 					error: `Auth0 authentication error: ${error}` 
 				}, 400);
 			}
 			
-			// 認証コードがある場合（コールバックからのリダイレクト）
+			// If there is an authentication code (redirect from callback)
 			if (code) {
 				return await handleAuthCallback(c, db, code);
 			}
 			
-			// 認証開始の場合
-			// Auth0設定を取得
+			// For authentication start
+			// Get Auth0 configuration
 			const auth0Domain = await getConfig(db, 'auth0_domain');
 			const auth0ClientId = await getConfig(db, 'auth0_client_id');
 			const auth0Audience = await getConfig(db, 'auth0_audience');
 			
 			if (!auth0Domain || !auth0ClientId) {
 				return c.json({ 
-					success: false,
+					success: false as const,
 					error: 'Auth0 configuration not found. Please complete setup first.' 
 				}, 400);
 			}
 			
-			// リダイレクトURI（POST /api/auth/callback → GET /api/auth のリダイレクト）
+			// Redirect URI (POST /api/auth/callback → GET /api/auth redirect)
 			const redirectUri = `${new URL(c.req.url).origin}/api/auth/callback`;
 			console.log('Initial auth redirect URI:', redirectUri);
 			
-			// Stateを生成（後で検証に使用）
+			// Generate state (used for verification later)
 			const state = crypto.randomUUID();
 			
-			// Auth0認証URLを構築
+			// Build Auth0 authentication URL
 			const params = new URLSearchParams({
 				response_type: 'code',
 				client_id: auth0ClientId,
 				redirect_uri: redirectUri,
 				scope: 'openid profile email',
-				state: state // CSRF保護用
+				state: state // For CSRF protection
 			});
 			
 			if (auth0Audience) {
@@ -78,25 +78,25 @@ export function registerAuthStartRoute(app: OpenAPIHono<{ Bindings: Bindings }>)
 			
 			console.log('Redirecting to Auth0:', { authUrl, redirectUri });
 			
-			// Auth0認証画面にリダイレクト
+			// Redirect to Auth0 authentication screen
 			return c.redirect(authUrl);
 			
 		} catch (error) {
 			console.error('Error in /api/auth:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 }
 
-// Auth0認証コールバックエンドポイント（Auth0からのコールバック受信） (OpenAPI)
+// Auth0 authentication callback endpoint (receive callback from Auth0) (OpenAPI)
 export function registerAuthCallbackGetRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	app.openapi(authCallbackGetRoute, async (c) => {
 		try {
-			// クエリパラメータを取得
+			// Get query parameters
 			const { code, error, state } = c.req.valid('query');
 			
-			// GET /api/auth にリダイレクト（パラメータを保持）
+			// Redirect to GET /api/auth (preserving parameters)
 			const redirectUrl = new URL('/api/auth', new URL(c.req.url).origin);
 			
 			if (error) {
@@ -119,40 +119,40 @@ export function registerAuthCallbackGetRoute(app: OpenAPIHono<{ Bindings: Bindin
 	});
 }
 
-// POST /api/auth/callback エンドポイント（実際の認証処理） (OpenAPI)
+// POST /api/auth/callback endpoint (actual authentication processing) (OpenAPI)
 export function registerAuthCallbackPostRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	app.openapi(authCallbackPostRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// リクエストボディから認証コードを取得
+			// Get authentication code from request body
 			const { code } = c.req.valid('json');
 			
-			// handleAuthCallback関数を使用して認証処理を実行
+			// Execute authentication processing using handleAuthCallback function
 			return await handleAuthCallback(c, db, code);
 			
 		} catch (error) {
 			console.error('Error in POST /api/auth/callback:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({
-				success: false,
+				success: false as const,
 				error: `Authentication processing failed: ${errorMessage}`
 			}, 500);
 		}
 	});
 }
 
-// POST /api/logout エンドポイント (OpenAPI)
+// POST /api/logout endpoint (OpenAPI)
 export function registerLogoutRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	app.openapi(logoutRoute, async (c) => {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// Authorization ヘッダーからセッションIDを取得
+			// Get session ID from Authorization header
 			const authHeader = c.req.header('authorization');
 			if (!authHeader) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Authorization header is required'
 				}, 401);
 			}
@@ -160,29 +160,29 @@ export function registerLogoutRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const sessionId = authHeader.replace(/^Bearer\s+/, '');
 			if (!sessionId) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Invalid authorization header format'
 				}, 401);
 			}
 			
-			// セッションを認証（ユーザーIDを取得するため）
+			// Authenticate session (to get user ID)
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				// セッションが無効でも200を返す（要件通り）
+				// Return 200 even if session is invalid (per requirements)
 				console.log('Session not found or invalid during logout:', authResult.error);
 				return c.json({
-					success: true,
+					success: true as const,
 					data: {}
 				});
 			}
 			
-			// _Sessionシートから該当セッションをクリア
+			// Clear the corresponding session from _Session sheet
 			await clearSessionFromSheet(db, sessionId);
 			
 			console.log('User logged out successfully:', { sessionId, userId: authResult.userId });
 			
 			return c.json({
-				success: true,
+				success: true as const,
 				data: {}
 			});
 			
@@ -190,14 +190,14 @@ export function registerLogoutRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			console.error('Error in /api/logout:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({
-				success: false,
+				success: false as const,
 				error: `Logout failed: ${errorMessage}`
 			}, 500);
 		}
 	});
 }
 
-// セッション情報を_Sessionシートからクリアする関数
+// Function to clear session information from _Session sheet
 async function clearSessionFromSheet(db: DatabaseConnection, sessionId: string): Promise<void> {
 	try {
 		console.log('Clearing session from _Session sheet:', sessionId);
@@ -214,7 +214,7 @@ async function clearSessionFromSheet(db: DatabaseConnection, sessionId: string):
 			throw new Error('No valid Google token found');
 		}
 		
-		// トークンの有効性を確認
+		// Check token validity
 		const isValid = await isTokenValid(db);
 		if (!isValid) {
 			const credentials = await getGoogleCredentials(db);
@@ -226,7 +226,7 @@ async function clearSessionFromSheet(db: DatabaseConnection, sessionId: string):
 			}
 		}
 		
-		// _Sessionシートからセッション情報を取得
+		// Get session information from _Session sheet
 		const sessionResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_Session!A:F`,
 			{
@@ -244,22 +244,22 @@ async function clearSessionFromSheet(db: DatabaseConnection, sessionId: string):
 		const sessionData = await sessionResponse.json() as any;
 		const sessions = sessionData.values || [];
 		
-		// セッションIDを検索（3行目から検索：1行目はヘッダー、2行目は型定義）
+		// Search for session ID (search from row 3: row 1 is header, row 2 is type definition)
 		const sessionRowIndex = sessions.findIndex((row: string[], index: number) => 
 			index >= 2 && row[0] === sessionId
 		);
 		
 		if (sessionRowIndex === -1) {
-			// セッションが見つからない場合もエラーにしない（要件通り）
+			// Don't treat it as an error if session is not found (per requirements)
 			console.log('Session not found in _Session sheet, nothing to clear:', sessionId);
 			return;
 		}
 		
-		// 該当行を特定（シート行番号に変換）
+		// Identify the relevant row (convert to sheet row number)
 		const targetRow = sessionRowIndex + 1;
 		
-		// 行のデータをクリア（行の削除ではなくクリアにしてコンフリクトを回避）
-		const clearData = ['', '', '', '', '', '']; // 6列すべてクリア
+		// Clear row data (clear instead of deleting to avoid conflicts)
+		const clearData = ['', '', '', '', '', '']; // Clear all 6 columns
 		
 		const updateResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_Session!A${targetRow}:F${targetRow}?valueInputOption=RAW`,
@@ -289,12 +289,12 @@ async function clearSessionFromSheet(db: DatabaseConnection, sessionId: string):
 	}
 }
 
-// 認証コールバック処理関数
+// Authentication callback processing function
 async function handleAuthCallback(c: any, db: DatabaseConnection, code: string): Promise<any> {
 	try {
 		console.log('Processing auth callback with code');
 		
-		// Auth0設定を取得
+		// Get Auth0 configuration
 		const auth0Domain = await getConfig(db, 'auth0_domain');
 		const auth0ClientId = await getConfig(db, 'auth0_client_id');
 		const auth0ClientSecret = await getConfig(db, 'auth0_client_secret');
@@ -302,12 +302,12 @@ async function handleAuthCallback(c: any, db: DatabaseConnection, code: string):
 		
 		if (!auth0Domain || !auth0ClientId || !auth0ClientSecret) {
 			return c.json({
-				success: false,
+				success: false as const,
 				error: 'Auth0 configuration not found. Please complete setup first.'
 			}, 400);
 		}
 		
-		// リダイレクトURI
+		// Redirect URI
 		const redirectUri = `${new URL(c.req.url).origin}/api/auth/callback`;
 		console.log('Token exchange redirect URI:', redirectUri);
 		console.log('Request headers:', {
@@ -316,7 +316,7 @@ async function handleAuthCallback(c: any, db: DatabaseConnection, code: string):
 			referer: c.req.header('referer')
 		});
 		
-		// 認証コードをアクセストークンに交換
+		// Exchange authentication code for access token
 		const tokenResponse = await fetch(`https://${auth0Domain}/oauth/token`, {
 			method: 'POST',
 			headers: {
@@ -342,7 +342,7 @@ async function handleAuthCallback(c: any, db: DatabaseConnection, code: string):
 				clientId: auth0ClientId
 			});
 			return c.json({
-				success: false,
+				success: false as const,
 				error: 'Failed to exchange authorization code for tokens',
 				details: errorText
 			}, 400);
@@ -351,7 +351,7 @@ async function handleAuthCallback(c: any, db: DatabaseConnection, code: string):
 		const tokens = await tokenResponse.json() as any;
 		console.log('Received tokens from Auth0');
 		
-		// ユーザー情報を取得
+		// Get user information
 		const userInfoResponse = await fetch(`https://${auth0Domain}/userinfo`, {
 			headers: {
 				'Authorization': `Bearer ${tokens.access_token}`
@@ -362,7 +362,7 @@ async function handleAuthCallback(c: any, db: DatabaseConnection, code: string):
 			const errorText = await userInfoResponse.text();
 			console.error('User info fetch failed:', userInfoResponse.status, errorText);
 			return c.json({
-				success: false,
+				success: false as const,
 				error: 'Failed to fetch user information from Auth0'
 			}, 400);
 		}
@@ -370,14 +370,14 @@ async function handleAuthCallback(c: any, db: DatabaseConnection, code: string):
 		const userInfo = await userInfoResponse.json() as any;
 		console.log('Received user info from Auth0:', { sub: userInfo.sub, email: userInfo.email });
 		
-		// ユーザー情報を_Userシートに保存
+		// Save user information to _User sheet
 		const savedUser = await saveUserToSheet(db, userInfo);
 		
-		// セッション情報を_Sessionシートに保存
+		// Save session information to _Session sheet
 		const sessionId = crypto.randomUUID();
 		await saveSessionToSheet(db, sessionId, userInfo.sub, tokens.access_token);
 		
-		// JSONレスポンスを返す
+		// Return JSON response
 		return c.json({
 			success: true,
 			data: {
@@ -390,13 +390,13 @@ async function handleAuthCallback(c: any, db: DatabaseConnection, code: string):
 		console.error('Error in handleAuthCallback:', error);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		return c.json({
-			success: false,
+			success: false as const,
 			error: `Authentication failed: ${errorMessage}`
 		}, 500);
 	}
 }
 
-// ユーザー情報を_Userシートに保存する関数
+// Function to save user information to _User sheet
 async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<any> {
 	try {
 		console.log('Saving user to _User sheet:', userInfo.sub);
@@ -413,7 +413,7 @@ async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<a
 			throw new Error('No valid Google token found');
 		}
 		
-		// トークンの有効性を確認
+		// Check token validity
 		const isValid = await isTokenValid(db);
 		if (!isValid) {
 			const credentials = await getGoogleCredentials(db);
@@ -425,10 +425,10 @@ async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<a
 			}
 		}
 		
-		// 現在の日時
+		// Current date and time
 		const now = new Date().toISOString();
 		
-		// ユーザーデータを準備（_Userシートのスキーマに合わせる）
+		// Prepare user data (according to _User sheet schema)
 		const userId = userInfo.sub || '';
 		const userData = [
 			userId,                                // id
@@ -446,11 +446,11 @@ async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<a
 			'FALSE',                               // public_write
 			'[]',                                  // role_read
 			'[]',                                  // role_write
-			JSON.stringify([userId]),              // user_read: 自分だけ読み取り可能
-			JSON.stringify([userId])               // user_write: 自分だけ書き込み可能
+			JSON.stringify([userId]),              // user_read: only self can read
+			JSON.stringify([userId])               // user_write: only self can write
 		];
 		
-		// 既存ユーザーをチェック（全列を取得）
+		// Check for existing user (get all columns)
 		const existingUserResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
 			{
@@ -461,39 +461,39 @@ async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<a
 			}
 		);
 		
-		let targetRow = 3; // 3行目から（1行目はヘッダー、2行目は型定義）
+		let targetRow = 3; // Start from row 3 (row 1 is header, row 2 is type definition)
 		
 		if (existingUserResponse.ok) {
 			const existingData = await existingUserResponse.json() as any;
 			const values = existingData.values || [];
 			
-			// 既存ユーザーを検索
+			// Search for existing user
 			const userRowIndex = values.findIndex((row: string[], index: number) => 
 				index >= 2 && row[0] === userInfo.sub
 			);
 			
 			if (userRowIndex !== -1) {
-				targetRow = userRowIndex + 1; // シート行番号に変換
+				targetRow = userRowIndex + 1; // Convert to sheet row number
 				const existingRow = values[userRowIndex];
 				
-				// 既存ユーザーの場合、権限設定と作成日時を保持
-				userData[9] = existingRow[9] || now;  // created_at保持
-				userData[11] = existingRow[11] || 'FALSE';  // public_read保持
-				userData[12] = existingRow[12] || 'FALSE';  // public_write保持
-				userData[13] = existingRow[13] || '[]';     // role_read保持
-				userData[14] = existingRow[14] || '[]';     // role_write保持
-				userData[15] = existingRow[15] || JSON.stringify([userId]);  // user_read保持（なければデフォルト）
-				userData[16] = existingRow[16] || JSON.stringify([userId]);  // user_write保持（なければデフォルト）
+				// For existing users, keep permission settings and creation date
+				userData[9] = existingRow[9] || now;  // Keep created_at
+				userData[11] = existingRow[11] || 'FALSE';  // Keep public_read
+				userData[12] = existingRow[12] || 'FALSE';  // Keep public_write
+				userData[13] = existingRow[13] || '[]';     // Keep role_read
+				userData[14] = existingRow[14] || '[]';     // Keep role_write
+				userData[15] = existingRow[15] || JSON.stringify([userId]);  // Keep user_read (default if none)
+				userData[16] = existingRow[16] || JSON.stringify([userId]);  // Keep user_write (default if none)
 				
 				console.log('Updating existing user at row:', targetRow);
 			} else {
-				// 新規ユーザーの場合、最後の行に追加
+				// For new users, add to the last row
 				targetRow = values.length + 1;
 				console.log('Adding new user at row:', targetRow);
 			}
 		}
 		
-		// データを保存（カラム数が17個になったのでQまで）
+		// Save data (17 columns now, so up to Q)
 		const updateResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRow}:Q${targetRow}?valueInputOption=RAW`,
 			{
@@ -516,7 +516,7 @@ async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<a
 		
 		console.log('User data saved successfully to _User sheet');
 		
-		// 保存されたユーザー情報を返す
+		// Return saved user information
 		return {
 			id: userId,
 			name: userInfo.name || '',
@@ -533,8 +533,8 @@ async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<a
 			public_write: userData[12] === 'TRUE',
 			role_read: JSON.parse(userData[13]),
 			role_write: JSON.parse(userData[14]),
-			user_read: JSON.parse(userData[15]),   // 自分だけ読み取り可能（デフォルト）
-			user_write: JSON.parse(userData[16])   // 自分だけ書き込み可能（デフォルト）
+			user_read: JSON.parse(userData[15]),   // Only self can read (default)
+			user_write: JSON.parse(userData[16])   // Only self can write (default)
 		};
 		
 	} catch (error) {
@@ -624,7 +624,7 @@ async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, use
 	}
 }
 
-// セッション認証のヘルパー関数
+// Session authentication helper function
 export async function authenticateSession(db: DatabaseConnection, sessionId: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
 	try {
 		if (!sessionId) {
@@ -643,7 +643,7 @@ export async function authenticateSession(db: DatabaseConnection, sessionId: str
 			return { valid: false, error: 'No valid Google token found' };
 		}
 
-		// トークンの有効性を確認
+		// Check token validity
 		const isValid = await isTokenValid(db);
 		if (!isValid) {
 			const credentials = await getGoogleCredentials(db);
@@ -655,7 +655,7 @@ export async function authenticateSession(db: DatabaseConnection, sessionId: str
 			}
 		}
 
-		// _Sessionシートからセッション情報を取得
+		// Get session information from _Session sheet
 		const sessionResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_Session!A:F`,
 			{
@@ -673,7 +673,7 @@ export async function authenticateSession(db: DatabaseConnection, sessionId: str
 		const sessionData = await sessionResponse.json() as any;
 		const sessions = sessionData.values || [];
 
-		// セッションIDを検索（3行目から検索：1行目はヘッダー、2行目は型定義）
+		// Search for session ID (search from row 3: row 1 is header, row 2 is type definition)
 		const sessionRow = sessions.find((row: string[], index: number) => 
 			index >= 2 && row[0] === sessionId
 		);
@@ -682,18 +682,18 @@ export async function authenticateSession(db: DatabaseConnection, sessionId: str
 			return { valid: false, error: 'Session not found' };
 		}
 
-		// セッションの有効期限をチェック
-		const expiresAt = new Date(sessionRow[3]); // expires_at列
+		// Check session expiration
+		const expiresAt = new Date(sessionRow[3]); // expires_at column
 		const now = new Date();
 
 		if (now > expiresAt) {
 			return { valid: false, error: 'Session expired' };
 		}
 
-		// 有効なセッション
+		// Valid session
 		return { 
 			valid: true, 
-			userId: sessionRow[1] // user_id列
+			userId: sessionRow[1] // user_id column
 		};
 
 	} catch (error) {
@@ -702,7 +702,7 @@ export async function authenticateSession(db: DatabaseConnection, sessionId: str
 	}
 }
 
-// 全ての認証ルートを登録する関数
+// Function to register all authentication routes
 export function registerAuthRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	registerAuthStartRoute(app);
 	registerAuthCallbackGetRoute(app);

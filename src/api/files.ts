@@ -177,7 +177,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			const uploadDestination = await getConfig(db, 'upload_destination');
 			if (!uploadDestination) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Upload destination not configured'
 				}, 400);
 			}
@@ -186,7 +186,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'No spreadsheet configured'
 				}, 500);
 			}
@@ -195,7 +195,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'No valid Google token found'
 				}, 500);
 			}
@@ -209,7 +209,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 					await saveGoogleTokens(db, tokens);
 				} else {
 					return c.json({
-						success: false,
+						success: false as const,
 						error: 'Failed to refresh Google token'
 					}, 500);
 				}
@@ -243,7 +243,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			// Check if anonymous upload is allowed
 			if (anonymousUpload !== 'true' && !isAuthenticated) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Authentication required for file upload'
 				}, 401);
 			}
@@ -254,7 +254,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 
 			if (!file) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'No file provided'
 				}, 400);
 			}
@@ -263,7 +263,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			const maxSize = maxFileSize ? parseInt(maxFileSize) : DEFAULT_MAX_FILE_SIZE;
 			if (file.size > maxSize) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: `File size exceeds maximum limit of ${maxSize} bytes`
 				}, 413);
 			}
@@ -272,7 +272,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			const allowedExts = allowedExtensions || DEFAULT_ALLOWED_EXTENSIONS;
 			if (!isFileTypeAllowed(file, allowedExts)) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: `File type not allowed. Allowed types: ${allowedExts}`
 				}, 415);
 			}
@@ -289,14 +289,14 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			} else if (uploadDestination.toLowerCase() === 'r2') {
 				if (!c.env.R2_BUCKET) {
 					return c.json({
-						success: false,
+						success: false as const,
 						error: 'R2 bucket not configured'
 					}, 500);
 				}
 				uploadResult = await uploadToR2(db, c.env.R2_BUCKET, file, filename);
 			} else {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Invalid upload destination configured'
 				}, 500);
 			}
@@ -316,7 +316,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			console.error('File upload error:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({
-				success: false,
+				success: false as const,
 				error: `File upload failed: ${errorMessage}`
 			}, 500);
 		}

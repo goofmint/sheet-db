@@ -141,13 +141,13 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if needed
@@ -158,7 +158,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
@@ -166,7 +166,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			if (isAuthenticated && userId) {
 				user = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 				if (!user) {
-					return c.json({ success: false as false, error: 'User not found in _User sheet' }, 401);
+					return c.json({ success: false as const, error: 'User not found in _User sheet' }, 401);
 				}
 			}
 			
@@ -183,7 +183,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				);
 
 				if (!rolesResponse.ok) {
-					return c.json({ success: false as false, error: 'Failed to fetch roles data' }, 500);
+					return c.json({ success: false as const, error: 'Failed to fetch roles data' }, 500);
 				}
 
 				const rolesData = await rolesResponse.json() as any;
@@ -273,13 +273,13 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				
 			} catch (error) {
 				console.error('Error fetching roles:', error);
-				return c.json({ success: false as false, error: 'Failed to fetch role list' }, 500);
+				return c.json({ success: false as const, error: 'Failed to fetch role list' }, 500);
 			}
 			
 		} catch (error) {
 			console.error('Error in GET /api/roles:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false as false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -295,7 +295,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const userId = authResult.userId!;
@@ -304,13 +304,13 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if necessary
@@ -321,7 +321,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
@@ -329,7 +329,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const existingRoleNames = await getExistingRoleNames(spreadsheetId, tokens.access_token);
 			if (existingRoleNames.includes(name)) {
 				return c.json({ 
-					success: false, 
+					success: false as const, 
 					error: `Role name '${name}' already exists. Please choose a different name.` 
 				}, 409);
 			}
@@ -370,7 +370,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			if (!appendResponse.ok) {
 				const errorText = await appendResponse.text();
 				console.error('Failed to create role:', appendResponse.status, errorText);
-				return c.json({ success: false, error: `Failed to create role: ${appendResponse.status}` }, 500);
+				return c.json({ success: false as const, error: `Failed to create role: ${appendResponse.status}` }, 500);
 			}
 			
 			console.log('Role created successfully:', name);
@@ -396,7 +396,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in POST /api/roles:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -412,7 +412,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Session authentication
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				return c.json({ success: false, error: authResult.error || 'Authentication failed' }, 401);
+				return c.json({ success: false as const, error: authResult.error ?? 'Authentication failed' }, 401);
 			}
 			
 			const userId = authResult.userId!;
@@ -422,13 +422,13 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Get Google Sheets settings
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
-				return c.json({ success: false, error: 'No spreadsheet selected' }, 500);
+				return c.json({ success: false as const, error: 'No spreadsheet selected' }, 500);
 			}
 			
 			// Get valid Google token
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
-				return c.json({ success: false, error: 'No valid Google token found' }, 500);
+				return c.json({ success: false as const, error: 'No valid Google token found' }, 500);
 			}
 			
 			// Check token validity and refresh if necessary
@@ -439,7 +439,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
 					await saveGoogleTokens(db, tokens);
 				} else {
-					return c.json({ success: false, error: 'Failed to refresh Google token' }, 500);
+					return c.json({ success: false as const, error: 'Failed to refresh Google token' }, 500);
 				}
 			}
 			
@@ -455,7 +455,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (!roleResponse.ok) {
-				return c.json({ success: false, error: 'Failed to fetch role data' }, 500);
+				return c.json({ success: false as const, error: 'Failed to fetch role data' }, 500);
 			}
 			
 			const roleData = await roleResponse.json() as any;
@@ -467,7 +467,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (roleRowIndex === -1) {
-				return c.json({ success: false, error: 'Role not found' }, 404);
+				return c.json({ success: false as const, error: 'Role not found' }, 404);
 			}
 			
 			const roleRow = roles[roleRowIndex];
@@ -476,7 +476,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			// Get current user information (for permission check)
 			const currentUser = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 			if (!currentUser) {
-				return c.json({ success: false, error: 'Current user not found' }, 401);
+				return c.json({ success: false as const, error: 'Current user not found' }, 401);
 			}
 			
 			// Permission check
@@ -488,7 +488,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!hasPermission) {
 				return c.json({ 
-					success: false, 
+					success: false as const, 
 					error: 'Permission denied - no write access to this role' 
 				}, 403);
 			}
@@ -498,7 +498,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				const existingRoleNames = await getExistingRoleNames(spreadsheetId, tokens.access_token);
 				if (existingRoleNames.includes(requestData.name)) {
 					return c.json({ 
-						success: false, 
+						success: false as const, 
 						error: `Role name '${requestData.name}' already exists. Please choose a different name.` 
 					}, 409);
 				}
@@ -538,7 +538,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			if (!updateResponse.ok) {
 				const errorText = await updateResponse.text();
 				console.error('Failed to update role:', updateResponse.status, errorText);
-				return c.json({ success: false, error: `Failed to update role: ${updateResponse.status}` }, 500);
+				return c.json({ success: false as const, error: `Failed to update role: ${updateResponse.status}` }, 500);
 			}
 			
 			console.log('Role updated successfully:', requestData.name || roleName);
@@ -564,7 +564,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		} catch (error) {
 			console.error('Error in PUT /api/roles/:roleName:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return c.json({ success: false, error: errorMessage }, 500);
+			return c.json({ success: false as const, error: errorMessage }, 500);
 		}
 	});
 
@@ -581,8 +581,8 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
 				return c.json({
-					success: false,
-					error: authResult.error || 'Authentication failed'
+					success: false as const,
+					error: authResult.error ?? 'Authentication failed'
 				}, 401);
 			}
 			
@@ -593,7 +593,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 			if (!spreadsheetId) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'No spreadsheet selected'
 				}, 500);
 			}
@@ -602,7 +602,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			let tokens = await getGoogleTokens(db);
 			if (!tokens) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'No valid Google token found'
 				}, 500);
 			}
@@ -616,7 +616,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					await saveGoogleTokens(db, tokens);
 				} else {
 					return c.json({
-						success: false,
+						success: false as const,
 						error: 'Failed to refresh Google token'
 					}, 500);
 				}
@@ -635,7 +635,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!roleResponse.ok) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Failed to fetch role data'
 				}, 500);
 			}
@@ -650,7 +650,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (roleRowIndex === -1) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Role not found'
 				}, 404);
 			}
@@ -662,7 +662,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			const currentUser = await getUserFromSheet(userId, spreadsheetId, tokens.access_token);
 			if (!currentUser) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Current user not found'
 				}, 401);
 			}
@@ -676,7 +676,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			if (!hasPermission) {
 				return c.json({
-					success: false,
+					success: false as const,
 					error: 'Permission denied - no write access to this role'
 				}, 403);
 			}
@@ -705,7 +705,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				const errorText = await clearResponse.text();
 				console.error('Failed to clear role data:', clearResponse.status, errorText);
 				return c.json({
-					success: false,
+					success: false as const,
 					error: `Failed to delete role: ${clearResponse.status}`
 				}, 500);
 			}
@@ -720,7 +720,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			console.error('Error in DELETE /api/roles/:roleName:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({
-				success: false,
+				success: false as const,
 				error: errorMessage
 			}, 500);
 		}

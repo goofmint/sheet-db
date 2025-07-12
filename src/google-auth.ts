@@ -19,7 +19,7 @@ export interface GoogleCredentials {
   client_secret: string;
 }
 
-// Configテーブルで使用するキー
+// Keys used in Config table
 export const CONFIG_KEYS = {
   GOOGLE_CLIENT_ID: 'google_client_id',
   GOOGLE_CLIENT_SECRET: 'google_client_secret',
@@ -32,7 +32,7 @@ export const CONFIG_KEYS = {
 } as const;
 
 /**
- * Configテーブルから設定値を取得
+ * Get configuration value from Config table
  * @param db Database instance
  * @param key Single key or array of keys to retrieve
  * @returns Single value for string key, or Record<string, string | null> for array keys
@@ -65,7 +65,7 @@ export async function getConfig(db: DatabaseConnection, keyOrKeys: string | stri
 }
 
 /**
- * Configテーブルに設定値を保存
+ * Save configuration value to Config table
  */
 export async function setConfig(db: DatabaseConnection, key: string, value: string): Promise<void> {
   const existing = await db.select().from(configTable).where(eq(configTable.name, key));
@@ -80,7 +80,7 @@ export async function setConfig(db: DatabaseConnection, key: string, value: stri
 }
 
 /**
- * Google OAuth認証情報を保存
+ * Save Google OAuth credentials
  */
 export async function saveGoogleCredentials(db: DatabaseConnection, credentials: GoogleCredentials): Promise<void> {
   await setConfig(db, CONFIG_KEYS.GOOGLE_CLIENT_ID, credentials.client_id);
@@ -88,7 +88,7 @@ export async function saveGoogleCredentials(db: DatabaseConnection, credentials:
 }
 
 /**
- * Google OAuth認証情報を取得
+ * Get Google OAuth credentials
  */
 export async function getGoogleCredentials(db: DatabaseConnection): Promise<GoogleCredentials | null> {
   const configs = await getConfig(db, [CONFIG_KEYS.GOOGLE_CLIENT_ID, CONFIG_KEYS.GOOGLE_CLIENT_SECRET]);
@@ -107,7 +107,7 @@ export async function getGoogleCredentials(db: DatabaseConnection): Promise<Goog
 }
 
 /**
- * Googleアクセストークンを保存
+ * Save Google access tokens
  */
 export async function saveGoogleTokens(db: DatabaseConnection, tokens: GoogleTokens): Promise<void> {
   const expiresAt = Date.now() + (tokens.expires_in * 1000);
@@ -133,7 +133,7 @@ export async function saveGoogleTokens(db: DatabaseConnection, tokens: GoogleTok
 }
 
 /**
- * 保存されたGoogleアクセストークンを取得
+ * Get saved Google access tokens
  */
 export async function getGoogleTokens(db: DatabaseConnection): Promise<GoogleTokens | null> {
   const configs = await getConfig(db, [
@@ -163,7 +163,7 @@ export async function getGoogleTokens(db: DatabaseConnection): Promise<GoogleTok
 }
 
 /**
- * アクセストークンが有効かチェック
+ * Check if access token is valid
  */
 export async function isTokenValid(db: DatabaseConnection): Promise<boolean> {
   const tokens = await getGoogleTokens(db);
@@ -174,7 +174,7 @@ export async function isTokenValid(db: DatabaseConnection): Promise<boolean> {
   
   const now = Date.now();
   const expiresAt = tokens.expires_at;
-  const marginTime = now + 300000; // 5分のマージン
+  const marginTime = now + 300000; // 5 minute margin
   
   console.log('Token validation:', {
     now: new Date(now).toISOString(),
@@ -184,12 +184,12 @@ export async function isTokenValid(db: DatabaseConnection): Promise<boolean> {
     hasRefreshToken: !!tokens.refresh_token
   });
   
-  // 5分のマージンを持たせる
+  // Add 5 minute margin
   return expiresAt > marginTime;
 }
 
 /**
- * 認証コードを使ってアクセストークンを取得
+ * Get access token using authentication code
  */
 export async function exchangeCodeForTokens(
   code: string,
@@ -223,7 +223,7 @@ export async function exchangeCodeForTokens(
 }
 
 /**
- * リフレッシュトークンを使ってアクセストークンを更新
+ * Update access token using refresh token
  */
 export async function refreshAccessToken(
   refreshToken: string,
@@ -253,8 +253,8 @@ export async function refreshAccessToken(
   
   const tokens = await response.json() as GoogleTokens;
   
-  // リフレッシュ時は新しいrefresh_tokenが返されない場合があるので、
-  // 元のrefresh_tokenを保持
+  // When refreshing, a new refresh_token may not be returned, so
+  // keep the original refresh_token
   if (!tokens.refresh_token) {
     tokens.refresh_token = refreshToken;
   }
@@ -263,7 +263,7 @@ export async function refreshAccessToken(
 }
 
 /**
- * セットアップが完了しているかをチェック
+ * Check if setup is completed
  */
 export async function isSetupCompleted(db: DatabaseConnection): Promise<boolean> {
   const completed = await getConfig(db, CONFIG_KEYS.SETUP_COMPLETED);
@@ -271,7 +271,7 @@ export async function isSetupCompleted(db: DatabaseConnection): Promise<boolean>
 }
 
 /**
- * セットアップ完了フラグをリセット
+ * Reset setup completion flag
  */
 export async function resetSetupCompleted(db: DatabaseConnection): Promise<void> {
   await setConfig(db, CONFIG_KEYS.SETUP_COMPLETED, 'false');
