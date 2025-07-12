@@ -169,10 +169,15 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
       
       // Validate image data URL or URL
       if (value.startsWith('data:image/')) {
-        // Validate data URL format
-        const imageDataUrlRegex = /^data:image\/(png|jpg|jpeg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/;
+        // Validate data URL format with support for modern formats
+        const imageDataUrlRegex = /^data:image\/(png|jpg|jpeg|gif|webp|avif|webp2|svg\+xml);base64,([A-Za-z0-9+/=]+)$/;
         if (!imageDataUrlRegex.test(value)) {
           return { valid: false, error: 'Invalid image data URL format' };
+        }
+        
+        // Security warning for SVG files due to potential embedded scripts
+        if (value.includes('svg+xml')) {
+          console.warn('Security Notice: SVG images can contain embedded scripts. Ensure proper sanitization before use.');
         }
         
         // Check size (approximate)
@@ -186,7 +191,18 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
       } else if (value.startsWith('http://') || value.startsWith('https://')) {
         // Validate URL format
         try {
-          new URL(value);
+          const url = new URL(value);
+          
+          // Enhanced validation: Check if URL likely points to an image
+          const pathname = url.pathname.toLowerCase();
+          const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.webp2', '.svg', '.bmp', '.tiff', '.ico'];
+          const hasImageExtension = imageExtensions.some(ext => pathname.endsWith(ext));
+          
+          // Check for common image URL patterns or extensions
+          if (!hasImageExtension && !pathname.includes('/image') && !url.searchParams.has('format')) {
+            console.warn(`URL validation notice: "${value}" does not appear to point to an image resource based on file extension or URL pattern.`);
+          }
+          
         } catch (e) {
           return { valid: false, error: 'Invalid image URL' };
         }
