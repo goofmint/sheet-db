@@ -166,8 +166,12 @@ export function registerLoginRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				const existingUser = await getUserFromSheet(db, userInfo.sub);
 				isNewUser = !existingUser;
 			} catch (error) {
-				// If error occurs, assume new user
-				isNewUser = true;
+				// Log the error for debugging
+				console.error('Error checking user existence:', error);
+				
+				// Don't mask genuine errors like network issues, permission problems, etc.
+				// Re-throw the error instead of assuming new user
+				throw new Error(`Failed to check user existence: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			}
 			
 			// Save user information to _User sheet (create or update)
