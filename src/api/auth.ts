@@ -10,6 +10,7 @@ import {
 	CONFIG_KEYS,
 	type DatabaseConnection
 } from '../google-auth';
+import { getConfigFromSheet } from '../utils/sheet-helpers';
 import { authStartRoute, authCallbackGetRoute, authCallbackPostRoute, logoutRoute } from '../api-routes';
 
 type Bindings = {
@@ -201,13 +202,13 @@ async function clearSessionFromSheet(db: DatabaseConnection, sessionId: string):
 	try {
 		console.log('Clearing session from _Session sheet:', sessionId);
 		
-		// Google Sheetsの設定を取得
+		// Get Google Sheets settings
 		const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 		if (!spreadsheetId) {
 			throw new Error('No spreadsheet selected');
 		}
 		
-		// 有効なGoogleトークンを取得
+		// Get valid Google tokens
 		let tokens = await getGoogleTokens(db);
 		if (!tokens) {
 			throw new Error('No valid Google token found');
@@ -400,13 +401,13 @@ async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<a
 	try {
 		console.log('Saving user to _User sheet:', userInfo.sub);
 		
-		// Google Sheetsの設定を取得
+		// Get Google Sheets settings
 		const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 		if (!spreadsheetId) {
 			throw new Error('No spreadsheet selected');
 		}
 		
-		// 有効なGoogleトークンを取得
+		// Get valid Google tokens
 		let tokens = await getGoogleTokens(db);
 		if (!tokens) {
 			throw new Error('No valid Google token found');
@@ -542,47 +543,59 @@ async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<a
 	}
 }
 
-// セッション情報を_Sessionシートに保存する関数
+// Function to save session information to _Session sheet
 async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, userId: string, accessToken: string): Promise<void> {
 	try {
 		console.log('Saving session to _Session sheet:', sessionId);
 		
-		// Google Sheetsの設定を取得
+		// Get Google Sheets settings
 		const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 		if (!spreadsheetId) {
 			throw new Error('No spreadsheet selected');
 		}
 		
-		// 有効なGoogleトークンを取得
+		// Get valid Google tokens
 		let tokens = await getGoogleTokens(db);
 		if (!tokens) {
 			throw new Error('No valid Google token found');
 		}
 		
-		// 現在の日時と有効期限（設定可能）
-		const now = new Date();
-		const sessionExpiredSeconds = await getConfig(db, CONFIG_KEYS.SESSION_EXPIRED_SECONDS);
-		let expiredSeconds = sessionExpiredSeconds ? parseInt(sessionExpiredSeconds, 10) : 3600; // デフォルト: 1時間
+		// Check token validity and refresh if needed
+		const isValid = await isTokenValid(db);
+		if (!isValid) {
+			const credentials = await getGoogleCredentials(db);
+			if (credentials && tokens.refresh_token) {
+				tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+				await saveGoogleTokens(db, tokens);
+			} else {
+				throw new Error('Failed to refresh Google token');
+			}
+		}
 		
-		// セッション有効期限の検証（1分〜30日の範囲）
+		// Get session expiration time from _Config sheet (runtime config)
+		const now = new Date();
+		const sessionExpiredSeconds = await getConfigFromSheet('SESSION_EXPIRED_SECONDS', spreadsheetId, tokens.access_token);
+		let expiredSeconds = sessionExpiredSeconds ? parseInt(sessionExpiredSeconds, 10) : 3600; // Default: 1 hour
+		
+		// Validate session expiration time (1 minute to 30 days range)
 		if (isNaN(expiredSeconds) || expiredSeconds < 60 || expiredSeconds > 2592000) {
 			console.warn('Invalid session expiration time:', sessionExpiredSeconds, 'using default 3600 seconds');
-			expiredSeconds = 3600; // デフォルト: 1時間
+			expiredSeconds = 3600; // Default: 1 hour
 		}
 		
 		const expiresAt = new Date(now.getTime() + expiredSeconds * 1000);
 		
-		// セッションデータを準備
+		// Prepare session data
 		const sessionData = [
 			sessionId,                             // id
 			userId,                                // user_id
-			accessToken.substring(0, 20) + '...', // token（セキュリティのため一部のみ）
+			accessToken.substring(0, 20) + '...', // token (partial for security)
 			expiresAt.toISOString(),              // expires_at
 			now.toISOString(),                    // created_at
 			now.toISOString()                     // updated_at
 		];
 		
-		// 最後の行に追加
+		// Append to the last row
 		const appendResponse = await fetch(
 			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_Session!A:F:append?valueInputOption=RAW`,
 			{
@@ -618,13 +631,13 @@ export async function authenticateSession(db: DatabaseConnection, sessionId: str
 			return { valid: false, error: 'Session ID is required' };
 		}
 
-		// Google Sheetsの設定を取得
+		// Get Google Sheets settings
 		const spreadsheetId = await getConfig(db, 'spreadsheet_id');
 		if (!spreadsheetId) {
 			return { valid: false, error: 'No spreadsheet configured' };
 		}
 
-		// 有効なGoogleトークンを取得
+		// Get valid Google tokens
 		let tokens = await getGoogleTokens(db);
 		if (!tokens) {
 			return { valid: false, error: 'No valid Google token found' };
