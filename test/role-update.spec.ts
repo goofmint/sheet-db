@@ -4,42 +4,54 @@ import { env } from 'cloudflare:test';
 // Local development server base URL
 const BASE_URL = 'http://localhost:8787';
 
-// Auth0 authentication helper for tests
-async function authenticateWithAuth0(): Promise<string | null> {
+// Auth0 configuration validation
+function validateAuth0Config(): {
+	auth0Domain: string;
+	auth0ClientId: string;
+	auth0ClientSecret: string;
+	testEmail: string;
+	testPassword: string;
+} | null {
+	const auth0Domain = env.AUTH0_DOMAIN;
+	const auth0ClientId = env.AUTH0_CLIENT_ID;
+	const auth0ClientSecret = env.AUTH0_CLIENT_SECRET;
+	const testEmail = env.AUTH0_TEST_EMAIL;
+	const testPassword = env.AUTH0_TEST_PASSWORD;
+
+	if (!auth0Domain || !auth0ClientId || !auth0ClientSecret || !testEmail || !testPassword) {
+		console.log('Auth0 configuration incomplete');
+		return null;
+	}
+
+	return { auth0Domain, auth0ClientId, auth0ClientSecret, testEmail, testPassword };
+}
+
+// Fetch Auth0 access token
+async function fetchAuth0Token(config: {
+	auth0Domain: string;
+	auth0ClientId: string;
+	auth0ClientSecret: string;
+	testEmail: string;
+	testPassword: string;
+}): Promise<string | null> {
 	try {
-		const auth0Domain = env.AUTH0_DOMAIN;
-		const auth0ClientId = env.AUTH0_CLIENT_ID;
-		const auth0ClientSecret = env.AUTH0_CLIENT_SECRET;
-		const testEmail = env.AUTH0_TEST_EMAIL;
-		const testPassword = env.AUTH0_TEST_PASSWORD;
-
-		if (!auth0Domain || !auth0ClientId || !auth0ClientSecret || !testEmail || !testPassword) {
-			console.log('Missing Auth0 configuration for authentication');
-			return null;
-		}
-
-		console.log('Attempting Auth0 Resource Owner Password Grant authentication...');
-
-		// Step 1: Get Auth0 access token using Resource Owner Password Grant
-		const tokenResponse = await fetch(`https://${auth0Domain}/oauth/token`, {
+		const tokenResponse = await fetch(`https://${config.auth0Domain}/oauth/token`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',
 			},
 			body: new URLSearchParams({
 				grant_type: 'password',
-				username: testEmail,
-				password: testPassword,
-				client_id: auth0ClientId,
-				client_secret: auth0ClientSecret,
+				username: config.testEmail,
+				password: config.testPassword,
+				client_id: config.auth0ClientId,
+				client_secret: config.auth0ClientSecret,
 				scope: 'openid profile email',
 			}),
 		});
-		console.log('Auth0 token request response:', tokenResponse.status, tokenResponse.statusText);
+
 		if (!tokenResponse.ok) {
-			const errorText = await tokenResponse.text();
-			console.error('Auth0 token request failed:', tokenResponse.status, errorText);
-			console.log('This is expected if Resource Owner Password Grant is not enabled for the Auth0 client');
+			console.log('Auth0 token request failed - Resource Owner Password Grant may not be enabled');
 			return null;
 		}
 
@@ -48,50 +60,101 @@ async function authenticateWithAuth0(): Promise<string | null> {
 			token_type: string;
 			expires_in: number;
 		};
-		console.log('Successfully obtained Auth0 access token');
+
 		if (!tokens.access_token) {
-			console.error('No access token received from Auth0');
+			console.log('Auth0 token response invalid');
 			return null;
 		}
-		// Step 2: Get user info from Auth0
+
+		return tokens.access_token;
+	} catch (error) {
+		console.log('Auth0 token request error');
+		return null;
+	}
+}
+
+// Fetch user info using Auth0 token
+async function fetchAuth0UserInfo(auth0Domain: string, accessToken: string): Promise<{ sub: string; email: string } | null> {
+	try {
 		const userInfoResponse = await fetch(`https://${auth0Domain}/userinfo`, {
 			headers: {
-				Authorization: `Bearer ${tokens.access_token}`,
+				Authorization: `Bearer ${accessToken}`,
 			},
 		});
 
 		if (!userInfoResponse.ok) {
-			const errorText = await userInfoResponse.text();
-			console.error('Auth0 userinfo request failed:', userInfoResponse.status, errorText);
+			console.log('Auth0 user info request failed');
 			return null;
 		}
 
 		const userInfo = await userInfoResponse.json();
-		console.log('Successfully obtained user info:', { sub: userInfo.sub, email: userInfo.email });
+		if (!userInfo.sub || !userInfo.email) {
+			console.log('Auth0 user info incomplete');
+			return null;
+		}
 
-		// Step 3: Create a simulated authorization code and attempt to authenticate
-		// We'll use a mock approach since the real Auth0 flow requires a browser redirect
+		return { sub: userInfo.sub, email: userInfo.email };
+	} catch (error) {
+		console.log('Auth0 user info request error');
+		return null;
+	}
+}
 
-		// Try to get auth URL and see if we can use that to establish session
+// Create test session ID
+async function createTestSession(userInfo: { sub: string; email: string }): Promise<string | null> {
+	try {
+		// Test auth endpoint availability
 		const authStartResponse = await fetch(`${BASE_URL}/api/auth`, {
 			method: 'GET',
 		});
 
 		if (authStartResponse.ok) {
-			const authData = await authStartResponse.json();
-			console.log('Auth start successful:', authData.success);
-
-			// For testing purposes, we'll generate a session ID
-			// In a real scenario, this would come from completing the Auth0 flow
+			// Generate test session ID for testing purposes
 			const sessionId = `test-session-${userInfo.sub}-${Date.now()}`;
-			console.log('Generated test session ID:', sessionId);
 			return sessionId;
 		} else {
-			console.error('Auth start failed:', authStartResponse.status);
+			console.log('Auth endpoint unavailable');
 			return null;
 		}
 	} catch (error) {
-		console.error('Auth0 authentication failed:', error);
+		console.log('Session creation failed');
+		return null;
+	}
+}
+
+// Main Auth0 authentication helper for tests
+async function authenticateWithAuth0(): Promise<string | null> {
+	try {
+		console.log('Starting Auth0 authentication...');
+
+		const config = validateAuth0Config();
+		if (!config) {
+			return null;
+		}
+
+		const accessToken = await fetchAuth0Token(config);
+		if (!accessToken) {
+			return null;
+		}
+
+		console.log('Auth0 token obtained successfully');
+
+		const userInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
+		if (!userInfo) {
+			return null;
+		}
+
+		console.log('Auth0 user info obtained successfully');
+
+		const sessionId = await createTestSession(userInfo);
+		if (!sessionId) {
+			return null;
+		}
+
+		console.log('Test session created successfully');
+		return sessionId;
+	} catch (error) {
+		console.log('Auth0 authentication process failed');
 		return null;
 	}
 }
