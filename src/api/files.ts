@@ -173,10 +173,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// Get configuration values from Config table (infrastructure configs)
-			const allowedExtensions = await getConfig(db, 'ALLOW_UPLOAD_EXTENSION');
-			
-			// Get upload destination from Config table
+			// Get upload destination from Config table (infrastructure config)
 			const uploadDestination = await getConfig(db, 'upload_destination');
 			if (!uploadDestination) {
 				return c.json({
@@ -220,7 +217,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			
 			// Get configuration values from _Config sheet (runtime configs)
 			const sheetConfigs = await getMultipleConfigsFromSheet(
-				['ANONYMOUS_FILE_UPLOAD', 'MAX_FILE_SIZE', 'FILE_UPLOAD_PUBLIC'],
+				['ANONYMOUS_FILE_UPLOAD', 'MAX_FILE_SIZE', 'FILE_UPLOAD_PUBLIC', 'ALLOW_UPLOAD_EXTENSION'],
 				spreadsheetId,
 				tokens.access_token
 			);
@@ -228,6 +225,7 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 			const anonymousUpload = sheetConfigs['ANONYMOUS_FILE_UPLOAD'];
 			const maxFileSize = sheetConfigs['MAX_FILE_SIZE'];
 			const fileUploadPublic = sheetConfigs['FILE_UPLOAD_PUBLIC'];
+			const allowedExtensions = sheetConfigs['ALLOW_UPLOAD_EXTENSION'];
 			
 
 			// Check authentication if required

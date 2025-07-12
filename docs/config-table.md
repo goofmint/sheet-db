@@ -59,7 +59,6 @@ The Config table stores key-value pairs for application configuration:
 | Key | Description | Example |
 |-----|-------------|---------|
 | `upload_destination` | Selected file upload destination | `Google Drive` or `R2` |
-| `ALLOW_UPLOAD_EXTENSION` | Allowed file extensions/types | `image/*` or `*.jpg,*.png` |
 | `r2_bucket_name` | Cloudflare R2 bucket name | `my-bucket` |
 | `r2_access_key_id` | Cloudflare R2 Access Key ID | `xxxxxxxxxxxxxxxxxx` |
 | `r2_secret_access_key` | Cloudflare R2 Secret Access Key | `xxxxxxxxxxxxxxxxxx` |
@@ -73,7 +72,6 @@ The Config table stores key-value pairs for application configuration:
 |-----|-------------|---------|
 | `reset_token` | Token required to reset setup configuration | Secure random string (min 16 chars) |
 | `setup_completed` | Flag indicating if initial setup is complete | `true` or `false` |
-| `session_expired_seconds` | Session expiration time in seconds (range: 60-2592000) | `3600` (1 hour, default) |
 
 ## _Config Sheet (Runtime Settings)
 
@@ -97,6 +95,13 @@ The _Config sheet stores runtime operational settings that can be modified durin
 | `ANONYMOUS_FILE_UPLOAD` | Allow uploads without authentication | `false` |
 | `MAX_FILE_SIZE` | Maximum file size in bytes | `10485760` (10MB) |
 | `FILE_UPLOAD_PUBLIC` | Make uploaded files publicly accessible | `true` |
+| `ALLOW_UPLOAD_EXTENSION` | Allowed file extensions/types | `image/*` |
+
+### Session Management Settings
+
+| Key | Description | Default Value |
+|-----|-------------|---------------|
+| `SESSION_EXPIRED_SECONDS` | Session expiration time in seconds (range: 60-2592000) | `3600` (1 hour) |
 
 ## Usage Notes
 

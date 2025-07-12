@@ -10,6 +10,7 @@ import {
 	CONFIG_KEYS,
 	type DatabaseConnection
 } from '../google-auth';
+import { getConfigFromSheet } from '../utils/sheet-helpers';
 import { authStartRoute, authCallbackGetRoute, authCallbackPostRoute, logoutRoute } from '../api-routes';
 
 type Bindings = {
@@ -559,20 +560,32 @@ async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, use
 			throw new Error('No valid Google token found');
 		}
 		
-		// 現在の日時と有効期限（設定可能）
-		const now = new Date();
-		const sessionExpiredSeconds = await getConfig(db, CONFIG_KEYS.SESSION_EXPIRED_SECONDS);
-		let expiredSeconds = sessionExpiredSeconds ? parseInt(sessionExpiredSeconds, 10) : 3600; // デフォルト: 1時間
+		// Check token validity and refresh if needed
+		const isValid = await isTokenValid(db);
+		if (!isValid) {
+			const credentials = await getGoogleCredentials(db);
+			if (credentials && tokens.refresh_token) {
+				tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+				await saveGoogleTokens(db, tokens);
+			} else {
+				throw new Error('Failed to refresh Google token');
+			}
+		}
 		
-		// セッション有効期限の検証（1分〜30日の範囲）
+		// Get session expiration time from _Config sheet (runtime config)
+		const now = new Date();
+		const sessionExpiredSeconds = await getConfigFromSheet('SESSION_EXPIRED_SECONDS', spreadsheetId, tokens.access_token);
+		let expiredSeconds = sessionExpiredSeconds ? parseInt(sessionExpiredSeconds, 10) : 3600; // Default: 1 hour
+		
+		// Validate session expiration time (1 minute to 30 days range)
 		if (isNaN(expiredSeconds) || expiredSeconds < 60 || expiredSeconds > 2592000) {
 			console.warn('Invalid session expiration time:', sessionExpiredSeconds, 'using default 3600 seconds');
-			expiredSeconds = 3600; // デフォルト: 1時間
+			expiredSeconds = 3600; // Default: 1 hour
 		}
 		
 		const expiresAt = new Date(now.getTime() + expiredSeconds * 1000);
 		
-		// セッションデータを準備
+		// Prepare session data
 		const sessionData = [
 			sessionId,                             // id
 			userId,                                // user_id
