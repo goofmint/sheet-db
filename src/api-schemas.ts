@@ -148,6 +148,55 @@ export const AuthErrorResponseSchema = z.object({
 	error: z.string().describe("Authentication error message")
 });
 
+// Login schema (direct Auth0 token validation)
+export const LoginRequestSchema = z.object({
+	token: z.string().min(1, "Auth0 access token is required"),
+	userInfo: z.object({
+		sub: z.string().min(1, "User ID (sub) is required"),
+		email: z.string().email("Valid email is required"),
+		name: z.string().optional(),
+		given_name: z.string().optional(),
+		family_name: z.string().optional(),
+		nickname: z.string().optional(),
+		picture: z.string().optional(),
+		email_verified: z.boolean().optional(),
+		locale: z.string().optional()
+	})
+});
+
+export const LoginResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({
+		sessionId: z.string().describe("Session ID for authenticated requests"),
+		user: z.object({
+			id: z.string(),
+			email: z.string().email(),
+			name: z.string().optional(),
+			given_name: z.string().optional(),
+			family_name: z.string().optional(),
+			nickname: z.string().optional(),
+			picture: z.string().optional(),
+			email_verified: z.boolean().optional(),
+			locale: z.string().optional(),
+			created_at: z.string(),
+			updated_at: z.string(),
+			public_read: z.boolean(),
+			public_write: z.boolean(),
+			role_read: z.array(z.string()),
+			role_write: z.array(z.string()),
+			user_read: z.array(z.string()),
+			user_write: z.array(z.string())
+		}),
+		session: z.object({
+			id: z.string(),
+			user_id: z.string(),
+			expires_at: z.string(),
+			created_at: z.string(),
+			updated_at: z.string()
+		})
+	})
+});
+
 // Logout schema
 export const LogoutResponseSchema = z.object({
 	success: z.literal(true),
