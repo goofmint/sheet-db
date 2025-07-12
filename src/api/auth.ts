@@ -11,7 +11,7 @@ import {
 	type DatabaseConnection
 } from '../google-auth';
 import { getConfigFromSheet } from '../utils/sheet-helpers';
-import { authStartRoute, authCallbackGetRoute, authCallbackPostRoute, logoutRoute } from '../api-routes';
+import { authStartRoute, authCallbackGetRoute, authCallbackPostRoute, loginRoute, logoutRoute } from '../api-routes';
 
 type Bindings = {
 	DB: D1Database;
@@ -137,6 +137,68 @@ export function registerAuthCallbackPostRoute(app: OpenAPIHono<{ Bindings: Bindi
 			return c.json({
 				success: false as const,
 				error: `Authentication processing failed: ${errorMessage}`
+			}, 500);
+		}
+	});
+}
+
+// POST /api/login endpoint (OpenAPI)
+export function registerLoginRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
+	app.openapi(loginRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// Get request body
+			const { token, userInfo } = c.req.valid('json');
+			
+			// Validate Auth0 token
+			const tokenValidationResult = await validateAuth0Token(db, token, userInfo);
+			if (!tokenValidationResult.valid) {
+				return c.json({
+					success: false as const,
+					error: tokenValidationResult.error || 'Token validation failed'
+				}, 401);
+			}
+			
+			// Check if user exists (for determining 200 vs 201 response)
+			let isNewUser = false;
+			try {
+				const existingUser = await getUserFromSheet(db, userInfo.sub);
+				isNewUser = !existingUser;
+			} catch (error) {
+				// Log the error for debugging
+				console.error('Error checking user existence:', error);
+				
+				// Don't mask genuine errors like network issues, permission problems, etc.
+				// Re-throw the error instead of assuming new user
+				throw new Error(`Failed to check user existence: ${error instanceof Error ? error.message : 'Unknown error'}`);
+			}
+			
+			// Save user information to _User sheet (create or update)
+			const savedUser = await saveUserToSheet(db, userInfo);
+			
+			// Create session
+			const sessionId = crypto.randomUUID();
+			const sessionData = await saveSessionToSheet(db, sessionId, userInfo.sub, token);
+			
+			// Return response with appropriate status code
+			const responseData = {
+				success: true as const,
+				data: {
+					sessionId: sessionId,
+					user: savedUser,
+					session: sessionData
+				}
+			};
+			
+			return c.json(responseData, isNewUser ? 201 : 200);
+			
+		} catch (error) {
+			console.error('Error in /api/login:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({
+				success: false as const,
+				error: `Login failed: ${errorMessage}`
 			}, 500);
 		}
 	});
@@ -544,7 +606,7 @@ async function saveUserToSheet(db: DatabaseConnection, userInfo: any): Promise<a
 }
 
 // Function to save session information to _Session sheet
-async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, userId: string, accessToken: string): Promise<void> {
+async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, userId: string, accessToken: string): Promise<any> {
 	try {
 		console.log('Saving session to _Session sheet:', sessionId);
 		
@@ -618,8 +680,142 @@ async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, use
 		
 		console.log('Session data saved successfully to _Session sheet');
 		
+		// Return session information
+		return {
+			id: sessionId,
+			user_id: userId,
+			expires_at: expiresAt.toISOString(),
+			created_at: now.toISOString(),
+			updated_at: now.toISOString()
+		};
+		
 	} catch (error) {
 		console.error('Error saving session to sheet:', error);
+		throw error;
+	}
+}
+
+// Auth0 token validation function
+async function validateAuth0Token(db: DatabaseConnection, token: string, userInfo: any): Promise<{ valid: boolean; error?: string }> {
+	try {
+		// Get Auth0 configuration
+		const auth0Domain = await getConfig(db, 'auth0_domain');
+		const auth0Audience = await getConfig(db, 'auth0_audience');
+		
+		if (!auth0Domain) {
+			return { valid: false, error: 'Auth0 domain not configured' };
+		}
+		
+		// Validate token by calling Auth0 userinfo endpoint
+		const userInfoResponse = await fetch(`https://${auth0Domain}/userinfo`, {
+			headers: {
+				'Authorization': `Bearer ${token}`
+			}
+		});
+		
+		if (!userInfoResponse.ok) {
+			console.error('Auth0 token validation failed:', userInfoResponse.status);
+			return { valid: false, error: 'Invalid Auth0 token' };
+		}
+		
+		const auth0UserInfo = await userInfoResponse.json() as any;
+		
+		// Verify that the user ID matches
+		if (auth0UserInfo.sub !== userInfo.sub) {
+			return { valid: false, error: 'User ID mismatch between token and user info' };
+		}
+		
+		// Verify email matches (if provided)
+		if (userInfo.email && auth0UserInfo.email !== userInfo.email) {
+			return { valid: false, error: 'Email mismatch between token and user info' };
+		}
+		
+		console.log('Auth0 token validation successful for user:', userInfo.sub);
+		return { valid: true };
+		
+	} catch (error) {
+		console.error('Error validating Auth0 token:', error);
+		return { valid: false, error: 'Token validation failed' };
+	}
+}
+
+// Function to get user from _User sheet
+async function getUserFromSheet(db: DatabaseConnection, userId: string): Promise<any | null> {
+	try {
+		// Get Google Sheets settings
+		const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+		if (!spreadsheetId) {
+			throw new Error('No spreadsheet selected');
+		}
+		
+		// Get valid Google tokens
+		let tokens = await getGoogleTokens(db);
+		if (!tokens) {
+			throw new Error('No valid Google token found');
+		}
+		
+		// Check token validity
+		const isValid = await isTokenValid(db);
+		if (!isValid) {
+			const credentials = await getGoogleCredentials(db);
+			if (credentials && tokens.refresh_token) {
+				tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+				await saveGoogleTokens(db, tokens);
+			} else {
+				throw new Error('Failed to refresh Google token');
+			}
+		}
+		
+		// Get user data from _User sheet
+		const userResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
+			{
+				headers: {
+					'Authorization': `Bearer ${tokens.access_token}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+		
+		if (!userResponse.ok) {
+			throw new Error(`Failed to fetch user data: ${userResponse.status}`);
+		}
+		
+		const userData = await userResponse.json() as any;
+		const users = userData.values || [];
+		
+		// Search for user (search from row 3: row 1 is header, row 2 is type definition)
+		const userRow = users.find((row: string[], index: number) => 
+			index >= 2 && row[0] === userId
+		);
+		
+		if (!userRow) {
+			return null;
+		}
+		
+		// Return user object
+		return {
+			id: userRow[0],
+			name: userRow[1] || '',
+			email: userRow[2] || '',
+			given_name: userRow[3] || '',
+			family_name: userRow[4] || '',
+			nickname: userRow[5] || '',
+			picture: userRow[6] || '',
+			email_verified: userRow[7] === 'TRUE',
+			locale: userRow[8] || '',
+			created_at: userRow[9],
+			updated_at: userRow[10],
+			public_read: userRow[11] === 'TRUE',
+			public_write: userRow[12] === 'TRUE',
+			role_read: JSON.parse(userRow[13] || '[]'),
+			role_write: JSON.parse(userRow[14] || '[]'),
+			user_read: JSON.parse(userRow[15] || '[]'),
+			user_write: JSON.parse(userRow[16] || '[]')
+		};
+		
+	} catch (error) {
+		console.error('Error getting user from sheet:', error);
 		throw error;
 	}
 }
@@ -707,5 +903,6 @@ export function registerAuthRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	registerAuthStartRoute(app);
 	registerAuthCallbackGetRoute(app);
 	registerAuthCallbackPostRoute(app);
+	registerLoginRoute(app);
 	registerLogoutRoute(app);
 }

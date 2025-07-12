@@ -20,6 +20,8 @@ import {
   AuthCallbackResponseSchema,
   AuthCallbackQuerySchema,
   AuthErrorResponseSchema,
+  LoginRequestSchema,
+  LoginResponseSchema,
   LogoutResponseSchema,
   GetUserMeResponseSchema,
   UpdateUserRequestSchema,
@@ -393,6 +395,66 @@ export const authCallbackPostRoute = createRoute({
         },
       },
       description: 'Internal server error during authentication',
+    },
+  },
+});
+
+// POST /api/login - Direct login with Auth0 token validation
+export const loginRoute = createRoute({
+  method: 'post',
+  path: '/api/login',
+  summary: 'Login with Auth0 token validation',
+  description: 'Validates Auth0 access token and user information, creates or updates user in _User sheet, creates session in _Session sheet, and returns session data',
+  tags: ['Authentication'],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: LoginRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: LoginResponseSchema,
+        },
+      },
+      description: 'Login successful, user created/updated and session created',
+    },
+    201: {
+      content: {
+        'application/json': {
+          schema: LoginResponseSchema,
+        },
+      },
+      description: 'Login successful, new user created and session created',
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: AuthErrorResponseSchema,
+        },
+      },
+      description: 'Invalid request data or token validation failed',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Auth0 token validation failed',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error during login process',
     },
   },
 });

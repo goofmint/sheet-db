@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { env } from 'cloudflare:test';
+import { validateAuth0Config, fetchAuth0Token, fetchAuth0UserInfo, BASE_URL } from './helpers/auth';
 // ローカル開発サーバーのベースURL
-const BASE_URL = 'http://localhost:8787';
 
 describe('Authentication API', () => {
 	let testAuth0Code: string;
@@ -457,6 +457,296 @@ describe('Authentication API', () => {
 				expect(data.error).not.toContain('password');
 				expect(data.error).not.toContain('secret');
 			}
+		});
+	});
+
+	describe('POST /api/login', () => {
+		it('should reject requests with missing token', async () => {
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					userInfo: {
+						sub: 'auth0|test123',
+						email: 'test@example.com'
+					}
+				})
+			});
+
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: any };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+		});
+
+		it('should reject requests with missing userInfo', async () => {
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					token: 'test-token'
+				})
+			});
+
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: any };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+		});
+
+		it('should reject requests with invalid userInfo structure', async () => {
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					token: 'test-token',
+					userInfo: {
+						// Missing required sub field
+						email: 'test@example.com'
+					}
+				})
+			});
+
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: any };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+		});
+
+		it('should reject requests with invalid Auth0 token', async () => {
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					token: 'invalid-auth0-token',
+					userInfo: {
+						sub: 'auth0|test123',
+						email: 'test@example.com',
+						name: 'Test User'
+					}
+				})
+			});
+
+			expect(response.status).toBe(401);
+			const data = await response.json() as { success: boolean; error: string };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+			expect(data.error).toContain('token');
+		});
+
+		it.skip('should successfully login with valid Auth0 token and user info (201 - new user)', async () => {
+			// This test requires valid Auth0 configuration and credentials
+			const config = validateAuth0Config();
+			if (!config) {
+				console.log('Skipping integration test: Auth0 configuration not complete');
+				return;
+			}
+
+			// Get a real Auth0 token
+			const accessToken = await fetchAuth0Token(config);
+			if (!accessToken) {
+				console.log('Skipping test: Could not obtain Auth0 access token');
+				return;
+			}
+
+			// Get user info from Auth0
+			const userInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
+			if (!userInfo) {
+				console.log('Skipping test: Could not obtain Auth0 user info');
+				return;
+			}
+
+			// Add additional user info fields for testing
+			const fullUserInfo = {
+				...userInfo,
+				name: 'Test User',
+				given_name: 'Test',
+				family_name: 'User',
+				nickname: 'testuser',
+				picture: 'https://example.com/avatar.jpg',
+				email_verified: true,
+				locale: 'en'
+			};
+
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					token: accessToken,
+					userInfo: fullUserInfo
+				})
+			});
+
+			expect([200, 201].includes(response.status)).toBe(true);
+			const data = await response.json() as {
+				success: boolean;
+				data: {
+					sessionId: string;
+					user: any;
+					session: any;
+				};
+			};
+
+			expect(data.success).toBe(true);
+			expect(data.data).toHaveProperty('sessionId');
+			expect(data.data).toHaveProperty('user');
+			expect(data.data).toHaveProperty('session');
+
+			// Validate user data
+			expect(data.data.user.id).toBe(userInfo.sub);
+			expect(data.data.user.email).toBe(userInfo.email);
+			expect(data.data.user).toHaveProperty('created_at');
+			expect(data.data.user).toHaveProperty('updated_at');
+
+			// Validate session data
+			expect(data.data.session.id).toBe(data.data.sessionId);
+			expect(data.data.session.user_id).toBe(userInfo.sub);
+			expect(data.data.session).toHaveProperty('expires_at');
+			expect(data.data.session).toHaveProperty('created_at');
+			expect(data.data.session).toHaveProperty('updated_at');
+		});
+
+		it.skip('should successfully login with valid Auth0 token for existing user (200)', async () => {
+			// This test requires valid Auth0 configuration and credentials
+			// and that the previous test has run to create the user
+			const config = validateAuth0Config();
+			if (!config) {
+				console.log('Skipping integration test: Auth0 configuration not complete');
+				return;
+			}
+
+			// Get a real Auth0 token
+			const accessToken = await fetchAuth0Token(config);
+			if (!accessToken) {
+				console.log('Skipping test: Could not obtain Auth0 access token');
+				return;
+			}
+
+			// Get user info from Auth0
+			const userInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
+			if (!userInfo) {
+				console.log('Skipping test: Could not obtain Auth0 user info');
+				return;
+			}
+
+			// Add additional user info fields for testing
+			const fullUserInfo = {
+				...userInfo,
+				name: 'Test User Updated',
+				given_name: 'Test',
+				family_name: 'User',
+				nickname: 'testuser',
+				picture: 'https://example.com/avatar.jpg',
+				email_verified: true,
+				locale: 'en'
+			};
+
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					token: accessToken,
+					userInfo: fullUserInfo
+				})
+			});
+
+			// Should return 200 for existing user
+			expect(response.status).toBe(200);
+			const data = await response.json() as {
+				success: boolean;
+				data: {
+					sessionId: string;
+					user: any;
+					session: any;
+				};
+			};
+
+			expect(data.success).toBe(true);
+			expect(data.data.user.id).toBe(userInfo.sub);
+			expect(data.data.user.email).toBe(userInfo.email);
+		});
+
+		it('should handle Auth0 configuration errors gracefully', async () => {
+			// Test with any token when Auth0 is not configured properly
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					token: 'any-token',
+					userInfo: {
+						sub: 'auth0|test123',
+						email: 'test@example.com'
+					}
+				})
+			});
+
+			// Should handle missing configuration gracefully
+			expect([400, 401, 500].includes(response.status)).toBe(true);
+			const data = await response.json() as { success: boolean; error: string };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+		});
+
+		it('should validate email format in userInfo', async () => {
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					token: 'test-token',
+					userInfo: {
+						sub: 'auth0|test123',
+						email: 'invalid-email-format'
+					}
+				})
+			});
+
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: any };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+		});
+
+		it('should handle malformed JSON requests', async () => {
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: '{invalid json}'
+			});
+
+			expect([400, 422].includes(response.status)).toBe(true);
+		});
+
+		it('should handle requests without Content-Type header', async () => {
+			const response = await fetch(`${BASE_URL}/api/login`, {
+				method: 'POST',
+				body: JSON.stringify({
+					token: 'test-token',
+					userInfo: {
+						sub: 'auth0|test123',
+						email: 'test@example.com'
+					}
+				})
+			});
+
+			expect([400, 415].includes(response.status)).toBe(true);
 		});
 	});
 });

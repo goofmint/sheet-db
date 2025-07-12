@@ -323,4 +323,59 @@ All authenticated endpoints accept a Bearer token in the Authorization header:
 Authorization: Bearer <session-token>
 ```
 
-To obtain a session token, use the authentication flow via `/api/auth`.
+To obtain a session token, you have two options:
+
+1. **OAuth Flow**: Use the authentication flow via `/api/auth` (redirects to Auth0)
+2. **Direct Login**: Use `/api/login` with an Auth0 access token and user information
+
+#### POST /api/login
+**Direct login with Auth0 token validation**
+
+Validates an Auth0 access token and user information, creates or updates the user in the _User sheet, creates a session in the _Session sheet, and returns session data.
+
+**Request Body:**
+```json
+{
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Ik...",
+  "userInfo": {
+    "sub": "auth0|user123",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "given_name": "John",
+    "family_name": "Doe",
+    "nickname": "johndoe",
+    "picture": "https://example.com/avatar.jpg",
+    "email_verified": true,
+    "locale": "en"
+  }
+}
+```
+
+**Response (200/201):**
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": "uuid-session-id",
+    "user": {
+      "id": "auth0|user123",
+      "email": "user@example.com",
+      "name": "John Doe",
+      "created_at": "2023-01-01T00:00:00.000Z",
+      "updated_at": "2023-01-01T00:00:00.000Z",
+      // ... additional user fields
+    },
+    "session": {
+      "id": "uuid-session-id",
+      "user_id": "auth0|user123",
+      "expires_at": "2023-01-01T01:00:00.000Z",
+      "created_at": "2023-01-01T00:00:00.000Z",
+      "updated_at": "2023-01-01T00:00:00.000Z"
+    }
+  }
+}
+```
+
+- Returns **201** for new user creation
+- Returns **200** for existing user login
+- **401** if Auth0 token validation fails

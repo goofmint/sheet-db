@@ -188,6 +188,8 @@
         <!-- Authentication Section -->
         <div class="section auth-section">
             <h2>🔐 Authentication</h2>
+            
+            <h3>OAuth Flow (Redirects)</h3>
             <p><strong>Steps:</strong> 1) Click authentication start button → 2) Login with Auth0 → 3) Copy the displayed session token → 4) Paste in the field below</p>
             <div class="row">
                 <div class="col">
@@ -203,6 +205,24 @@
                 </div>
             </div>
             <div id="authResult" class="result" style="display: none;"></div>
+
+            <h3>Direct Login (POST /api/login)</h3>
+            <p><strong>Direct login with Auth0 token validation.</strong> Use this if you already have an Auth0 access token and user information.</p>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label for="auth0Token">Auth0 Access Token:</label>
+                        <input type="text" id="auth0Token" placeholder="Auth0 access token...">
+                    </div>
+                    <div class="form-group">
+                        <label for="userInfoJson">User Info (JSON):</label>
+                        <textarea id="userInfoJson" rows="8" placeholder='{"sub":"auth0|user123","email":"user@example.com","name":"John Doe","given_name":"John","family_name":"Doe","nickname":"johndoe","picture":"https://example.com/avatar.jpg","email_verified":true,"locale":"en"}'></textarea>
+                    </div>
+                    <button onclick="directLogin()">Direct Login</button>
+                    <button onclick="fillSampleUserInfo()">Fill Sample User Info</button>
+                </div>
+            </div>
+            <div id="loginResult" class="result" style="display: none;"></div>
         </div>
 
         <!-- Roles Section -->
@@ -736,6 +756,75 @@
             clearTokenFromStorage();
             updateAuthStatus();
             showResult('authResult', { message: 'Authentication information cleared' });
+        }
+
+        // Direct login functions
+        async function directLogin() {
+            try {
+                const token = document.getElementById('auth0Token').value.trim();
+                const userInfoText = document.getElementById('userInfoJson').value.trim();
+                
+                if (!token) {
+                    showResult('loginResult', { error: 'Auth0 access token is required' }, true);
+                    return;
+                }
+                
+                if (!userInfoText) {
+                    showResult('loginResult', { error: 'User info JSON is required' }, true);
+                    return;
+                }
+                
+                let userInfo;
+                try {
+                    userInfo = JSON.parse(userInfoText);
+                } catch (parseError) {
+                    showResult('loginResult', { error: 'Invalid JSON in user info field' }, true);
+                    return;
+                }
+                
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        token: token,
+                        userInfo: userInfo
+                    })
+                });
+                
+                const data = await response.json();
+                showResult('loginResult', data, !data.success);
+                
+                // If login successful, set the session token
+                if (data.success && data.data.sessionId) {
+                    document.getElementById('sessionToken').value = data.data.sessionId;
+                    saveTokenToStorage(data.data.sessionId);
+                    updateAuthStatus();
+                    showResult('loginResult', { 
+                        ...data, 
+                        message: 'Login successful! Session token has been automatically set.' 
+                    });
+                }
+                
+            } catch (error) {
+                showResult('loginResult', { error: error.message }, true);
+            }
+        }
+
+        function fillSampleUserInfo() {
+            const sampleUserInfo = {
+                "sub": "auth0|user123",
+                "email": "user@example.com",
+                "name": "John Doe",
+                "given_name": "John",
+                "family_name": "Doe",
+                "nickname": "johndoe",
+                "picture": "https://example.com/avatar.jpg",
+                "email_verified": true,
+                "locale": "en"
+            };
+            document.getElementById('userInfoJson').value = JSON.stringify(sampleUserInfo, null, 2);
         }
 
         // Role functions
