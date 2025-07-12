@@ -28,6 +28,7 @@ export const CONFIG_KEYS = {
   GOOGLE_TOKEN_EXPIRES_AT: 'google_token_expires_at',
   GOOGLE_TOKEN_SCOPE: 'google_token_scope',
   SETUP_COMPLETED: 'setup_completed',
+  SESSION_EXPIRED_SECONDS: 'session_expired_seconds',
 } as const;
 
 /**

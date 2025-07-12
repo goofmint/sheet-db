@@ -7,6 +7,7 @@ import {
 	getGoogleCredentials, 
 	refreshAccessToken, 
 	saveGoogleTokens,
+	CONFIG_KEYS,
 	type DatabaseConnection
 } from '../google-auth';
 import { authStartRoute, authCallbackGetRoute, authCallbackPostRoute } from '../api-routes';
@@ -411,9 +412,18 @@ async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, use
 			throw new Error('No valid Google token found');
 		}
 		
-		// 現在の日時と有効期限（1時間後）
+		// 現在の日時と有効期限（設定可能）
 		const now = new Date();
-		const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1時間後
+		const sessionExpiredSeconds = await getConfig(db, CONFIG_KEYS.SESSION_EXPIRED_SECONDS);
+		let expiredSeconds = sessionExpiredSeconds ? parseInt(sessionExpiredSeconds, 10) : 3600; // デフォルト: 1時間
+		
+		// セッション有効期限の検証（1分〜30日の範囲）
+		if (isNaN(expiredSeconds) || expiredSeconds < 60 || expiredSeconds > 2592000) {
+			console.warn('Invalid session expiration time:', sessionExpiredSeconds, 'using default 3600 seconds');
+			expiredSeconds = 3600; // デフォルト: 1時間
+		}
+		
+		const expiresAt = new Date(now.getTime() + expiredSeconds * 1000);
 		
 		// セッションデータを準備
 		const sessionData = [

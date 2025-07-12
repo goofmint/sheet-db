@@ -66,6 +66,7 @@ The Config table stores key-value pairs for application configuration:
 |-----|-------------|---------|
 | `reset_token` | Token required to reset setup configuration | Secure random string (min 16 chars) |
 | `setup_completed` | Flag indicating if initial setup is complete | `true` or `false` |
+| `session_expired_seconds` | Session expiration time in seconds (range: 60-2592000) | `3600` (1 hour, default) |
 
 ## Usage Notes
 
