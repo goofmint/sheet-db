@@ -723,7 +723,7 @@ export class SheetsSetupManager {
     
     try {
       // Check if data already exists
-      const existingData = await this.getSheetData('_Config', 'A3:K11');
+      const existingData = await this.getSheetData('_Config', 'A3:K13');
       if (existingData?.values && existingData.values.length > 0) {
         console.log('Configuration data already exists, skipping initialization');
         return;
@@ -739,12 +739,14 @@ export class SheetsSetupManager {
         ['MODIFY_SHEET_ROLE', 'MODIFY_SHEET_ROLE', '[]', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
         ['ANONYMOUS_FILE_UPLOAD', 'ANONYMOUS_FILE_UPLOAD', 'false', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
         ['MAX_FILE_SIZE', 'MAX_FILE_SIZE', '10485760', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
-        ['FILE_UPLOAD_PUBLIC', 'FILE_UPLOAD_PUBLIC', 'true', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]']
+        ['FILE_UPLOAD_PUBLIC', 'FILE_UPLOAD_PUBLIC', 'true', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
+        ['ALLOW_UPLOAD_EXTENSION', 'ALLOW_UPLOAD_EXTENSION', 'image/*', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]'],
+        ['SESSION_EXPIRED_SECONDS', 'SESSION_EXPIRED_SECONDS', '3600', new Date().toISOString(), new Date().toISOString(), 'false', 'false', '[]', '[]', '[]', '[]']
       ];
       
       // Update sheet with initial configuration
       await this.updateSheetData([{
-        range: '_Config!A3:K11',
+        range: '_Config!A3:K13',
         values: configData
       }]);
       
