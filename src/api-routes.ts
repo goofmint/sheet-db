@@ -20,6 +20,7 @@ import {
   AuthCallbackResponseSchema,
   AuthCallbackQuerySchema,
   AuthErrorResponseSchema,
+  LogoutResponseSchema,
   GetUserMeResponseSchema,
   UpdateUserRequestSchema,
   UpdateUserResponseSchema,
@@ -392,6 +393,47 @@ export const authCallbackPostRoute = createRoute({
         },
       },
       description: 'Internal server error during authentication',
+    },
+  },
+});
+
+// POST /api/logout - Logout user
+export const logoutRoute = createRoute({
+  method: 'post',
+  path: '/api/logout',
+  summary: 'Logout user',
+  description: 'Logs out the current user by clearing their session from the _Session sheet. Session data is cleared rather than deleted to prevent row shifting conflicts. Returns success even if session is not found.',
+  tags: ['Authentication'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    headers: z.object({
+      authorization: z.string().regex(/^Bearer .+/, "Must be in format 'Bearer <token>'")
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: LogoutResponseSchema,
+        },
+      },
+      description: 'Logout successful',
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: UnauthorizedErrorSchema,
+        },
+      },
+      description: 'Authentication failed',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ServerErrorSchema,
+        },
+      },
+      description: 'Internal server error',
     },
   },
 });

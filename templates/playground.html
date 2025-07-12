@@ -198,6 +198,7 @@
                     <button onclick="startAuth()">Start Authentication</button>
                     <a href="/api/auth" target="_blank" style="display: inline-block; background: #17a2b8; color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px; margin-bottom: 10px;">Start Authentication (Link)</a>
                     <button onclick="checkUserInfo()">Get User Info</button>
+                    <button onclick="logout()" class="danger">Logout</button>
                     <button onclick="clearAuth()" class="danger">Clear Authentication</button>
                 </div>
             </div>
@@ -702,6 +703,28 @@
                 
                 showResult('authResult', data, !data.success);
                 updateAuthStatus();
+            } catch (error) {
+                showResult('authResult', { error: error.message }, true);
+            }
+        }
+
+        async function logout() {
+            try {
+                const headers = getAuthHeaders();
+                const response = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers
+                });
+                const data = await response.json();
+                
+                showResult('authResult', data, !data.success);
+                
+                // Clear authentication info on successful logout
+                if (data.success) {
+                    document.getElementById('sessionToken').value = '';
+                    clearTokenFromStorage();
+                    updateAuthStatus();
+                }
             } catch (error) {
                 showResult('authResult', { error: error.message }, true);
             }
