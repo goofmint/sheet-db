@@ -657,9 +657,10 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (!deleteResult.success) {
-				const statusCode = deleteResult.error ?? 'Failed to delete user'?.includes('Permission denied') ? 403 :
-								 deleteResult.error ?? 'Failed to delete user'?.includes('not found') ? 404 : 500;
-				return c.json({ success: false as const, error: deleteResult.error ?? 'Failed to delete user' }, statusCode);
+				const errorMessage = deleteResult.error ?? 'Failed to delete user';
+				const statusCode = errorMessage.includes('Permission denied') ? 403 :
+								 errorMessage.includes('not found') ? 404 : 500;
+				return c.json({ success: false as const, error: errorMessage }, statusCode);
 			}
 			
 			return c.json({
@@ -729,8 +730,9 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			);
 			
 			if (!deleteResult.success) {
-				const statusCode = deleteResult.error ?? 'Failed to delete user'?.includes('not found') ? 404 : 500;
-				return c.json({ success: false as const, error: deleteResult.error ?? 'Failed to delete user' }, statusCode);
+				const errorMessage = deleteResult.error ?? 'Failed to delete user';
+				const statusCode = errorMessage.includes('not found') ? 404 : 500;
+				return c.json({ success: false as const, error: errorMessage }, statusCode);
 			}
 			
 			return c.json({
