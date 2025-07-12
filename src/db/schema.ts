@@ -2,7 +2,7 @@ import { int, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const configTable = sqliteTable('Config', {
   id: int().primaryKey({ autoIncrement: true }),
-  name: text().notNull(),
+  name: text().notNull().unique(),
   value: text().notNull(),
 });
 
@@ -17,4 +17,11 @@ export const queueTable = sqliteTable('Queue', {
   userId: text().notNull(),
   action: text().notNull(),
   value: text().notNull(),
+});
+
+export const sessionTable = sqliteTable('Session', {
+  id: int().primaryKey({ autoIncrement: true }),
+  userId: text().notNull(),
+  value: text().notNull(),
+  expiresAt: int().notNull(),
 });
