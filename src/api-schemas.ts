@@ -148,6 +148,12 @@ export const AuthErrorResponseSchema = z.object({
 	error: z.string().describe("Authentication error message")
 });
 
+// Logout schema
+export const LogoutResponseSchema = z.object({
+	success: z.literal(true),
+	data: z.object({})
+});
+
 // User schemas
 export const UserSchema = z.object({
 	id: z.string(),

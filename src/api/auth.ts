@@ -10,7 +10,7 @@ import {
 	CONFIG_KEYS,
 	type DatabaseConnection
 } from '../google-auth';
-import { authStartRoute, authCallbackGetRoute, authCallbackPostRoute } from '../api-routes';
+import { authStartRoute, authCallbackGetRoute, authCallbackPostRoute, logoutRoute } from '../api-routes';
 
 type Bindings = {
 	DB: D1Database;
@@ -139,6 +139,153 @@ export function registerAuthCallbackPostRoute(app: OpenAPIHono<{ Bindings: Bindi
 			}, 500);
 		}
 	});
+}
+
+// POST /api/logout エンドポイント (OpenAPI)
+export function registerLogoutRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
+	app.openapi(logoutRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// Authorization ヘッダーからセッションIDを取得
+			const authHeader = c.req.header('authorization');
+			if (!authHeader) {
+				return c.json({
+					success: false,
+					error: 'Authorization header is required'
+				}, 401);
+			}
+			
+			const sessionId = authHeader.replace(/^Bearer\s+/, '');
+			if (!sessionId) {
+				return c.json({
+					success: false,
+					error: 'Invalid authorization header format'
+				}, 401);
+			}
+			
+			// セッションを認証（ユーザーIDを取得するため）
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				// セッションが無効でも200を返す（要件通り）
+				console.log('Session not found or invalid during logout:', authResult.error);
+				return c.json({
+					success: true,
+					data: {}
+				});
+			}
+			
+			// _Sessionシートから該当セッションをクリア
+			await clearSessionFromSheet(db, sessionId);
+			
+			console.log('User logged out successfully:', { sessionId, userId: authResult.userId });
+			
+			return c.json({
+				success: true,
+				data: {}
+			});
+			
+		} catch (error) {
+			console.error('Error in /api/logout:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({
+				success: false,
+				error: `Logout failed: ${errorMessage}`
+			}, 500);
+		}
+	});
+}
+
+// セッション情報を_Sessionシートからクリアする関数
+async function clearSessionFromSheet(db: DatabaseConnection, sessionId: string): Promise<void> {
+	try {
+		console.log('Clearing session from _Session sheet:', sessionId);
+		
+		// Google Sheetsの設定を取得
+		const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+		if (!spreadsheetId) {
+			throw new Error('No spreadsheet selected');
+		}
+		
+		// 有効なGoogleトークンを取得
+		let tokens = await getGoogleTokens(db);
+		if (!tokens) {
+			throw new Error('No valid Google token found');
+		}
+		
+		// トークンの有効性を確認
+		const isValid = await isTokenValid(db);
+		if (!isValid) {
+			const credentials = await getGoogleCredentials(db);
+			if (credentials && tokens.refresh_token) {
+				tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+				await saveGoogleTokens(db, tokens);
+			} else {
+				throw new Error('Failed to refresh Google token');
+			}
+		}
+		
+		// _Sessionシートからセッション情報を取得
+		const sessionResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_Session!A:F`,
+			{
+				headers: {
+					'Authorization': `Bearer ${tokens.access_token}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+		
+		if (!sessionResponse.ok) {
+			throw new Error(`Failed to fetch session data: ${sessionResponse.status}`);
+		}
+		
+		const sessionData = await sessionResponse.json() as any;
+		const sessions = sessionData.values || [];
+		
+		// セッションIDを検索（3行目から検索：1行目はヘッダー、2行目は型定義）
+		const sessionRowIndex = sessions.findIndex((row: string[], index: number) => 
+			index >= 2 && row[0] === sessionId
+		);
+		
+		if (sessionRowIndex === -1) {
+			// セッションが見つからない場合もエラーにしない（要件通り）
+			console.log('Session not found in _Session sheet, nothing to clear:', sessionId);
+			return;
+		}
+		
+		// 該当行を特定（シート行番号に変換）
+		const targetRow = sessionRowIndex + 1;
+		
+		// 行のデータをクリア（行の削除ではなくクリアにしてコンフリクトを回避）
+		const clearData = ['', '', '', '', '', '']; // 6列すべてクリア
+		
+		const updateResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_Session!A${targetRow}:F${targetRow}?valueInputOption=RAW`,
+			{
+				method: 'PUT',
+				headers: {
+					'Authorization': `Bearer ${tokens.access_token}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					values: [clearData]
+				})
+			}
+		);
+		
+		if (!updateResponse.ok) {
+			const errorText = await updateResponse.text();
+			console.error('Failed to clear session data:', updateResponse.status, errorText);
+			throw new Error(`Failed to clear session data: ${updateResponse.status}`);
+		}
+		
+		console.log('Session data cleared successfully from _Session sheet');
+		
+	} catch (error) {
+		console.error('Error clearing session from sheet:', error);
+		throw error;
+	}
 }
 
 // 認証コールバック処理関数
@@ -547,4 +694,5 @@ export function registerAuthRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 	registerAuthStartRoute(app);
 	registerAuthCallbackGetRoute(app);
 	registerAuthCallbackPostRoute(app);
+	registerLogoutRoute(app);
 }
