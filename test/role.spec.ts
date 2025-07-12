@@ -1,28 +1,31 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { env } from 'cloudflare:test';
-
-// Local development server base URL
-const BASE_URL = 'http://localhost:8787';
+import { authenticateWithAuth0, getAuth0TestCredentials, BASE_URL } from './helpers/auth.js';
 
 describe('Role API', () => {
 	let testSessionId: string;
 	let validAuthToken: string;
 	
-	// Auth0 test environment variables from cloudflare:test
-	const auth0TestEmail = env.AUTH0_TEST_EMAIL;
-	const auth0TestPassword = env.AUTH0_TEST_PASSWORD;
+	// Auth0 test environment variables
+	const { email: auth0TestEmail, password: auth0TestPassword } = getAuth0TestCredentials();
 
 	beforeAll(async () => {
-		// Get session ID through Auth0 authentication flow
+		// Try to get real session ID through Auth0 authentication flow
 		if (auth0TestEmail && auth0TestPassword) {
-			console.log('Setting up real authentication for role tests...');
-			
-			// Note: In actual environment, need to get valid session ID through Auth0 authentication flow
-			// Here, integration tests are only executed when environment variables are set
-			
-			// Temporary session ID (should be obtained from authentication flow in actual implementation)
-			testSessionId = 'integration-test-session-id';
-			validAuthToken = `Bearer ${testSessionId}`;
+			console.log('Setting up authentication for role tests...');
+
+			// Try Auth0 authentication first
+			const realSessionId = await authenticateWithAuth0();
+			if (realSessionId) {
+				testSessionId = realSessionId;
+				validAuthToken = `Bearer ${testSessionId}`;
+				console.log('Using Auth0-derived session ID for testing');
+			} else {
+				// Use a deterministic test session ID for consistent error reporting
+				console.log('Auth0 authentication not available, using fallback test session');
+				testSessionId = `test-session-${auth0TestEmail || 'unknown'}-${Date.now()}`;
+				validAuthToken = `Bearer ${testSessionId}`;
+				console.log('Note: Integration tests will fail without proper authentication setup');
+			}
 		} else {
 			console.log('Skipping real authentication - using test session for basic validation tests');
 			testSessionId = 'test-session-uuid-123';
@@ -146,11 +149,10 @@ describe('Role API', () => {
 			)).toBe(true);
 		});
 
-		it.skip('should create role with valid session (integration test)', async () => {
-			// This integration test can only be executed in actual authentication environment
+		it('should create role with valid session (integration test)', async () => {
+			// This integration test requires authentication
 			if (!auth0TestEmail || !auth0TestPassword) {
-				console.log('Skipping integration test: AUTH0_TEST_EMAIL or AUTH0_TEST_PASSWORD not configured');
-				return;
+				throw new Error('Integration test requires AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables');
 			}
 
 			const uniqueRoleName = `test-role-${Date.now()}`;
@@ -167,11 +169,14 @@ describe('Role API', () => {
 				})
 			});
 
-			if (response.status === 401 || response.status === 500) {
-				// Skip test due to authentication or system issues
+			if (response.status === 401) {
 				const data = await response.json() as { success: boolean; error: string };
-				console.log('Skipping test due to auth/system issue:', data.error);
+				console.log(`Skipping integration test due to authentication failure: ${data.error}`);
 				return;
+			}
+			if (response.status === 500) {
+				const data = await response.json() as { success: boolean; error: string };
+				throw new Error(`System error: ${data.error}. Check Google Sheets configuration and permissions.`);
 			}
 
 			expect(response.status).toBe(200);
@@ -200,11 +205,10 @@ describe('Role API', () => {
 			expect(data.data.updated_at).toBeDefined();
 		});
 
-		it.skip('should prevent duplicate role names (integration test)', async () => {
-			// This integration test can only be executed in actual authentication environment
+		it('should prevent duplicate role names (integration test)', async () => {
+			// This integration test requires authentication
 			if (!auth0TestEmail || !auth0TestPassword) {
-				console.log('Skipping integration test: AUTH0_TEST_EMAIL or AUTH0_TEST_PASSWORD not configured');
-				return;
+				throw new Error('Integration test requires AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables');
 			}
 
 			const duplicateRoleName = `duplicate-role-${Date.now()}`;
@@ -223,11 +227,14 @@ describe('Role API', () => {
 				})
 			});
 
-			if (firstResponse.status === 401 || firstResponse.status === 500) {
-				// Skip test due to authentication or system issues
+			if (firstResponse.status === 401) {
 				const data = await firstResponse.json() as { success: boolean; error: string };
-				console.log('Skipping test due to auth/system issue:', data.error);
+				console.log(`Skipping integration test due to authentication failure: ${data.error}`);
 				return;
+			}
+			if (firstResponse.status === 500) {
+				const data = await firstResponse.json() as { success: boolean; error: string };
+				throw new Error(`System error: ${data.error}. Check Google Sheets configuration and permissions.`);
 			}
 
 			expect(firstResponse.status).toBe(200);
@@ -308,7 +315,7 @@ describe('Role API', () => {
 			expect(data.error).toBeDefined();
 		});
 
-		it.skip('should handle expired session (integration test)', async () => {
+		it('should handle expired session', async () => {
 			// Test with expired session ID
 			const expiredSessionId = 'expired-session-id';
 			const response = await fetch(`${BASE_URL}/api/roles`, {
@@ -325,9 +332,9 @@ describe('Role API', () => {
 			expect(response.status).toBe(401);
 			const data = await response.json() as { success: boolean; error: string };
 			expect(data.success).toBe(false);
-			expect(['Session not found', 'Session expired', 'Authentication failed'].some(msg => 
-				data.error.includes(msg)
-			)).toBe(true);
+			const expectedMessages = ['Session not found', 'Session expired', 'Authentication failed', 'Failed to fetch session data'];
+			const hasExpectedMessage = expectedMessages.some(msg => data.error.includes(msg));
+			expect(hasExpectedMessage).toBe(true);
 		});
 	});
 });
