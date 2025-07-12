@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { env } from 'cloudflare:test';
 
+// Local development server base URL
+const BASE_URL = 'http://localhost:8787';
+
 // Auth0 authentication helper for tests
 async function authenticateWithAuth0(): Promise<string | null> {
 	try {
@@ -92,9 +95,6 @@ async function authenticateWithAuth0(): Promise<string | null> {
 		return null;
 	}
 }
-
-// Local development server base URL
-const BASE_URL = 'http://localhost:8787';
 
 describe('Role Update API', () => {
 	let testSessionId: string;
