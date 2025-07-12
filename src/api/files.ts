@@ -12,6 +12,7 @@ import {
 	saveGoogleTokens,
 	type DatabaseConnection
 } from '../google-auth';
+import { getMultipleConfigsFromSheet } from '../utils/sheet-helpers';
 import { authenticateSession } from './auth';
 
 type Bindings = {
@@ -156,8 +157,8 @@ async function uploadToR2(
 		}
 	});
 
-	// Get R2 public URL from configuration
-	const r2PublicUrl = await getConfig(db, 'R2_PUBLIC_URL');
+	// Get R2 public URL from configuration (Config table)
+	const r2PublicUrl = await getConfig(db, 'r2_public_url');
 	if (!r2PublicUrl) {
 		throw new Error('R2 public URL not configured');
 	}
@@ -172,13 +173,10 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// Get configuration values
-			const anonymousUpload = await getConfig(db, 'ANONYMOUS_FILE_UPLOAD');
-			const maxFileSize = await getConfig(db, 'MAX_FILE_SIZE');
+			// Get configuration values from Config table (infrastructure configs)
 			const allowedExtensions = await getConfig(db, 'ALLOW_UPLOAD_EXTENSION');
-			const fileUploadPublic = await getConfig(db, 'FILE_UPLOAD_PUBLIC');
 			
-			// Get upload destination
+			// Get upload destination from Config table
 			const uploadDestination = await getConfig(db, 'upload_destination');
 			if (!uploadDestination) {
 				return c.json({
@@ -186,6 +184,51 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 					error: 'Upload destination not configured'
 				}, 400);
 			}
+			
+			// Get Google credentials and spreadsheet ID for _Config sheet access
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({
+					success: false,
+					error: 'No spreadsheet configured'
+				}, 500);
+			}
+			
+			// Get valid Google tokens
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({
+					success: false,
+					error: 'No valid Google token found'
+				}, 500);
+			}
+			
+			// Check token validity and refresh if needed
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({
+						success: false,
+						error: 'Failed to refresh Google token'
+					}, 500);
+				}
+			}
+			
+			// Get configuration values from _Config sheet (runtime configs)
+			const sheetConfigs = await getMultipleConfigsFromSheet(
+				['ANONYMOUS_FILE_UPLOAD', 'MAX_FILE_SIZE', 'FILE_UPLOAD_PUBLIC'],
+				spreadsheetId,
+				tokens.access_token
+			);
+			
+			const anonymousUpload = sheetConfigs['ANONYMOUS_FILE_UPLOAD'];
+			const maxFileSize = sheetConfigs['MAX_FILE_SIZE'];
+			const fileUploadPublic = sheetConfigs['FILE_UPLOAD_PUBLIC'];
+			
 
 			// Check authentication if required
 			const authHeader = c.req.header('authorization');
