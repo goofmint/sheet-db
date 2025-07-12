@@ -18,10 +18,15 @@ Sheet DB is a Backend-as-a-Service (BaaS) application that uses Google Sheets as
 ## Key Components
 
 ### Database Schema
-- **Config**: Application configuration storage
+- **Config**: Infrastructure and setup configuration storage (D1 database)
+- **_Config Sheet**: Runtime operational settings (Google Sheets)
 - **Cache**: 10-minute TTL cache for Google Sheets data
 - **Queue**: Background processing queue for CRUD operations
 - **Session**: User session management
+
+### Configuration Architecture
+- **Config Table (D1)**: Infrastructure settings (Google OAuth, Auth0, spreadsheet IDs, file upload destinations, credentials)
+- **_Config Sheet**: Runtime settings (API permissions, user/role access controls, file upload policies)
 
 ### Data Flow
 1. **Read Operations**: Cached in D1, background refresh every 10 minutes
