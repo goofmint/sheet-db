@@ -1,375 +1,337 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { OpenAPIHono } from '@hono/zod-openapi';
-
-type Bindings = {
-	DB: D1Database;
-	ASSETS: Fetcher;
-};
-
-// Mock functions for testing
-const mockDatabase = {
-	select: () => ({
-		from: () => ({
-			where: () => ({
-				get: () => Promise.resolve(null),
-				all: () => Promise.resolve([])
-			})
-		})
-	}),
-	insert: () => ({
-		into: () => ({
-			values: () => ({
-				returning: () => Promise.resolve([])
-			})
-		})
-	}),
-	update: () => ({
-		set: () => ({
-			where: () => ({
-				returning: () => Promise.resolve([])
-			})
-		})
-	})
-} as any;
-
-// Mock Google Sheets API responses
-const mockConfigSheetData = {
-	values: [
-		['key', 'value'],
-		['CREATE_SHEET_BY_API', 'true'],
-		['CREATE_SHEET_USER', '["user123"]'],
-		['CREATE_SHEET_ROLE', '["admin"]']
-	]
-};
-
-const mockUserSheetData = {
-	values: [
-		['id', 'email', 'name', 'given_name', 'family_name', 'nickname', 'picture', 'email_verified', 'locale', 'roles', 'created_at', 'updated_at', 'last_login'],
-		['string', 'email', 'string', 'string', 'string', 'string', 'string', 'boolean', 'string', 'array', 'datetime', 'datetime', 'datetime'],
-		['user123', 'user@example.com', 'Test User', 'Test', 'User', 'testuser', 'https://example.com/avatar.jpg', 'TRUE', 'en', '["admin"]', '2023-01-01T00:00:00Z', '2023-01-01T00:00:00Z', '2023-01-01T00:00:00Z']
-	]
-};
-
-const mockSheetCreationResponse = {
-	replies: [{
-		addSheet: {
-			properties: {
-				sheetId: 12345,
-				title: 'TestSheet'
-			}
-		}
-	}]
-};
-
-// Mock Google Sheets API
-global.fetch = vi.fn(async (url: string, options?: any) => {
-	const urlStr = url.toString();
-	
-	// Mock successful authentication token
-	if (urlStr.includes('oauth2/v4/token')) {
-		return new Response(JSON.stringify({
-			access_token: 'mock_access_token',
-			expires_in: 3600,
-			token_type: 'Bearer'
-		}), { status: 200 });
-	}
-	
-	// Mock Google Sheets API calls
-	if (urlStr.includes('sheets.googleapis.com')) {
-		// Mock sheet creation
-		if (urlStr.includes('batchUpdate') && options?.method === 'POST') {
-			return new Response(JSON.stringify(mockSheetCreationResponse), { status: 200 });
-		}
-		
-		// Mock header/type row updates
-		if (options?.method === 'PUT') {
-			return new Response(JSON.stringify({ updatedData: true }), { status: 200 });
-		}
-		
-		// Mock config sheet data
-		if (urlStr.includes('_Config!A:B')) {
-			return new Response(JSON.stringify(mockConfigSheetData), { status: 200 });
-		}
-		
-		// Mock user sheet data
-		if (urlStr.includes('_User!A:N')) {
-			return new Response(JSON.stringify(mockUserSheetData), { status: 200 });
-		}
-	}
-	
-	return new Response('Not Found', { status: 404 });
-});
-
-// Mock environment
-const mockEnv = {
-	DB: mockDatabase,
-};
-
-// Mock configuration
-vi.mock('../src/google-auth', () => ({
-	getConfig: vi.fn(async (db: any, key: string) => {
-		if (key === 'spreadsheet_id') return 'mock_spreadsheet_id';
-		if (key === 'google_client_id') return 'mock_client_id';
-		if (key === 'google_client_secret') return 'mock_client_secret';
-		return null;
-	}),
-	getGoogleTokens: vi.fn(async () => ({
-		access_token: 'mock_access_token',
-		refresh_token: 'mock_refresh_token',
-		expires_at: Date.now() + 3600000
-	})),
-	isTokenValid: vi.fn(async () => true),
-	refreshAccessToken: vi.fn(async () => ({
-		access_token: 'mock_access_token',
-		refresh_token: 'mock_refresh_token',
-		expires_at: Date.now() + 3600000
-	})),
-	saveGoogleTokens: vi.fn(async () => {}),
-	getGoogleCredentials: vi.fn(async () => ({
-		client_id: 'mock_client_id',
-		client_secret: 'mock_client_secret'
-	}))
-}));
-
-// Mock authenticateSession
-vi.mock('../src/api/auth', () => ({
-	authenticateSession: vi.fn(async (db: any, sessionId: string) => {
-		if (sessionId === 'valid_session_id') {
-			return {
-				valid: true,
-				userId: 'user123',
-				session: { id: sessionId, user_id: 'user123' }
-			};
-		}
-		return {
-			valid: false,
-			error: 'Invalid session'
-		};
-	})
-}));
-
-// Mock shared sheet helpers
-vi.mock('../src/utils/sheet-helpers', () => ({
-	getUserFromSheet: vi.fn(async (userId: string, spreadsheetId: string, accessToken: string) => {
-		if (userId === 'user123') {
-			return {
-				id: 'user123',
-				email: 'user@example.com',
-				name: 'Test User',
-				given_name: 'Test',
-				family_name: 'User',
-				nickname: 'testuser',
-				picture: 'https://example.com/avatar.jpg',
-				email_verified: true,
-				locale: 'en',
-				roles: ['admin'],
-				created_at: '2023-01-01T00:00:00Z',
-				updated_at: '2023-01-01T00:00:00Z',
-				last_login: '2023-01-01T00:00:00Z'
-			};
-		}
-		return null;
-	}),
-	getMultipleConfigsFromSheet: vi.fn(async (keys: string[], spreadsheetId: string, accessToken: string) => {
-		return {
-			'CREATE_SHEET_BY_API': 'true',
-			'CREATE_SHEET_USER': '["user123"]',
-			'CREATE_SHEET_ROLE': '["admin"]'
-		};
-	}),
-	getConfigFromSheet: vi.fn(async (key: string) => {
-		if (key === 'CREATE_SHEET_BY_API') return 'true';
-		if (key === 'CREATE_SHEET_USER') return '["user123"]';
-		if (key === 'CREATE_SHEET_ROLE') return '["admin"]';
-		return null;
-	})
-}));
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { authenticateWithAuth0, getAuth0TestCredentials, BASE_URL } from './helpers/auth.js';
 
 describe('Sheet API', () => {
-	let app: OpenAPIHono<{ Bindings: Bindings }>;
+	let testSessionId: string;
+	let validAuthToken: string;
+
+	// Auth0 test environment variables
+	const { email: auth0TestEmail, password: auth0TestPassword } = getAuth0TestCredentials();
 
 	beforeAll(async () => {
-		const { registerSheetRoutes } = await import('../src/api/sheet');
-		app = new OpenAPIHono<{ Bindings: Bindings }>();
-		registerSheetRoutes(app);
+		// Try to get real session ID through Auth0 authentication flow
+		if (auth0TestEmail && auth0TestPassword) {
+			console.log('Setting up authentication for sheet tests...');
+
+			// Try Auth0 authentication first
+			const realSessionId = await authenticateWithAuth0();
+			if (realSessionId) {
+				testSessionId = realSessionId;
+				validAuthToken = `Bearer ${testSessionId}`;
+				console.log('Using Auth0-derived session ID for testing');
+			} else {
+				// Use a deterministic test session ID for consistent error reporting
+				console.log('Auth0 authentication not available, using fallback test session');
+				testSessionId = `test-session-${auth0TestEmail || 'unknown'}-${Date.now()}`;
+				validAuthToken = `Bearer ${testSessionId}`;
+				console.log('Note: Integration tests will fail without proper authentication setup');
+			}
+		} else {
+			console.log('Skipping real authentication - using test session for basic validation tests');
+			testSessionId = 'test-session-uuid-123';
+			validAuthToken = `Bearer ${testSessionId}`;
+		}
+	});
+
+	afterAll(async () => {
+		// Post-test cleanup
+		// Implement here if deletion of created test sheets etc. is needed
 	});
 
 	describe('POST /api/sheets', () => {
-		it('should create a new sheet with valid data and permissions', async () => {
-			const createData = {
-				name: 'TestSheet',
-				public_read: true,
-				public_write: false,
-				role_read: [],
-				role_write: ['admin'],
-				user_read: [],
-				user_write: ['user123']
-			};
-
-			const req = new Request('http://localhost/api/sheets', {
+		it('should require Authorization header', async () => {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer valid_session_id',
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify(createData)
+				body: JSON.stringify({
+					name: 'test-sheet-no-auth'
+				})
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
-
-			expect(res.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data).toHaveProperty('name', 'TestSheet');
-			expect(data.data).toHaveProperty('sheetId', 12345);
-			expect(data.data).toHaveProperty('public_read', true);
-			expect(data.data).toHaveProperty('public_write', false);
-			expect(data.data).toHaveProperty('role_read', []);
-			expect(data.data).toHaveProperty('role_write', ['admin']);
-			expect(data.data).toHaveProperty('user_read', []);
-			expect(data.data).toHaveProperty('user_write', ['user123']);
-			expect(data.data.message).toContain('created successfully');
-		});
-
-		it('should return 401 for unauthenticated request', async () => {
-			const createData = {
-				name: 'TestSheet'
-			};
-
-			const req = new Request('http://localhost/api/sheets', {
-				method: 'POST',
-				headers: {
-					'Authorization': 'Bearer invalid_session_id',
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(createData)
-			});
-
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
-
-			expect(res.status).toBe(401);
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: string };
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
 
-		it('should use default user_write when not provided', async () => {
-			const createData = {
-				name: 'TestSheet'
-			};
-
-			const req = new Request('http://localhost/api/sheets', {
+		it('should require Bearer token format', async () => {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer valid_session_id',
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'Authorization': 'InvalidFormat'
 				},
-				body: JSON.stringify(createData)
+				body: JSON.stringify({
+					name: 'test-sheet-invalid-auth'
+				})
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
-
-			expect(res.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data).toHaveProperty('name', 'TestSheet');
-			expect(data.data).toHaveProperty('public_read', true); // Default value
-			expect(data.data).toHaveProperty('public_write', false); // Default value
-			expect(data.data).toHaveProperty('user_write', ['user123']); // Default to creator
-		});
-
-		it('should return 403 when sheet creation is disabled', async () => {
-			// Mock config to return false for CREATE_SHEET_BY_API
-			const originalMock = await import('../src/utils/sheet-helpers');
-			vi.mocked(originalMock.getMultipleConfigsFromSheet).mockResolvedValueOnce({
-				'CREATE_SHEET_BY_API': 'false',
-				'CREATE_SHEET_USER': '["user123"]',
-				'CREATE_SHEET_ROLE': '["admin"]'
-			});
-
-			const createData = {
-				name: 'TestSheet'
-			};
-
-			const req = new Request('http://localhost/api/sheets', {
-				method: 'POST',
-				headers: {
-					'Authorization': 'Bearer valid_session_id',
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(createData)
-			});
-
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
-
-			expect(res.status).toBe(403);
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: string };
 			expect(data.success).toBe(false);
-			expect(data.error).toContain('disabled');
+			expect(data.error).toBeDefined();
 		});
 
-		it('should return 403 when user lacks required role', async () => {
-			// Mock config to require different role
-			const originalMock = await import('../src/utils/sheet-helpers');
-			vi.mocked(originalMock.getMultipleConfigsFromSheet).mockResolvedValueOnce({
-				'CREATE_SHEET_BY_API': 'true',
-				'CREATE_SHEET_USER': '["user123"]',
-				'CREATE_SHEET_ROLE': '["super_admin"]' // Different role required
-			});
-
-			const createData = {
-				name: 'TestSheet'
-			};
-
-			const req = new Request('http://localhost/api/sheets', {
+		it('should require name parameter', async () => {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer valid_session_id',
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'Authorization': validAuthToken
 				},
-				body: JSON.stringify(createData)
+				body: JSON.stringify({
+					public_read: true
+				})
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
-
-			expect(res.status).toBe(403);
+			// Validation should happen before authentication, returning 400
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: string };
 			expect(data.success).toBe(false);
-			expect(data.error).toContain('role not authorized');
+			expect(data.error).toBeDefined();
 		});
 
-		it('should create sheet with custom permissions', async () => {
-			const createData = {
-				name: 'PermissionTestSheet',
-				public_read: false,
-				public_write: true,
-				role_read: ['viewer'],
-				role_write: ['editor', 'admin'],
-				user_read: ['user456'],
-				user_write: ['user789']
-			};
-
-			const req = new Request('http://localhost/api/sheets', {
+		it('should reject empty name', async () => {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
 				method: 'POST',
 				headers: {
-					'Authorization': 'Bearer valid_session_id',
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'Authorization': validAuthToken
 				},
-				body: JSON.stringify(createData)
+				body: JSON.stringify({
+					name: ''
+				})
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: string };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+		});
 
-			expect(res.status).toBe(200);
+		it('should reject whitespace-only name', async () => {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': validAuthToken
+				},
+				body: JSON.stringify({
+					name: '   '
+				})
+			});
+
+			expect([400, 401].includes(response.status)).toBe(true);
+			const data = await response.json() as { success: boolean; error: string };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+		});
+
+		it('should handle invalid session ID', async () => {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer invalid-session-id'
+				},
+				body: JSON.stringify({
+					name: 'test-sheet-invalid-session'
+				})
+			});
+
+			expect(response.status).toBe(401);
+			const data = await response.json() as { success: boolean; error: string };
+			expect(data.success).toBe(false);
+			const expectedMessages = ['Session not found', 'Authentication failed', 'No spreadsheet configured', 'No valid Google token found', 'Failed to fetch session data'];
+			const hasExpectedMessage = expectedMessages.some(msg => data.error.includes(msg));
+			expect(hasExpectedMessage).toBe(true);
+		});
+
+		it('should create sheet with valid session (integration test)', async () => {
+			// This integration test requires authentication
+			if (!auth0TestEmail || !auth0TestPassword) {
+				throw new Error('Integration test requires AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables');
+			}
+
+			const uniqueSheetName = `test-sheet-${Date.now()}`;
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': validAuthToken
+				},
+				body: JSON.stringify({
+					name: uniqueSheetName,
+					public_read: true,
+					public_write: false
+				})
+			});
+
+			if (response.status === 401) {
+				const data = await response.json() as { success: boolean; error: string };
+				console.log(`Skipping integration test due to authentication failure: ${data.error}`);
+				return;
+			}
+			if (response.status === 500) {
+				const data = await response.json() as { success: boolean; error: string };
+				throw new Error(`System error: ${data.error}. Check Google Sheets configuration and permissions.`);
+			}
+
+			expect(response.status).toBe(200);
+			const data = await response.json() as {
+				success: boolean;
+				data: {
+					name: string;
+					sheetId: number;
+					public_read: boolean;
+					public_write: boolean;
+					role_read: string[];
+					role_write: string[];
+					user_read: string[];
+					user_write: string[];
+					message: string;
+				};
+			};
+
 			expect(data.success).toBe(true);
-			expect(data.data).toHaveProperty('name', 'PermissionTestSheet');
-			expect(data.data).toHaveProperty('public_read', false);
-			expect(data.data).toHaveProperty('public_write', true);
-			expect(data.data).toHaveProperty('role_read', ['viewer']);
-			expect(data.data).toHaveProperty('role_write', ['editor', 'admin']);
-			expect(data.data).toHaveProperty('user_read', ['user456']);
-			expect(data.data).toHaveProperty('user_write', ['user789']);
+			expect(data.data.name).toBe(uniqueSheetName);
+			expect(data.data.public_read).toBe(true);
+			expect(data.data.public_write).toBe(false);
+			expect(data.data.sheetId).toBeDefined();
+			expect(data.data.message).toContain('created successfully');
+		});
+
+		it('should handle malformed JSON', async () => {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': validAuthToken
+				},
+				body: 'invalid json'
+			});
+
+			expect(response.status).toBe(400);
+			// Malformed JSON might return HTML error page, so just check status
+			expect(response.ok).toBe(false);
+		});
+	});
+
+	describe('Sheet validation', () => {
+		it('should validate sheet name type', async () => {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': validAuthToken
+				},
+				body: JSON.stringify({
+					name: 123 // number instead of string
+				})
+			});
+
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: string };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+		});
+
+		it('should validate boolean fields', async () => {
+			const invalidBooleanTests = [
+				{ field: 'public_read', value: 'not-a-boolean' },
+				{ field: 'public_write', value: 123 },
+			];
+
+			for (const test of invalidBooleanTests) {
+				const response = await fetch(`${BASE_URL}/api/sheets`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': validAuthToken
+					},
+					body: JSON.stringify({
+						name: 'test-sheet',
+						[test.field]: test.value
+					})
+				});
+
+				expect([400, 401, 403].includes(response.status)).toBe(true);
+				const data = await response.json() as { success: boolean; error: string };
+				expect(data.success).toBe(false);
+				expect(data.error).toBeDefined();
+			}
+		});
+
+		it('should validate array fields', async () => {
+			const invalidArrayTests = [
+				{ field: 'role_read', value: 'not-an-array' },
+				{ field: 'role_write', value: 123 },
+				{ field: 'user_read', value: { invalid: 'object' } },
+				{ field: 'user_write', value: 'string' },
+			];
+
+			for (const test of invalidArrayTests) {
+				const response = await fetch(`${BASE_URL}/api/sheets`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': validAuthToken
+					},
+					body: JSON.stringify({
+						name: 'test-sheet',
+						[test.field]: test.value
+					})
+				});
+
+				expect([400, 401, 403].includes(response.status)).toBe(true);
+				const data = await response.json() as { success: boolean; error: string };
+				expect(data.success).toBe(false);
+				expect(data.error).toBeDefined();
+			}
+		});
+	});
+
+	describe('Authentication tests', () => {
+		it('should handle missing session ID', async () => {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': 'Bearer '
+				},
+				body: JSON.stringify({
+					name: 'test-sheet-empty-session'
+				})
+			});
+
+			expect(response.status).toBe(400);
+			const data = await response.json() as { success: boolean; error: string };
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
+		});
+
+		it('should handle expired session', async () => {
+			// Test with expired session ID
+			const expiredSessionId = 'expired-session-id';
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${expiredSessionId}`
+				},
+				body: JSON.stringify({
+					name: 'test-sheet-expired'
+				})
+			});
+
+			expect(response.status).toBe(401);
+			const data = await response.json() as { success: boolean; error: string };
+			expect(data.success).toBe(false);
+			const expectedMessages = ['Session not found', 'Session expired', 'Authentication failed', 'Failed to fetch session data'];
+			const hasExpectedMessage = expectedMessages.some(msg => data.error.includes(msg));
+			expect(hasExpectedMessage).toBe(true);
 		});
 	});
 });

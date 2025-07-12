@@ -208,6 +208,46 @@ Authorization: Bearer <session-token>
 }
 ```
 
+### Sheet Management APIs
+
+#### Create Sheet
+**POST** `/api/sheets`
+
+Creates a new Google Sheet with specified permissions and configuration.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "name": "MyNewSheet",
+  "public_read": true,
+  "public_write": false,
+  "role_read": ["viewer"],
+  "role_write": ["editor"],
+  "user_read": ["user123"],
+  "user_write": ["user456"]
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "name": "MyNewSheet",
+    "sheetId": 12345,
+    "public_read": true,
+    "public_write": false,
+    "role_read": ["viewer"],
+    "role_write": ["editor"],
+    "user_read": ["user123"],
+    "user_write": ["user456"],
+    "message": "Sheet 'MyNewSheet' created successfully"
+  }
+}
+```
+
 ### Role Management APIs
 
 #### Create Role
