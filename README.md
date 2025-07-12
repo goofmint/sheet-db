@@ -144,6 +144,70 @@ Content-Type: application/json
 }
 ```
 
+### User Management APIs
+
+#### Get Current User Information
+**GET** `/api/users/me`
+
+Retrieves the authenticated user's information from the _User sheet.
+
+**Authentication:** Required
+
+**Example Request:**
+```bash
+GET /api/users/me
+Authorization: Bearer <session-token>
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "auth0|user123",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "given_name": "John",
+    "family_name": "Doe",
+    "picture": "https://example.com/avatar.jpg",
+    "email_verified": true,
+    "locale": "en",
+    "roles": ["user"],
+    "created_at": "2023-01-01T12:00:00Z",
+    "updated_at": "2023-01-01T12:00:00Z"
+  }
+}
+```
+
+#### Delete Current User Account
+**DELETE** `/api/users/me`
+
+Deletes the authenticated user's own data from the _User sheet. The user can only delete their own account. Data is cleared rather than deleted to prevent row shifting conflicts.
+
+**Authentication:** Required
+
+**Example Request:**
+```bash
+DELETE /api/users/me
+Authorization: Bearer <session-token>
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "User account has been successfully deleted"
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "User not found in _User sheet"
+}
+```
+
 ### Permission System
 
 Sheet access is controlled by the following fields in the sheet metadata:

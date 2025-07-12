@@ -8,7 +8,7 @@ import {
   refreshAccessToken,
   isTokenValid
 } from '../google-auth';
-import { getUserMeRoute, updateUserRoute, deleteUserRoute } from '../api-routes';
+import { getUserMeRoute, updateUserRoute, deleteUserRoute, deleteUserMeRoute } from '../api-routes';
 import { authenticateSession } from './auth';
 import { getUserFromSheet } from '../utils/sheet-helpers';
 import { parseColumnSchema, validateValue } from '../utils/schema-parser';
@@ -18,6 +18,111 @@ type Bindings = {
 	ASSETS: Fetcher;
 };
 
+
+// Helper function for user deletion from Google Sheets
+async function deleteUserFromSheet(
+	targetUserId: string,
+	spreadsheetId: string,
+	accessToken: string,
+	options: {
+		requirePermissionCheck?: boolean;
+		currentUserId?: string;
+		currentUserRoles?: string[];
+	} = {}
+): Promise<{ success: boolean; error?: string; message?: string }> {
+	try {
+		// Check if target user exists
+		const targetUser = await getUserFromSheet(targetUserId, spreadsheetId, accessToken);
+		if (!targetUser) {
+			return { success: false, error: 'Target user not found' };
+		}
+
+		// Perform permission check if required
+		if (options.requirePermissionCheck && options.currentUserId && options.currentUserRoles) {
+			const hasPermission = await checkUserWritePermission(
+				options.currentUserId,
+				targetUserId,
+				options.currentUserRoles,
+				spreadsheetId,
+				accessToken
+			);
+			
+			if (!hasPermission) {
+				return { 
+					success: false, 
+					error: 'Permission denied - no write access to this user' 
+				};
+			}
+		}
+
+		// Get current user data to find row position
+		const userResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
+			{
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				}
+			}
+		);
+		
+		if (!userResponse.ok) {
+			return { success: false, error: 'Failed to fetch user data' };
+		}
+		
+		const userData = await userResponse.json() as any;
+		const users = userData.values || [];
+		
+		// Search for user (from row 3)
+		const userRowIndex = users.findIndex((row: string[], index: number) => 
+			index >= 2 && row[0] === targetUserId
+		);
+		
+		if (userRowIndex === -1) {
+			return { success: false, error: 'User not found in _User sheet' };
+		}
+		
+		const targetRowNumber = userRowIndex + 1; // Convert to sheet row number
+		
+		// Clear user data to prevent row shifting conflicts
+		// Create empty data array matching the header row length
+		const headerRow = users[0] || [];
+		const emptyData = new Array(headerRow.length).fill('');
+		
+		// Clear the user data (keep the row but clear all data)
+		const clearResponse = await fetch(
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:Q${targetRowNumber}?valueInputOption=RAW`,
+			{
+				method: 'PUT',
+				headers: {
+					'Authorization': `Bearer ${accessToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					values: [emptyData]
+				})
+			}
+		);
+		
+		if (!clearResponse.ok) {
+			const errorText = await clearResponse.text();
+			console.error('Failed to clear user data:', clearResponse.status, errorText);
+			return { success: false, error: `Failed to delete user: ${clearResponse.status}` };
+		}
+		
+		console.log('User data cleared successfully:', targetUserId);
+		
+		return {
+			success: true,
+			message: `User '${targetUserId}' has been successfully deleted`
+		};
+		
+	} catch (error) {
+		console.error('Error in deleteUserFromSheet:', error);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return { success: false, error: errorMessage };
+	}
+}
 
 // Helper function for permission checking
 async function checkUserWritePermission(
@@ -539,92 +644,102 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({ success: false as false, error: 'Current user not found' }, 401);
 			}
 			
-			// Check target user existence
-			const targetUser = await getUserFromSheet(targetUserId, spreadsheetId, tokens.access_token);
-			if (!targetUser) {
-				return c.json({ success: false as false, error: 'Target user not found' }, 404);
-			}
-			
-			// Permission check
-			const hasPermission = await checkUserWritePermission(
-				currentUserId,
+			// Use helper function to delete user with permission check
+			const deleteResult = await deleteUserFromSheet(
 				targetUserId,
-				currentUser.roles || [],
 				spreadsheetId,
-				tokens.access_token
-			);
-			
-			if (!hasPermission) {
-				return c.json({ 
-					success: false as false, 
-					error: 'Permission denied - no write access to this user' 
-				}, 403);
-			}
-			
-			// 現在のユーザーデータを取得して行位置を特定
-			const userResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
+				tokens.access_token,
 				{
-					headers: {
-						'Authorization': `Bearer ${tokens.access_token}`,
-						'Content-Type': 'application/json',
-					}
+					requirePermissionCheck: true,
+					currentUserId,
+					currentUserRoles: currentUser.roles || []
 				}
 			);
 			
-			if (!userResponse.ok) {
-				return c.json({ success: false as false, error: 'Failed to fetch user data' }, 500);
+			if (!deleteResult.success) {
+				const statusCode = deleteResult.error?.includes('Permission denied') ? 403 :
+								 deleteResult.error?.includes('not found') ? 404 : 500;
+				return c.json({ success: false as false, error: deleteResult.error }, statusCode);
 			}
-			
-			const userData = await userResponse.json() as any;
-			const users = userData.values || [];
-			
-			// Search for user (from row 3)
-			const userRowIndex = users.findIndex((row: string[], index: number) => 
-				index >= 2 && row[0] === targetUserId
-			);
-			
-			if (userRowIndex === -1) {
-				return c.json({ success: false as false, error: 'User not found' }, 404);
-			}
-			
-			const targetRowNumber = userRowIndex + 1; // Convert to sheet row number
-			
-			// コンフリクト防止のため、行削除ではなくデータクリアを実行
-			// 全列を空文字で上書きする（ヘッダー行の列数に合わせる）
-			const headerRow = users[0] || [];
-			const emptyData = new Array(headerRow.length).fill('');
-			
-			// データをクリア（行は残す）
-			const clearResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:Q${targetRowNumber}?valueInputOption=RAW`,
-				{
-					method: 'PUT',
-					headers: {
-						'Authorization': `Bearer ${tokens.access_token}`,
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify({
-						values: [emptyData]
-					})
-				}
-			);
-			
-			if (!clearResponse.ok) {
-				const errorText = await clearResponse.text();
-				console.error('Failed to clear user data:', clearResponse.status, errorText);
-				return c.json({ success: false as false, error: `Failed to delete user: ${clearResponse.status}` }, 500);
-			}
-			
-			console.log('User data cleared successfully:', targetUserId);
 			
 			return c.json({
 				success: true as true,
-				message: `User '${targetUserId}' has been successfully deleted`
+				message: deleteResult.message || `User '${targetUserId}' has been successfully deleted`
 			});
 			
 		} catch (error) {
 			console.error('Error in DELETE /api/users/:id:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return c.json({ success: false as false, error: errorMessage }, 500);
+		}
+	});
+
+	// DELETE /api/users/me - Delete current authenticated user
+	app.openapi(deleteUserMeRoute, async (c) => {
+		try {
+			const db = drizzle(c.env.DB);
+			
+			// Get session ID from authentication header
+			const authHeader = c.req.valid('header').authorization;
+			const sessionId = authHeader.replace('Bearer ', '');
+			
+			// Session authentication
+			const authResult = await authenticateSession(db, sessionId);
+			if (!authResult.valid) {
+				return c.json({ success: false as false, error: authResult.error || 'Authentication failed' }, 401);
+			}
+			
+			const currentUserId = authResult.userId;
+			if (!currentUserId) {
+				return c.json({ success: false as false, error: 'User ID not found in session' }, 401);
+			}
+			
+			// Get Google Sheets settings
+			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
+			if (!spreadsheetId) {
+				return c.json({ success: false as false, error: 'No spreadsheet selected' }, 500);
+			}
+			
+			// Get valid Google token
+			let tokens = await getGoogleTokens(db);
+			if (!tokens) {
+				return c.json({ success: false as false, error: 'No valid Google token found' }, 500);
+			}
+			
+			// Check token validity and refresh if necessary
+			const isValid = await isTokenValid(db);
+			if (!isValid) {
+				const credentials = await getGoogleCredentials(db);
+				if (credentials && tokens.refresh_token) {
+					tokens = await refreshAccessToken(tokens.refresh_token, credentials);
+					await saveGoogleTokens(db, tokens);
+				} else {
+					return c.json({ success: false as false, error: 'Failed to refresh Google token' }, 500);
+				}
+			}
+			
+			// Use helper function to delete current user (no permission check needed)
+			const deleteResult = await deleteUserFromSheet(
+				currentUserId,
+				spreadsheetId,
+				tokens.access_token,
+				{
+					requirePermissionCheck: false
+				}
+			);
+			
+			if (!deleteResult.success) {
+				const statusCode = deleteResult.error?.includes('not found') ? 404 : 500;
+				return c.json({ success: false as false, error: deleteResult.error }, statusCode);
+			}
+			
+			return c.json({
+				success: true as true,
+				message: 'User account has been successfully deleted'
+			});
+			
+		} catch (error) {
+			console.error('Error in DELETE /api/users/me:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({ success: false as false, error: errorMessage }, 500);
 		}
