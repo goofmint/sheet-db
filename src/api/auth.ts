@@ -210,19 +210,32 @@ export function registerLogoutRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 		try {
 			const db = drizzle(c.env.DB);
 			
-			// Get session ID from Authorization header using validation
-			const authHeader = c.req.valid('header').authorization;
+			// Get session ID from Authorization header
+			const authHeader = c.req.header('authorization');
+			if (!authHeader) {
+				return c.json({
+					success: false as const,
+					error: 'Authorization header is required'
+				}, 401);
+			}
+			
 			const sessionId = authHeader.replace(/^Bearer\s+/, '');
+			if (!sessionId) {
+				return c.json({
+					success: false as const,
+					error: 'Invalid authorization header format'
+				}, 401);
+			}
 			
 			// Authenticate session (to get user ID)
 			const authResult = await authenticateSession(db, sessionId);
 			if (!authResult.valid) {
-				// Return 200 even if session is invalid (per API requirements)
+				// Return 200 even if session is invalid (per requirements)
 				console.log('Session not found or invalid during logout:', authResult.error);
 				return c.json({
 					success: true as const,
 					data: {}
-				}, 200);
+				});
 			}
 			
 			// Clear the corresponding session from _Session sheet
@@ -233,15 +246,15 @@ export function registerLogoutRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			return c.json({
 				success: true as const,
 				data: {}
-			}, 200);
+			});
 			
 		} catch (error) {
 			console.error('Error in /api/logout:', error);
-			// Always return success for logout to maintain graceful behavior
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			return c.json({
-				success: true as const,
-				data: {}
-			}, 200);
+				success: false as const,
+				error: `Logout failed: ${errorMessage}`
+			}, 500);
 		}
 	});
 }
@@ -638,7 +651,7 @@ async function saveSessionToSheet(db: DatabaseConnection, sessionId: string, use
 		const sessionData = [
 			sessionId,                             // id
 			userId,                                // user_id
-			accessToken.substring(0, 50) + '...', // token (partial for security, enough to show unique parts)
+			accessToken.substring(0, 20) + '...', // token (partial for security)
 			expiresAt.toISOString(),              // expires_at
 			now.toISOString(),                    // created_at
 			now.toISOString()                     // updated_at
@@ -850,7 +863,7 @@ export async function authenticateSession(db: DatabaseConnection, sessionId: str
 		);
 
 		if (!sessionResponse.ok) {
-			return { valid: false, error: 'Session not found' };
+			return { valid: false, error: 'Failed to fetch session data' };
 		}
 
 		const sessionData = await sessionResponse.json() as any;
