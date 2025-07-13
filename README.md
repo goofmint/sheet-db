@@ -32,6 +32,77 @@ Authentication supports Auth0 only.
 
 ### Data Management APIs
 
+#### Create New Sheet
+**POST** `/api/sheets`
+
+Creates a new sheet in the spreadsheet with default columns and permission settings.
+
+**Authentication:** Required (Bearer token)
+
+**Permission Requirements:**
+- `CREATE_SHEET_BY_API` must be enabled in configuration
+- User must be in `CREATE_SHEET_USER` list OR have role in `CREATE_SHEET_ROLE` list
+
+**Request Body:**
+```json
+{
+  "name": "string (required, 1-100 characters)",
+  "public_read": "boolean (default: true)",
+  "public_write": "boolean (default: false)",
+  "role_read": "string[] (default: [])",
+  "role_write": "string[] (default: [])",
+  "user_read": "string[] (default: [])",
+  "user_write": "string[] (default: [])"
+}
+```
+
+**Example Request:**
+```bash
+curl -X POST /api/sheets \
+  -H "Authorization: Bearer your-session-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Project Tasks",
+    "public_read": true,
+    "public_write": false,
+    "role_write": ["admin", "editor"],
+    "user_write": ["user123"]
+  }'
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "name": "Project Tasks",
+    "sheetId": 12345,
+    "public_read": true,
+    "public_write": false,
+    "role_read": [],
+    "role_write": ["admin", "editor"],
+    "user_read": [],
+    "user_write": ["user123"],
+    "message": "Sheet 'Project Tasks' created successfully with ID 12345"
+  }
+}
+```
+
+**Error Responses:**
+```json
+{
+  "success": false,
+  "error": "Sheet creation is disabled by configuration"
+}
+```
+
+```json
+{
+  "success": false,
+  "error": "User role not authorized to create sheets"
+}
+```
+
 #### Get Sheet Data
 **GET** `/api/sheets/{id}/data`
 
