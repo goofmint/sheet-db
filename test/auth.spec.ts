@@ -220,7 +220,7 @@ describe('Authentication API', () => {
 				expect(response.status).toBe(401); // 無効なセッションIDのため認証失敗
 				const data = await response.json() as { success: boolean; error: string };
 				expect(data.success).toBe(false);
-				expect(data.error).toBe('Session not found');
+				expect(data.error).toBe('Failed to fetch session data');
 			}
 		});
 
