@@ -32,6 +32,7 @@ interface SheetCreateResponse {
 describe('Sheet API', () => {
 	let testSessionId: string | null = null;
 	let testUserInfo: { sub: string; email: string } | null = null;
+	let createdSheetIds: number[] = [];
 
 	beforeAll(async () => {
 		// Get Auth0 configuration from cloudflare:test environment
@@ -85,8 +86,31 @@ describe('Sheet API', () => {
 
 	afterEach(async () => {
 		// Clean up any test sheets that were created
-		// Note: In a real implementation, you might want to delete test sheets
-		// For now, we'll just ensure tests don't interfere with each other
+		if (createdSheetIds.length > 0 && testSessionId) {
+			console.log(`Cleaning up ${createdSheetIds.length} created sheets...`);
+			
+			for (const sheetId of createdSheetIds) {
+				try {
+					const deleteResponse = await fetch(`${BASE_URL}/api/sheets/${sheetId}`, {
+						method: 'DELETE',
+						headers: {
+							'Authorization': `Bearer ${testSessionId}`
+						}
+					});
+					
+					if (deleteResponse.ok) {
+						console.log(`Successfully deleted sheet ${sheetId}`);
+					} else {
+						console.warn(`Failed to delete sheet ${sheetId}: ${deleteResponse.status}`);
+					}
+				} catch (error) {
+					console.warn(`Error deleting sheet ${sheetId}:`, error);
+				}
+			}
+			
+			// Clear the array for next test
+			createdSheetIds = [];
+		}
 	});
 
 	describe('POST /api/sheets', () => {
@@ -128,6 +152,9 @@ describe('Sheet API', () => {
 			expect(data.data!.user_read).toEqual([]);
 			expect(data.data!.user_write).toEqual([testUserInfo!.sub]);
 			expect(data.data!.message).toContain('created successfully');
+			
+			// Track created sheet for cleanup
+			createdSheetIds.push(data.data!.sheetId);
 		});
 
 		it('should return 401 for unauthenticated request', async () => {
@@ -197,6 +224,9 @@ describe('Sheet API', () => {
 			expect(data.data!.public_read).toBe(true); // Default value
 			expect(data.data!.public_write).toBe(false); // Default value
 			expect(data.data!.user_write).toContain(testUserInfo!.sub); // Default to creator
+			
+			// Track created sheet for cleanup
+			createdSheetIds.push(data.data!.sheetId);
 		});
 
 		it('should create sheet with custom permissions', async () => {
@@ -235,6 +265,9 @@ describe('Sheet API', () => {
 			expect(data.data!.role_write).toEqual(['editor', 'admin']);
 			expect(data.data!.user_read).toEqual(['user456']);
 			expect(data.data!.user_write).toEqual(['user789']);
+			
+			// Track created sheet for cleanup
+			createdSheetIds.push(data.data!.sheetId);
 		});
 
 		it('should validate required name field', async () => {
@@ -362,7 +395,14 @@ describe('Sheet API', () => {
 			// Should either succeed or fail gracefully with 500 error
 			expect([200, 500].includes(response.status)).toBe(true);
 			
-			if (response.status === 500) {
+			if (response.status === 200) {
+				const data = await response.json() as SheetCreateResponse;
+				expect(data.success).toBe(true);
+				// Track created sheet for cleanup if successful
+				if (data.data?.sheetId) {
+					createdSheetIds.push(data.data.sheetId);
+				}
+			} else if (response.status === 500) {
 				const data = await response.json() as SheetCreateResponse;
 				expect(data.success).toBe(false);
 				expect(data.error).toBeDefined();
@@ -391,7 +431,14 @@ describe('Sheet API', () => {
 			// Should either succeed or fail gracefully
 			expect([200, 400, 500].includes(response.status)).toBe(true);
 			
-			if (response.status !== 200) {
+			if (response.status === 200) {
+				const data = await response.json() as SheetCreateResponse;
+				expect(data.success).toBe(true);
+				// Track created sheet for cleanup if successful
+				if (data.data?.sheetId) {
+					createdSheetIds.push(data.data.sheetId);
+				}
+			} else {
 				const data = await response.json() as SheetCreateResponse;
 				expect(data.success).toBe(false);
 				expect(data.error).toBeDefined();
