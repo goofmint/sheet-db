@@ -72,8 +72,8 @@ const mockBatchUpdateResponse = {
 };
 
 // Mock Google Sheets API
-global.fetch = vi.fn(async (url: string, options?: any) => {
-	const urlStr = url.toString();
+globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+	const urlStr = input.toString();
 	
 	// Mock successful authentication token
 	if (urlStr.includes('oauth2/v4/token')) {
@@ -87,7 +87,7 @@ global.fetch = vi.fn(async (url: string, options?: any) => {
 	// Mock Google Sheets API calls
 	if (urlStr.includes('sheets.googleapis.com')) {
 		// Mock batchUpdate
-		if (urlStr.includes('batchUpdate') && options?.method === 'POST') {
+		if (urlStr.includes('batchUpdate') && init?.method === 'POST') {
 			return new Response(JSON.stringify(mockBatchUpdateResponse), { status: 200 });
 		}
 		
@@ -238,8 +238,8 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -267,8 +267,8 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -297,8 +297,8 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -319,9 +319,9 @@ describe('Sheet Update API', () => {
 			};
 
 			// Override the mock for this specific test
-			const originalFetch = global.fetch;
-			global.fetch = vi.fn(async (url: string, options?: any) => {
-				const urlStr = url.toString();
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const urlStr = input.toString();
 				
 				// Mock successful authentication token
 				if (urlStr.includes('oauth2/v4/token')) {
@@ -335,7 +335,7 @@ describe('Sheet Update API', () => {
 				// Mock Google Sheets API calls
 				if (urlStr.includes('sheets.googleapis.com')) {
 					// Mock batchUpdate
-					if (urlStr.includes('batchUpdate') && options?.method === 'POST') {
+					if (urlStr.includes('batchUpdate') && init?.method === 'POST') {
 						return new Response(JSON.stringify(mockBatchUpdateResponse), { status: 200 });
 					}
 					
@@ -390,15 +390,15 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.data).toHaveProperty('name', 'UpdatedByUser');
 
 			// Restore original fetch
-			global.fetch = originalFetch;
+			globalThis.fetch = originalFetch;
 		});
 
 		it('should deny update when user has no write permission', async () => {
@@ -412,9 +412,9 @@ describe('Sheet Update API', () => {
 			};
 
 			// Override the mock for this specific test
-			const originalFetch = global.fetch;
-			global.fetch = vi.fn(async (url: string, options?: any) => {
-				const urlStr = url.toString();
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const urlStr = input.toString();
 				
 				// Mock successful authentication token
 				if (urlStr.includes('oauth2/v4/token')) {
@@ -428,7 +428,7 @@ describe('Sheet Update API', () => {
 				// Mock Google Sheets API calls
 				if (urlStr.includes('sheets.googleapis.com')) {
 					// Mock batchUpdate
-					if (urlStr.includes('batchUpdate') && options?.method === 'POST') {
+					if (urlStr.includes('batchUpdate') && init?.method === 'POST') {
 						return new Response(JSON.stringify(mockBatchUpdateResponse), { status: 200 });
 					}
 					
@@ -483,15 +483,15 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(403);
 			expect(data.success).toBe(false);
 			expect(data.error).toContain('No write permission');
 
 			// Restore original fetch
-			global.fetch = originalFetch;
+			globalThis.fetch = originalFetch;
 		});
 
 		it('should return 401 for unauthenticated request', async () => {
@@ -508,8 +508,8 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(401);
 			expect(data.success).toBe(false);
@@ -527,9 +527,9 @@ describe('Sheet Update API', () => {
 			};
 
 			// Override the mock for this specific test
-			const originalFetch = global.fetch;
-			global.fetch = vi.fn(async (url: string, options?: any) => {
-				const urlStr = url.toString();
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const urlStr = input.toString();
 				
 				// Mock successful authentication token
 				if (urlStr.includes('oauth2/v4/token')) {
@@ -543,7 +543,7 @@ describe('Sheet Update API', () => {
 				// Mock Google Sheets API calls
 				if (urlStr.includes('sheets.googleapis.com')) {
 					// Mock batchUpdate
-					if (urlStr.includes('batchUpdate') && options?.method === 'POST') {
+					if (urlStr.includes('batchUpdate') && init?.method === 'POST') {
 						return new Response(JSON.stringify(mockBatchUpdateResponse), { status: 200 });
 					}
 					
@@ -598,15 +598,15 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.data).toHaveProperty('name', 'PublicUpdateSheet');
 
 			// Restore original fetch
-			global.fetch = originalFetch;
+			globalThis.fetch = originalFetch;
 		});
 
 		it('should allow update when user has required role', async () => {
@@ -620,9 +620,9 @@ describe('Sheet Update API', () => {
 			};
 
 			// Override the mock for this specific test
-			const originalFetch = global.fetch;
-			global.fetch = vi.fn(async (url: string, options?: any) => {
-				const urlStr = url.toString();
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const urlStr = input.toString();
 				
 				// Mock successful authentication token
 				if (urlStr.includes('oauth2/v4/token')) {
@@ -636,7 +636,7 @@ describe('Sheet Update API', () => {
 				// Mock Google Sheets API calls
 				if (urlStr.includes('sheets.googleapis.com')) {
 					// Mock batchUpdate
-					if (urlStr.includes('batchUpdate') && options?.method === 'POST') {
+					if (urlStr.includes('batchUpdate') && init?.method === 'POST') {
 						return new Response(JSON.stringify(mockBatchUpdateResponse), { status: 200 });
 					}
 					
@@ -691,15 +691,15 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.data).toHaveProperty('name', 'RoleUpdateSheet');
 
 			// Restore original fetch
-			global.fetch = originalFetch;
+			globalThis.fetch = originalFetch;
 		});
 
 		it('should return 400 for empty update data', async () => {
@@ -712,22 +712,22 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify({})
 			});
 
-			const res = await app.request(req, mockEnv, {});
+			const res = await app.fetch(req, mockEnv);
 
 			expect(res.status).toBe(400); // Should fail validation for empty update data
 		});
 
 		it('should return 404 for non-existent sheet', async () => {
 			// Mock fetch to return empty metadata for non-existent sheet
-			const originalFetch = global.fetch;
-			global.fetch = vi.fn(async (url: string) => {
-				const urlStr = url.toString();
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const urlStr = input.toString();
 				
 				if (urlStr.includes('/spreadsheets/') && !urlStr.includes('/values/')) {
 					return new Response(JSON.stringify({ sheets: [] }), { status: 200 });
 				}
 				
-				return originalFetch(url);
+				return originalFetch(input, init);
 			});
 
 			const updateData = {
@@ -743,15 +743,15 @@ describe('Sheet Update API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(404);
 			expect(data.success).toBe(false);
 			expect(data.error).toContain('not found');
 
 			// Restore original fetch
-			global.fetch = originalFetch;
+			globalThis.fetch = originalFetch;
 		});
 
 	});

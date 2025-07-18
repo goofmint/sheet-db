@@ -144,7 +144,7 @@ describe('Sheet Data API', () => {
 					});
 
 					if (createDataResponse.ok) {
-						const data = await createDataResponse.json();
+						const data = await createDataResponse.json() as any;
 						if (data.success && data.data?.id) {
 							// Store the first created data ID for tests that need existing data
 							if (!existingDataId) {
@@ -218,7 +218,7 @@ describe('Sheet Data API', () => {
 			});
 			expect(resp.status).toBe(404);
 			
-			const data = await resp.json();
+			const data = await resp.json() as any;
 			expect(data.success).toBe(false);
 			expect(data.error).toContain('Sheet not found');
 		});
@@ -236,7 +236,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.results).toEqual([]);
 			}
@@ -254,7 +254,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 				expect(data.results.length).toBeLessThanOrEqual(10);
@@ -273,7 +273,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 				expect(typeof data.count).toBe('number');
@@ -292,7 +292,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -311,7 +311,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -330,7 +330,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -349,7 +349,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -368,7 +368,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -387,7 +387,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -406,7 +406,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -425,7 +425,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -444,7 +444,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -463,7 +463,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -482,7 +482,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -500,7 +500,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -518,7 +518,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -536,7 +536,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 			}
@@ -555,7 +555,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 				expect(data.results.length).toBeLessThanOrEqual(5);
@@ -576,7 +576,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 400) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toContain('Invalid WHERE condition format');
 			}
@@ -594,7 +594,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 				expect(data.results.length).toBeLessThanOrEqual(3);
@@ -646,7 +646,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 401) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toContain('Authentication required');
 			}
@@ -661,7 +661,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 403) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toContain('Permission denied');
 			}
@@ -708,7 +708,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(Array.isArray(data.results)).toBe(true);
 				expect(data.results.length).toBe(0);
@@ -732,7 +732,7 @@ describe('Sheet Data API', () => {
 			});
 			expect(resp.status).toBe(404);
 			
-			const data = await resp.json();
+			const data = await resp.json() as any;
 			expect(data.success).toBe(false);
 			expect(data.error).toContain('Sheet not found');
 		});
@@ -756,7 +756,7 @@ describe('Sheet Data API', () => {
 				
 				// API should return 400 for restricted fields
 				expect(resp.status).toBe(400);
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toBeDefined();
 			}
@@ -781,7 +781,7 @@ describe('Sheet Data API', () => {
 			
 			// API should return 400 for validation errors or 404 if sheet doesn't exist
 			expect([400, 404].includes(resp.status)).toBe(true);
-			const data = await resp.json();
+			const data = await resp.json() as any;
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
@@ -805,7 +805,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data).toBeDefined();
 				expect(data.data.id).toBeDefined();
@@ -833,7 +833,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 401) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toContain('Authentication required');
 			}
@@ -854,7 +854,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 403) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toContain('Permission denied');
 			}
@@ -872,7 +872,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data).toEqual({});
 			}
@@ -893,7 +893,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 400) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toContain('Field \'score\'');
 			}
@@ -914,7 +914,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data).toBeDefined();
 				expect(data.data.id).toBeDefined();
@@ -941,7 +941,7 @@ describe('Sheet Data API', () => {
 			// API should return 400 for malformed JSON
 			expect(resp.status).toBe(400);
 			try {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 			} catch (e) {
 				// Response might not be JSON if body is malformed
@@ -964,7 +964,7 @@ describe('Sheet Data API', () => {
 			
 			// API should return 400 for missing Content-Type or 404 if sheet doesn't exist
 			expect([400, 404].includes(resp.status)).toBe(true);
-			const data = await resp.json();
+			const data = await resp.json() as any;
 			expect(data.success).toBe(false);
 		});
 
@@ -990,7 +990,7 @@ describe('Sheet Data API', () => {
 			
 			for (const resp of responses) {
 				if (resp.status === 200) {
-					const data = await resp.json();
+					const data = await resp.json() as any;
 					expect(data.success).toBe(true);
 					expect(data.data.id).toBeDefined();
 					ids.add(data.data.id);
@@ -1023,7 +1023,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 400) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toContain('required');
 			}
@@ -1049,7 +1049,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data.metadata).toBeDefined();
 				expect(data.data.tags).toBeDefined();
@@ -1073,7 +1073,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data).toBeDefined();
 				expect(data.data.id).toBeDefined();
@@ -1114,7 +1114,7 @@ describe('Sheet Data API', () => {
 				});
 				
 				if (resp.status === 400) {
-					const data = await resp.json();
+					const data = await resp.json() as any;
 					expect(data.success).toBe(false);
 					expect(data.error).toBeDefined();
 				}
@@ -1138,7 +1138,7 @@ describe('Sheet Data API', () => {
 			});
 			expect(resp.status).toBe(404);
 			
-			const data = await resp.json();
+			const data = await resp.json() as any;
 			expect(data.success).toBe(false);
 			expect(data.error).toContain('Sheet not found');
 		});
@@ -1158,7 +1158,7 @@ describe('Sheet Data API', () => {
 			});
 			expect(resp.status).toBe(404);
 			
-			const data = await resp.json();
+			const data = await resp.json() as any;
 			expect(data.success).toBe(false);
 			// API may return different error messages for invalid data ID
 			expect(data.error).toBeDefined();
@@ -1183,7 +1183,7 @@ describe('Sheet Data API', () => {
 				
 				// API may return different status codes for protected field updates
 				if (resp.status === 400) {
-					const data = await resp.json();
+					const data = await resp.json() as any;
 					expect(data.success).toBe(false);
 					expect(data.error).toBeDefined();
 				} else {
@@ -1209,7 +1209,7 @@ describe('Sheet Data API', () => {
 			
 			// API may return different status codes for empty update
 			if (resp.status === 400) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toBeDefined();
 			} else {
@@ -1233,7 +1233,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 401) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toContain('Authentication required');
 			}
@@ -1254,7 +1254,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 403) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toContain('No write permission');
 			}
@@ -1279,7 +1279,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data.id).toBeDefined();
 				expect(data.data.updated_at).toBeDefined();
@@ -1306,7 +1306,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data.name).toBe('Partially Updated User');
 				expect(data.data.updated_at).toBeDefined();
@@ -1331,7 +1331,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 400) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 				expect(data.error).toBeDefined();
 			}
@@ -1354,7 +1354,7 @@ describe('Sheet Data API', () => {
 			// API should return 400 for malformed JSON
 			expect(resp.status).toBe(400);
 			try {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(false);
 			} catch (e) {
 				// Response might not be JSON if body is malformed
@@ -1377,7 +1377,7 @@ describe('Sheet Data API', () => {
 			
 			// API should return 400 for missing Content-Type or 404 if sheet doesn't exist
 			expect([400, 404].includes(resp.status)).toBe(true);
-			const data = await resp.json();
+			const data = await resp.json() as any;
 			expect(data.success).toBe(false);
 		});
 
@@ -1401,7 +1401,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data.name).toBe('Complex Data Update');
 				expect(data.data.metadata).toEqual({ key: 'updated_value', nested: { data: false } });
@@ -1425,7 +1425,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data).toBeDefined();
 				expect(data.data.name).toBe('Public Write Update');
@@ -1447,7 +1447,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data).toBeDefined();
 				expect(data.data.name).toBe('User Write Update');
@@ -1469,7 +1469,7 @@ describe('Sheet Data API', () => {
 			});
 			
 			if (resp.status === 200) {
-				const data = await resp.json();
+				const data = await resp.json() as any;
 				expect(data.success).toBe(true);
 				expect(data.data).toBeDefined();
 				expect(data.data.name).toBe('Role Write Update');

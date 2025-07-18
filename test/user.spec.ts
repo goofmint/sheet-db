@@ -42,8 +42,8 @@ const mockUserSheetData = {
 };
 
 // Mock Google Sheets API
-global.fetch = vi.fn(async (url: string, options?: any) => {
-	const urlStr = url.toString();
+globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+	const urlStr = input.toString();
 	
 	// Mock successful authentication token
 	if (urlStr.includes('oauth2/v4/token')) {
@@ -56,7 +56,7 @@ global.fetch = vi.fn(async (url: string, options?: any) => {
 	
 	// Mock Google Sheets API calls
 	if (urlStr.includes('sheets.googleapis.com')) {
-		if (options?.method === 'PUT') {
+		if (init?.method === 'PUT') {
 			return new Response(JSON.stringify({ updatedData: true }), { status: 200 });
 		}
 		
@@ -159,8 +159,8 @@ describe('User API', () => {
 				}
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -177,8 +177,8 @@ describe('User API', () => {
 				}
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(401);
 			expect(data.success).toBe(false);
@@ -190,7 +190,7 @@ describe('User API', () => {
 				method: 'GET'
 			});
 
-			const res = await app.request(req, mockEnv, {});
+			const res = await app.fetch(req, mockEnv);
 
 			expect(res.status).toBe(400); // Invalid header format
 		});
@@ -212,8 +212,8 @@ describe('User API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -233,8 +233,8 @@ describe('User API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(401);
 			expect(data.success).toBe(false);
@@ -255,8 +255,8 @@ describe('User API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(400);
 			expect(data.success).toBe(false);
@@ -277,8 +277,8 @@ describe('User API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -288,12 +288,13 @@ describe('User API', () => {
 
 		it('should return 404 for non-existent user', async () => {
 			// Mock fetch to return empty data for non-existent user
-			const originalFetch = global.fetch;
-			global.fetch = async (url: string) => {
-				if (url.toString().includes('sheets.googleapis.com')) {
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+				const url = input.toString();
+				if (url.includes('sheets.googleapis.com')) {
 					return new Response(JSON.stringify({ values: [['id'], ['string']] }), { status: 200 });
 				}
-				return originalFetch(url);
+				return originalFetch(input, init);
 			};
 
 			const updateData = { name: 'Updated Name' };
@@ -307,14 +308,14 @@ describe('User API', () => {
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(404);
 			expect(data.success).toBe(false);
 
 			// Restore original fetch
-			global.fetch = originalFetch;
+			globalThis.fetch = originalFetch;
 		});
 
 		it('should return 400 for empty update data', async () => {
@@ -327,7 +328,7 @@ describe('User API', () => {
 				body: JSON.stringify({})
 			});
 
-			const res = await app.request(req, mockEnv, {});
+			const res = await app.fetch(req, mockEnv);
 
 			expect(res.status).toBe(400); // Validation should fail for empty update data
 		});
@@ -342,8 +343,8 @@ describe('User API', () => {
 				}
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -358,8 +359,8 @@ describe('User API', () => {
 				}
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(401);
 			expect(data.success).toBe(false);
@@ -367,12 +368,13 @@ describe('User API', () => {
 
 		it('should return 404 for non-existent user', async () => {
 			// Mock fetch to return empty data for non-existent user
-			const originalFetch = global.fetch;
-			global.fetch = vi.fn(async (url: string) => {
-				if (url.toString().includes('sheets.googleapis.com')) {
+			const originalFetch = globalThis.fetch;
+			globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const url = input.toString();
+				if (url.includes('sheets.googleapis.com')) {
 					return new Response(JSON.stringify({ values: [['id'], ['string']] }), { status: 200 });
 				}
-				return originalFetch(url);
+				return originalFetch(input, init);
 			});
 
 			const req = new Request('http://localhost/api/users/nonexistent', {
@@ -382,14 +384,14 @@ describe('User API', () => {
 				}
 			});
 
-			const res = await app.request(req, mockEnv, {});
-			const data = await res.json();
+			const res = await app.fetch(req, mockEnv);
+			const data = await res.json() as any;
 
 			expect(res.status).toBe(404);
 			expect(data.success).toBe(false);
 
 			// Restore original fetch
-			global.fetch = originalFetch;
+			globalThis.fetch = originalFetch;
 		});
 
 		it('should return 403 for insufficient permissions', async () => {
@@ -404,7 +406,7 @@ describe('User API', () => {
 
 			// For this test, we'll assume the user has permission since we're mocking the same user
 			// In a real scenario, you'd mock different users and permission checks
-			const res = await app.request(req, mockEnv, {});
+			const res = await app.fetch(req, mockEnv);
 
 			// This test would need more sophisticated mocking to properly test permission denial
 			expect(res.status).toBeGreaterThanOrEqual(200);
