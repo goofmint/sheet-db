@@ -234,7 +234,13 @@ export const UpdateUserRequestSchema = z.object({
 	locale: z.string().optional(),
 	roles: z.array(z.string()).optional(),
 	email: z.string().email().optional(),
-	last_login: z.string().optional()
+	last_login: z.string().optional(),
+	public_read: z.boolean().optional(),
+	public_write: z.boolean().optional(),
+	role_read: z.array(z.string()).optional(),
+	role_write: z.array(z.string()).optional(),
+	user_read: z.array(z.string()).optional(),
+	user_write: z.array(z.string()).optional()
 }).refine(data => Object.keys(data).length > 0, {
 	message: "At least one field must be provided for update"
 });
@@ -277,7 +283,8 @@ export const CreateSheetResponseSchema = z.object({
 		role_write: z.array(z.string()),
 		user_read: z.array(z.string()),
 		user_write: z.array(z.string()),
-		message: z.string()
+		message: z.string(),
+		warning: z.string().optional()
 	})
 });
 
