@@ -19,6 +19,7 @@ type Bindings = {
 	DB: D1Database;
 	ASSETS: Fetcher;
 	R2_BUCKET?: R2Bucket;
+	RATE_LIMIT_KV?: KVNamespace;
 };
 
 // Constants
@@ -303,14 +304,14 @@ export function registerFileUploadRoute(app: OpenAPIHono<{ Bindings: Bindings }>
 
 			// Return success response
 			return c.json({
-				success: true,
+				success: true as const,
 				data: {
 					url: uploadResult.url,
 					fileName: file.name,
 					contentType: file.type,
 					fileSize: file.size
 				}
-			});
+			}, 200);
 
 		} catch (error) {
 			console.error('File upload error:', error);

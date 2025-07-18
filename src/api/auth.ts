@@ -16,6 +16,8 @@ import { authStartRoute, authCallbackGetRoute, authCallbackPostRoute, loginRoute
 type Bindings = {
 	DB: D1Database;
 	ASSETS: Fetcher;
+	R2_BUCKET?: R2Bucket;
+	RATE_LIMIT_KV?: KVNamespace;
 };
 
 // Auth0 authentication start endpoint (OpenAPI)
@@ -235,7 +237,7 @@ export function registerLogoutRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				return c.json({
 					success: true as const,
 					data: {}
-				});
+				}, 200);
 			}
 			
 			// Clear the corresponding session from _Session sheet
@@ -246,7 +248,7 @@ export function registerLogoutRoute(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			return c.json({
 				success: true as const,
 				data: {}
-			});
+			}, 200);
 			
 		} catch (error) {
 			console.error('Error in /api/logout:', error);

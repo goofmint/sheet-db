@@ -16,6 +16,7 @@ type Bindings = {
 	DB: D1Database;
 	ASSETS: Fetcher;
 	R2_BUCKET?: R2Bucket;
+	RATE_LIMIT_KV?: KVNamespace;
 };
 
 const app = new OpenAPIHono<{ Bindings: Bindings }>();
