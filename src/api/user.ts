@@ -59,7 +59,7 @@ async function deleteUserFromSheet(
 
 		// Get current user data to find row position
 		const userResponse = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:S`,
 			{
 				headers: {
 					'Authorization': `Bearer ${accessToken}`,
@@ -93,7 +93,7 @@ async function deleteUserFromSheet(
 		
 		// Clear the user data (keep the row but clear all data)
 		const clearResponse = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:Q${targetRowNumber}?valueInputOption=RAW`,
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:S${targetRowNumber}?valueInputOption=RAW`,
 			{
 				method: 'PUT',
 				headers: {
@@ -142,7 +142,7 @@ async function checkUserWritePermission(
 
 		// Get target user's permission settings from _User sheet
 		const response = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:S`,
 			{
 				headers: {
 					'Authorization': `Bearer ${accessToken}`,
@@ -207,7 +207,7 @@ async function validateUpdateDataAgainstSchema(
 	try {
 		// Get row 2 (type definition row) from _User sheet
 		const response = await fetch(
-			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A2:Q2`,
+			`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A2:S2`,
 			{
 				headers: {
 					'Authorization': `Bearer ${accessToken}`,
@@ -236,12 +236,14 @@ async function validateUpdateDataAgainstSchema(
 			locale: 8,
 			created_at: 9,
 			updated_at: 10,
-			public_read: 11,
-			public_write: 12,
-			role_read: 13,
-			role_write: 14,
-			user_read: 15,
-			user_write: 16
+			last_login: 11,
+			public_read: 12,
+			public_write: 13,
+			role_read: 14,
+			role_write: 15,
+			user_read: 16,
+			user_write: 17,
+			roles: 18
 		};
 
 		// Collect fields that need unique constraint checking
@@ -276,7 +278,7 @@ async function validateUpdateDataAgainstSchema(
 		if (uniqueFields.length > 0) {
 			// Get all user data
 			const usersResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:S`,
 				{
 					headers: {
 						'Authorization': `Bearer ${accessToken}`,
