@@ -16,8 +16,6 @@ import { getUserFromSheet } from '../utils/sheet-helpers';
 type Bindings = {
 	DB: D1Database;
 	ASSETS: Fetcher;
-	R2_BUCKET?: R2Bucket;
-	RATE_LIMIT_KV?: KVNamespace;
 };
 
 // Helper function to check role read permissions
@@ -198,8 +196,6 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					try {
 						const role = {
 							name: row[0],
-							users: row[3] ? JSON.parse(row[3]) : [],
-							roles: row[4] ? JSON.parse(row[4]) : [],
 							created_at: row[1] || '',
 							updated_at: row[2] || '',
 							public_read: row[5] === 'TRUE',
@@ -269,11 +265,11 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				
 				// Return success response
 				return c.json({
-					success: true as const,
+					success: true as true,
 					data: {
 						roles: accessibleRoles
 					}
-				}, 200);
+				});
 				
 			} catch (error) {
 				console.error('Error fetching roles:', error);
@@ -381,7 +377,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Return created role information
 			return c.json({
-				success: true as const,
+				success: true,
 				data: {
 					name: name,
 					users: [],
@@ -395,7 +391,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					user_read: [userId],
 					user_write: [userId]
 				}
-			}, 200);
+			});
 			
 		} catch (error) {
 			console.error('Error in POST /api/roles:', error);
@@ -549,7 +545,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Return updated role information
 			return c.json({
-				success: true as const,
+				success: true,
 				data: {
 					name: updatedRoleData[0],
 					users: JSON.parse(updatedRoleData[1]),
@@ -563,7 +559,7 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					user_read: JSON.parse(updatedRoleData[9]),
 					user_write: JSON.parse(updatedRoleData[10])
 				}
-			}, 200);
+			});
 			
 		} catch (error) {
 			console.error('Error in PUT /api/roles/:roleName:', error);
@@ -716,9 +712,9 @@ export function registerRoleRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			console.log('Role data cleared successfully:', roleName);
 			return c.json({
-				success: true as const,
+				success: true,
 				message: `Role '${roleName}' has been successfully deleted`
-			}, 200);
+			});
 			
 		} catch (error) {
 			console.error('Error in DELETE /api/roles/:roleName:', error);

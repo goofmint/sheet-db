@@ -16,8 +16,6 @@ import { parseColumnSchema, validateValue } from '../utils/schema-parser';
 type Bindings = {
 	DB: D1Database;
 	ASSETS: Fetcher;
-	R2_BUCKET?: R2Bucket;
-	RATE_LIMIT_KV?: KVNamespace;
 };
 
 
@@ -373,9 +371,9 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Return user information
 			return c.json({
-				success: true as const,
+				success: true as true,
 				data: user
-			}, 200);
+			});
 			
 		} catch (error) {
 			console.error('Error in GET /api/users/me:', error);
@@ -487,7 +485,7 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get current user data and update
 			const userResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:S`,
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A:Q`,
 				{
 					headers: {
 						'Authorization': `Bearer ${tokens.access_token}`,
@@ -530,19 +528,17 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				updateData.locale !== undefined ? updateData.locale : userRow[8], // locale
 				userRow[9] || now, // created_at (keep)
 				now, // updated_at (update)
-				updateData.last_login !== undefined ? updateData.last_login : userRow[11], // last_login
-				updateData.public_read !== undefined ? (updateData.public_read ? 'TRUE' : 'FALSE') : (userRow[12] || 'FALSE'), // public_read
-				updateData.public_write !== undefined ? (updateData.public_write ? 'TRUE' : 'FALSE') : (userRow[13] || 'FALSE'), // public_write
-				updateData.role_read !== undefined ? JSON.stringify(updateData.role_read) : (userRow[14] || '[]'), // role_read
-				updateData.role_write !== undefined ? JSON.stringify(updateData.role_write) : (userRow[15] || '[]'), // role_write
-				updateData.user_read !== undefined ? JSON.stringify(updateData.user_read) : (userRow[16] || '[]'), // user_read
-				updateData.user_write !== undefined ? JSON.stringify(updateData.user_write) : (userRow[17] || '[]'), // user_write
-				updateData.roles !== undefined ? JSON.stringify(updateData.roles) : (userRow[18] || '[]') // roles
+				updateData.public_read !== undefined ? (updateData.public_read ? 'TRUE' : 'FALSE') : (userRow[11] || 'FALSE'), // public_read
+				updateData.public_write !== undefined ? (updateData.public_write ? 'TRUE' : 'FALSE') : (userRow[12] || 'FALSE'), // public_write
+				updateData.role_read !== undefined ? JSON.stringify(updateData.role_read) : (userRow[13] || '[]'), // role_read
+				updateData.role_write !== undefined ? JSON.stringify(updateData.role_write) : (userRow[14] || '[]'), // role_write
+				updateData.user_read !== undefined ? JSON.stringify(updateData.user_read) : (userRow[15] || '[]'), // user_read
+				updateData.user_write !== undefined ? JSON.stringify(updateData.user_write) : (userRow[16] || '[]') // user_write
 			];
 			
 			// Update data
 			const updateResponse = await fetch(
-				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:S${targetRowNumber}?valueInputOption=RAW`,
+				`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/_User!A${targetRowNumber}:Q${targetRowNumber}?valueInputOption=RAW`,
 				{
 					method: 'PUT',
 					headers: {
@@ -574,16 +570,20 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				picture: updatedUserData[6] || undefined,
 				email_verified: updatedUserData[7] === 'TRUE',
 				locale: updatedUserData[8] || undefined,
-				roles: JSON.parse(updatedUserData[18]),
 				created_at: updatedUserData[9],
 				updated_at: updatedUserData[10],
-				last_login: updatedUserData[11] || undefined
+				public_read: updatedUserData[11] === 'TRUE',
+				public_write: updatedUserData[12] === 'TRUE',
+				role_read: JSON.parse(updatedUserData[13]),
+				role_write: JSON.parse(updatedUserData[14]),
+				user_read: JSON.parse(updatedUserData[15]),
+				user_write: JSON.parse(updatedUserData[16])
 			};
 			
 			return c.json({
-				success: true as const,
+				success: true as true,
 				data: updatedUser
-			}, 200);
+			});
 			
 		} catch (error) {
 			console.error('Error in PUT /api/users/:id:', error);
@@ -669,13 +669,13 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					}
 				}
 				
-				return c.json({ success: false as const, error: errorMessage }, statusCode as 401 | 403 | 404 | 500);
+				return c.json({ success: false as const, error: errorMessage }, statusCode);
 			}
 			
 			return c.json({
-				success: true as const,
+				success: true as true,
 				message: deleteResult.message || `User '${targetUserId}' has been successfully deleted`
-			}, 200);
+			});
 			
 		} catch (error) {
 			console.error('Error in DELETE /api/users/:id:', error);
@@ -749,13 +749,13 @@ export function registerUserRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 					}
 				}
 				
-				return c.json({ success: false as const, error: errorMessage }, statusCode as 401 | 404 | 500);
+				return c.json({ success: false as const, error: errorMessage }, statusCode);
 			}
 			
 			return c.json({
-				success: true as const,
+				success: true as true,
 				message: 'User account has been successfully deleted'
-			}, 200);
+			});
 			
 		} catch (error) {
 			console.error('Error in DELETE /api/users/me:', error);
