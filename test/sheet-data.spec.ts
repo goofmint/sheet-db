@@ -2,10 +2,46 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { validateAuth0Config, fetchAuth0Token, fetchAuth0UserInfo, BASE_URL } from './helpers/auth';
 
+/**
+ * Sheet Data API Tests
+ * 
+ * This test suite automatically creates test data during setup to ensure consistent
+ * test execution across all environments. The beforeAll hook:
+ * 
+ * 1. Creates a unique test sheet with a timestamp-based ID
+ * 2. Creates test data entries for tests that require existing data
+ * 3. Falls back to hardcoded IDs if sheet/data creation fails
+ * 
+ * Dynamic test IDs created:
+ * - testSheetId: Main test sheet (fallback: 'test-sheet')
+ * - existingDataId: ID of existing data entry (fallback: 'existing-id')
+ * - testDataId: Generic test data ID (fallback: 'test-id')
+ * - publicDataId: Public data ID (fallback: 'public-data-id')
+ * - userSpecificDataId: User-specific data ID (fallback: 'user-specific-data-id')
+ * - roleSpecificDataId: Role-specific data ID (fallback: 'role-specific-data-id')
+ * 
+ * Hardcoded sheet IDs still used for specific test scenarios:
+ * - 'invalid-sheet': Expected to not exist
+ * - 'empty-sheet': Expected to be empty
+ * - 'private-sheet': Requires authentication
+ * - 'restricted-sheet': Restricted access
+ * - 'readonly-sheet': Read-only access
+ * - 'writeonly-sheet': Write-only access
+ * - 'public-write-sheet': Public write access
+ */
+
 describe('Sheet Data API', () => {
 	let testSessionId: string | null = null;
 	let testUserInfo: { sub: string; email: string } | null = null;
 	let createdDataIds: { sheetId: string; dataId: string }[] = [];
+	
+	// Dynamically created test IDs
+	let testSheetId: string;
+	let existingDataId: string;
+	let testDataId: string;
+	let publicDataId: string;
+	let userSpecificDataId: string;
+	let roleSpecificDataId: string;
 
 	beforeAll(async () => {
 		// Try to get Auth0 configuration but don't fail if it's not available
@@ -47,7 +83,108 @@ describe('Sheet Data API', () => {
 			testSessionId = 'mock-session-id-for-testing';
 			testUserInfo = { sub: 'test-user-id', email: 'test@example.com' };
 		}
+
+		// Create test data setup
+		await setupTestData();
 	});
+
+	async function setupTestData() {
+		if (!testSessionId) {
+			console.warn('No test session available for test data setup');
+			return;
+		}
+
+		try {
+			// Generate unique test sheet ID
+			const timestamp = Date.now();
+			testSheetId = `test-sheet-${timestamp}`;
+
+			// Create the main test sheet
+			const createSheetResponse = await fetch(`${BASE_URL}/api/sheets`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${testSessionId}`
+				},
+				body: JSON.stringify({
+					id: testSheetId,
+					name: 'Test Sheet for API Tests',
+					schema: {
+						name: { type: 'string', required: true },
+						email: { type: 'string' },
+						score: { type: 'number' },
+						is_active: { type: 'boolean' },
+						metadata: { type: 'object' },
+						tags: { type: 'array' }
+					}
+				})
+			});
+
+			if (!createSheetResponse.ok) {
+				console.warn('Failed to create test sheet, using hardcoded sheet ID');
+				testSheetId = 'test-sheet';
+			}
+
+			// Create test data entries
+			const testDataEntries = [
+				{ name: 'Test User 1', email: 'test1@example.com', score: 100 },
+				{ name: 'Test User 2', email: 'test2@example.com', score: 200 },
+				{ name: 'Test User 3', email: 'test3@example.com', score: 150 }
+			];
+
+			for (const entry of testDataEntries) {
+				try {
+					const createDataResponse = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'Authorization': `Bearer ${testSessionId}`
+						},
+						body: JSON.stringify(entry)
+					});
+
+					if (createDataResponse.ok) {
+						const data = await createDataResponse.json();
+						if (data.success && data.data?.id) {
+							// Store the first created data ID for tests that need existing data
+							if (!existingDataId) {
+								existingDataId = data.data.id;
+							}
+							if (!testDataId) {
+								testDataId = data.data.id;
+							}
+						}
+					}
+				} catch (error) {
+					console.warn(`Failed to create test data entry: ${error}`);
+				}
+			}
+
+			// Set fallback IDs if creation failed
+			if (!existingDataId) {
+				existingDataId = 'existing-id';
+			}
+			if (!testDataId) {
+				testDataId = 'test-id';
+			}
+
+			// Set other test IDs
+			publicDataId = 'public-data-id';
+			userSpecificDataId = 'user-specific-data-id';
+			roleSpecificDataId = 'role-specific-data-id';
+
+			console.log(`Test data setup complete. Main sheet ID: ${testSheetId}`);
+		} catch (error) {
+			console.warn('Test data setup failed, using hardcoded IDs:', error);
+			// Fallback to hardcoded IDs
+			testSheetId = 'test-sheet';
+			existingDataId = 'existing-id';
+			testDataId = 'test-id';
+			publicDataId = 'public-data-id';
+			userSpecificDataId = 'user-specific-data-id';
+			roleSpecificDataId = 'role-specific-data-id';
+		}
+	}
 
 	afterEach(async () => {
 		// Clean up created data after each test
@@ -110,7 +247,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?limit=10&page=1`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?limit=10&page=1`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -129,7 +266,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?count=true`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?count=true`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -148,7 +285,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?query=test`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?query=test`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -167,7 +304,7 @@ describe('Sheet Data API', () => {
 			}
 
 			const whereCondition = JSON.stringify({ "name": "test" });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -181,8 +318,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support WHERE conditions with $gt operator', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "score": { "$gt": 100 } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -196,8 +337,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support WHERE conditions with $lt operator', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "score": { "$lt": 1000 } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -211,8 +356,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support WHERE conditions with $gte and $lte operators', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "score": { "$gte": 1000, "$lte": 3000 } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -226,8 +375,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support WHERE conditions with $ne operator', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "status": { "$ne": "inactive" } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -241,8 +394,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support WHERE conditions with $in operator', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "category": { "$in": ["A", "B", "C"] } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -256,8 +413,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support WHERE conditions with $nin operator', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "category": { "$nin": ["X", "Y", "Z"] } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -271,8 +432,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support WHERE conditions with $exists operator', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "email": { "$exists": true } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -286,8 +451,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support WHERE conditions with $regex operator', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "email": { "$regex": ".*@example\\.com$" } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -301,8 +470,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support WHERE conditions with $text operator', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "description": { "$text": "search term" } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -320,7 +493,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?order=name`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?order=name`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -338,7 +511,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?order=score:desc`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?order=score:desc`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -356,7 +529,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?order=category,score:desc`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?order=category,score:desc`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -370,8 +543,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should support complex query combinations', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "score": { "$gte": 100, "$lte": 1000 } });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}&order=score:desc&limit=5&page=1&count=true`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}&order=score:desc&limit=5&page=1&count=true`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -387,8 +564,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should return 400 for invalid WHERE condition', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const invalidWhere = 'invalid-json';
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(invalidWhere)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(invalidWhere)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -406,7 +587,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?limit=3`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?limit=3`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -425,12 +606,12 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp1 = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?limit=2&page=1`, {
+			const resp1 = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?limit=2&page=1`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
 			});
-			const resp2 = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?limit=2&page=2`, {
+			const resp2 = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?limit=2&page=2`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -492,7 +673,7 @@ describe('Sheet Data API', () => {
 			}
 
 			// Test invalid limit
-			const resp1 = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?limit=0`, {
+			const resp1 = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?limit=0`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -503,7 +684,7 @@ describe('Sheet Data API', () => {
 			}
 			
 			// Test invalid page
-			const resp2 = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?page=0`, {
+			const resp2 = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?page=0`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -515,8 +696,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should handle empty results gracefully', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			const whereCondition = JSON.stringify({ "nonexistent_field": "nonexistent_value" });
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data?where=${encodeURIComponent(whereCondition)}`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data?where=${encodeURIComponent(whereCondition)}`, {
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
 				}
@@ -554,13 +739,13 @@ describe('Sheet Data API', () => {
 
 		it('should reject data with restricted fields', async () => {
 			const testCases = [
-				{ field: 'id', value: 'test-id' },
+				{ field: 'id', value: '${testDataId}' },
 				{ field: 'created_at', value: '2023-01-01T00:00:00Z' },
 				{ field: 'updated_at', value: '2023-01-01T00:00:00Z' }
 			];
 
 			for (const testCase of testCases) {
-				const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+				const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -569,15 +754,11 @@ describe('Sheet Data API', () => {
 					body: JSON.stringify({ [testCase.field]: testCase.value, name: 'Test' })
 				});
 				
-				// API may return different status codes for restricted fields
-				if (resp.status === 400) {
-					const data = await resp.json();
-					expect(data.success).toBe(false);
-					expect(data.error).toBeDefined();
-				} else {
-					// Accept other error statuses as valid for restricted fields
-					expect([400, 404, 500].includes(resp.status)).toBe(true);
-				}
+				// API should return 400 for restricted fields
+				expect(resp.status).toBe(400);
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+				expect(data.error).toBeDefined();
 			}
 		});
 
@@ -586,7 +767,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -598,15 +779,11 @@ describe('Sheet Data API', () => {
 				})
 			});
 			
-			// API may return different status codes for validation errors
-			if (resp.status === 400) {
-				const data = await resp.json();
-				expect(data.success).toBe(false);
-				expect(data.error).toBeDefined();
-			} else {
-				// Accept other error statuses as valid for non-existent columns
-				expect([400, 404, 500].includes(resp.status)).toBe(true);
-			}
+			// API should return 400 for validation errors or 404 if sheet doesn't exist
+			expect([400, 404].includes(resp.status)).toBe(true);
+			const data = await resp.json();
+			expect(data.success).toBe(false);
+			expect(data.error).toBeDefined();
 		});
 
 		it('should create data successfully with valid fields', async () => {
@@ -614,7 +791,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -637,6 +814,7 @@ describe('Sheet Data API', () => {
 				expect(data.data.name).toBe('Test User');
 				expect(data.data.email).toBe('test@example.com');
 				expect(data.data.score).toBe(100);
+				createdDataIds.push({ sheetId: testSheetId, dataId: data.data.id });
 			}
 		});
 
@@ -702,7 +880,7 @@ describe('Sheet Data API', () => {
 
 		it('should validate data types according to schema', async () => {
 			// Test invalid data type for number field
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -726,7 +904,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -742,6 +920,7 @@ describe('Sheet Data API', () => {
 				expect(data.data.id).toBeDefined();
 				expect(data.data.created_at).toBeDefined();
 				expect(data.data.updated_at).toBeDefined();
+				createdDataIds.push({ sheetId: testSheetId, dataId: data.data.id });
 			}
 		});
 
@@ -750,7 +929,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -759,16 +938,14 @@ describe('Sheet Data API', () => {
 				body: 'invalid-json'
 			});
 			
-			// API should return error status for malformed JSON
-			expect([400, 500].includes(resp.status)).toBe(true);
-			if (resp.status === 400) {
-				try {
-					const data = await resp.json();
-					expect(data.success).toBe(false);
-				} catch (e) {
-					// Response might not be JSON if body is malformed
-					expect(e).toBeDefined();
-				}
+			// API should return 400 for malformed JSON
+			expect(resp.status).toBe(400);
+			try {
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+			} catch (e) {
+				// Response might not be JSON if body is malformed
+				expect(e).toBeDefined();
 			}
 		});
 
@@ -777,7 +954,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
@@ -785,14 +962,10 @@ describe('Sheet Data API', () => {
 				body: JSON.stringify({ name: 'Test' })
 			});
 			
-			// API may return different status codes for missing Content-Type
-			if (resp.status === 400) {
-				const data = await resp.json();
-				expect(data.success).toBe(false);
-			} else {
-				// Accept other error statuses as valid for missing Content-Type
-				expect([400, 404, 500].includes(resp.status)).toBe(true);
-			}
+			// API should return 400 for missing Content-Type or 404 if sheet doesn't exist
+			expect([400, 404].includes(resp.status)).toBe(true);
+			const data = await resp.json();
+			expect(data.success).toBe(false);
 		});
 
 		it('should generate unique IDs for concurrent requests', async () => {
@@ -802,7 +975,7 @@ describe('Sheet Data API', () => {
 
 			// Test concurrent requests to ensure unique ID generation
 			const requests = Array.from({ length: 5 }, () => 
-				fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+				fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -821,6 +994,7 @@ describe('Sheet Data API', () => {
 					expect(data.success).toBe(true);
 					expect(data.data.id).toBeDefined();
 					ids.add(data.data.id);
+					createdDataIds.push({ sheetId: testSheetId, dataId: data.data.id });
 				}
 			}
 			
@@ -831,8 +1005,12 @@ describe('Sheet Data API', () => {
 		});
 
 		it('should handle required field validation', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			// This test depends on having a required field in the schema
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -856,7 +1034,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -876,6 +1054,7 @@ describe('Sheet Data API', () => {
 				expect(data.data.metadata).toBeDefined();
 				expect(data.data.tags).toBeDefined();
 				expect(data.data.is_active).toBe(true);
+				createdDataIds.push({ sheetId: testSheetId, dataId: data.data.id });
 			}
 		});
 
@@ -899,10 +1078,15 @@ describe('Sheet Data API', () => {
 				expect(data.data).toBeDefined();
 				expect(data.data.id).toBeDefined();
 				expect(data.data.name).toBe('Public Write Test');
+				createdDataIds.push({ sheetId: 'public-write-sheet', dataId: data.data.id });
 			}
 		});
 
 		it('should validate against schema constraints', async () => {
+			if (!testSessionId) {
+				throw new Error('Test session not available');
+			}
+
 			// Test various schema constraints
 			const testCases = [
 				{
@@ -920,7 +1104,7 @@ describe('Sheet Data API', () => {
 			];
 
 			for (const testCase of testCases) {
-				const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data`, {
+				const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -944,7 +1128,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/invalid-sheet/data/test-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/invalid-sheet/data/${testDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -964,7 +1148,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/invalid-data-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/invalid-data-id`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -988,7 +1172,7 @@ describe('Sheet Data API', () => {
 			];
 
 			for (const testCase of testCases) {
-				const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/existing-id`, {
+				const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 					method: 'PUT',
 					headers: {
 						'Content-Type': 'application/json',
@@ -1014,7 +1198,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/existing-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1039,7 +1223,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/private-sheet/data/test-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/private-sheet/data/${testDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1060,7 +1244,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/restricted-data-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/restricted-data-id`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1081,7 +1265,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/existing-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1110,7 +1294,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/existing-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1134,7 +1318,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/existing-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1158,7 +1342,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/existing-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1167,16 +1351,14 @@ describe('Sheet Data API', () => {
 				body: 'invalid-json'
 			});
 			
-			// API should return error status for malformed JSON
-			expect([400, 500].includes(resp.status)).toBe(true);
-			if (resp.status === 400) {
-				try {
-					const data = await resp.json();
-					expect(data.success).toBe(false);
-				} catch (e) {
-					// Response might not be JSON if body is malformed
-					expect(e).toBeDefined();
-				}
+			// API should return 400 for malformed JSON
+			expect(resp.status).toBe(400);
+			try {
+				const data = await resp.json();
+				expect(data.success).toBe(false);
+			} catch (e) {
+				// Response might not be JSON if body is malformed
+				expect(e).toBeDefined();
 			}
 		});
 
@@ -1185,7 +1367,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/existing-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Authorization': `Bearer ${testSessionId}`
@@ -1193,14 +1375,10 @@ describe('Sheet Data API', () => {
 				body: JSON.stringify({ name: 'Test' })
 			});
 			
-			// API may return different status codes for missing Content-Type
-			if (resp.status === 400) {
-				const data = await resp.json();
-				expect(data.success).toBe(false);
-			} else {
-				// Accept other error statuses as valid for missing Content-Type
-				expect([400, 404, 500].includes(resp.status)).toBe(true);
-			}
+			// API should return 400 for missing Content-Type or 404 if sheet doesn't exist
+			expect([400, 404].includes(resp.status)).toBe(true);
+			const data = await resp.json();
+			expect(data.success).toBe(false);
 		});
 
 		it('should update complex data types', async () => {
@@ -1208,7 +1386,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/existing-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1237,7 +1415,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/public-write-sheet/data/public-data-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/public-write-sheet/data/${publicDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1259,7 +1437,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/user-specific-data-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${userSpecificDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -1281,7 +1459,7 @@ describe('Sheet Data API', () => {
 				throw new Error('Test session not available');
 			}
 
-			const resp = await fetch(`${BASE_URL}/api/sheets/test-sheet/data/role-specific-data-id`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${roleSpecificDataId}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
