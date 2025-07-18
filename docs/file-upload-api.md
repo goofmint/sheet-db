@@ -160,6 +160,35 @@ console.log(result);
 4. Authentication controls access when required
 5. Files are stored in secure cloud storage services
 
+## Testing
+
+The file upload API includes comprehensive test coverage in `test/file-upload.spec.ts`. The tests cover:
+
+- File validation (size, type, presence)
+- Authentication requirements
+- Error handling for various scenarios
+- Response format validation
+- Security considerations (filename sanitization)
+- Configuration validation
+
+### Running Tests
+
+```bash
+# Run all file upload tests
+npm test -- test/file-upload.spec.ts
+
+# Run specific test
+npm test -- test/file-upload.spec.ts -t "should return error when no file is provided"
+```
+
+### Test Configuration
+
+Tests use the same authentication helpers as other API tests and automatically handle:
+- Auth0 authentication setup
+- Session management
+- Error scenarios when storage is not configured
+- Mock file creation for testing
+
 ## Troubleshooting
 
 ### Common Issues
