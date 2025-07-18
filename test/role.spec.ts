@@ -4,7 +4,7 @@ import { authenticateWithAuth0, getAuth0TestCredentials, BASE_URL } from './help
 describe('Role API', () => {
 	let testSessionId: string;
 	let validAuthToken: string;
-	
+
 	// Auth0 test environment variables
 	const { email: auth0TestEmail, password: auth0TestPassword } = getAuth0TestCredentials();
 
@@ -43,15 +43,15 @@ describe('Role API', () => {
 			const response = await fetch(`${BASE_URL}/api/roles`, {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify({
-					name: 'test-role-no-auth'
-				})
+					name: 'test-role-no-auth',
+				}),
 			});
 
 			expect(response.status).toBe(400);
-			const data = await response.json() as { success: boolean; error: string };
+			const data = (await response.json()) as { success: boolean; error: string };
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
@@ -61,15 +61,15 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': 'InvalidFormat'
+					Authorization: 'InvalidFormat',
 				},
 				body: JSON.stringify({
-					name: 'test-role-invalid-auth'
-				})
+					name: 'test-role-invalid-auth',
+				}),
 			});
 
 			expect(response.status).toBe(400);
-			const data = await response.json() as { success: boolean; error: string };
+			const data = (await response.json()) as { success: boolean; error: string };
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
@@ -79,16 +79,16 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': validAuthToken
+					Authorization: validAuthToken,
 				},
 				body: JSON.stringify({
-					public_read: true
-				})
+					public_read: true,
+				}),
 			});
 
 			// Validation should happen before authentication, returning 400
 			expect(response.status).toBe(400);
-			const data = await response.json() as { success: boolean; error: string };
+			const data = (await response.json()) as { success: boolean; error: string };
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
@@ -98,15 +98,15 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': validAuthToken
+					Authorization: validAuthToken,
 				},
 				body: JSON.stringify({
-					name: ''
-				})
+					name: '',
+				}),
 			});
 
 			expect(response.status).toBe(400);
-			const data = await response.json() as { success: boolean; error: string };
+			const data = (await response.json()) as { success: boolean; error: string };
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
@@ -116,15 +116,15 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': validAuthToken
+					Authorization: validAuthToken,
 				},
 				body: JSON.stringify({
-					name: '   '
-				})
+					name: '   ',
+				}),
 			});
 
 			expect([400, 401].includes(response.status)).toBe(true);
-			const data = await response.json() as { success: boolean; error: string };
+			const data = (await response.json()) as { success: boolean; error: string };
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
@@ -134,19 +134,21 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': 'Bearer invalid-session-id'
+					Authorization: 'Bearer invalid-session-id',
 				},
 				body: JSON.stringify({
-					name: 'test-role-invalid-session'
-				})
+					name: 'test-role-invalid-session',
+				}),
 			});
 
 			expect(response.status).toBe(401);
-			const data = await response.json() as { success: boolean; error: string };
+			const data = (await response.json()) as { success: boolean; error: string };
 			expect(data.success).toBe(false);
-			expect(['Session not found', 'Authentication failed', 'No spreadsheet configured', 'No valid Google token found'].some(msg => 
-				data.error.includes(msg)
-			)).toBe(true);
+			expect(
+				['Session not found', 'Authentication failed', 'No spreadsheet configured', 'No valid Google token found'].some((msg) =>
+					data.error.includes(msg)
+				)
+			).toBe(true);
 		});
 
 		it('should create role with valid session (integration test)', async () => {
@@ -160,27 +162,27 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': validAuthToken
+					Authorization: validAuthToken,
 				},
 				body: JSON.stringify({
 					name: uniqueRoleName,
 					public_read: true,
-					public_write: false
-				})
+					public_write: false,
+				}),
 			});
 
 			if (response.status === 401) {
-				const data = await response.json() as { success: boolean; error: string };
+				const data = (await response.json()) as { success: boolean; error: string };
 				console.log(`Skipping integration test due to authentication failure: ${data.error}`);
 				return;
 			}
 			if (response.status === 500) {
-				const data = await response.json() as { success: boolean; error: string };
+				const data = (await response.json()) as { success: boolean; error: string };
 				throw new Error(`System error: ${data.error}. Check Google Sheets configuration and permissions.`);
 			}
 
 			expect(response.status).toBe(200);
-			const data = await response.json() as {
+			const data = (await response.json()) as {
 				success: boolean;
 				data: {
 					name: string;
@@ -218,22 +220,22 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': validAuthToken
+					Authorization: validAuthToken,
 				},
 				body: JSON.stringify({
 					name: duplicateRoleName,
 					public_read: false,
-					public_write: false
-				})
+					public_write: false,
+				}),
 			});
 
 			if (firstResponse.status === 401) {
-				const data = await firstResponse.json() as { success: boolean; error: string };
+				const data = (await firstResponse.json()) as { success: boolean; error: string };
 				console.log(`Skipping integration test due to authentication failure: ${data.error}`);
 				return;
 			}
 			if (firstResponse.status === 500) {
-				const data = await firstResponse.json() as { success: boolean; error: string };
+				const data = (await firstResponse.json()) as { success: boolean; error: string };
 				throw new Error(`System error: ${data.error}. Check Google Sheets configuration and permissions.`);
 			}
 
@@ -244,17 +246,17 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': validAuthToken
+					Authorization: validAuthToken,
 				},
 				body: JSON.stringify({
 					name: duplicateRoleName,
 					public_read: true,
-					public_write: true
-				})
+					public_write: true,
+				}),
 			});
 
 			expect(secondResponse.status).toBe(409); // Conflict
-			const secondData = await secondResponse.json() as { success: boolean; error: string };
+			const secondData = (await secondResponse.json()) as { success: boolean; error: string };
 			expect(secondData.success).toBe(false);
 			expect(secondData.error).toContain('already exists');
 			expect(secondData.error).toContain('unique');
@@ -265,9 +267,9 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': validAuthToken
+					Authorization: validAuthToken,
 				},
-				body: 'invalid json'
+				body: 'invalid json',
 			});
 
 			expect(response.status).toBe(400);
@@ -282,15 +284,15 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': validAuthToken
+					Authorization: validAuthToken,
 				},
 				body: JSON.stringify({
-					name: 123 // number instead of string
-				})
+					name: 123, // number instead of string
+				}),
 			});
 
 			expect(response.status).toBe(400);
-			const data = await response.json() as { success: boolean; error: string };
+			const data = (await response.json()) as { success: boolean; error: string };
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
@@ -302,15 +304,15 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': 'Bearer '
+					Authorization: 'Bearer ',
 				},
 				body: JSON.stringify({
-					name: 'test-role-empty-session'
-				})
+					name: 'test-role-empty-session',
+				}),
 			});
 
 			expect(response.status).toBe(400);
-			const data = await response.json() as { success: boolean; error: string };
+			const data = (await response.json()) as { success: boolean; error: string };
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
@@ -322,18 +324,18 @@ describe('Role API', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${expiredSessionId}`
+					Authorization: `Bearer ${expiredSessionId}`,
 				},
 				body: JSON.stringify({
-					name: 'test-role-expired'
-				})
+					name: 'test-role-expired',
+				}),
 			});
 
 			expect(response.status).toBe(401);
-			const data = await response.json() as { success: boolean; error: string };
+			const data = (await response.json()) as { success: boolean; error: string };
 			expect(data.success).toBe(false);
 			const expectedMessages = ['Session not found', 'Session expired', 'Authentication failed', 'Failed to fetch session data'];
-			const hasExpectedMessage = expectedMessages.some(msg => data.error.includes(msg));
+			const hasExpectedMessage = expectedMessages.some((msg) => data.error.includes(msg));
 			expect(hasExpectedMessage).toBe(true);
 		});
 	});
