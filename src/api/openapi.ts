@@ -4,8 +4,6 @@ import { swaggerUI } from '@hono/swagger-ui';
 type Bindings = {
 	DB: D1Database;
 	ASSETS: Fetcher;
-	R2_BUCKET?: R2Bucket;
-	RATE_LIMIT_KV?: KVNamespace;
 };
 
 // Swagger UI endpoint

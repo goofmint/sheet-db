@@ -25,4 +25,3 @@ export const sessionTable = sqliteTable('Session', {
   value: text().notNull(),
   expiresAt: int().notNull(),
 });
-
