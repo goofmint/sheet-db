@@ -414,9 +414,11 @@ describe('Sheet API', () => {
 				throw new Error('Test session not available');
 			}
 
-			// Test with potentially problematic sheet name that might cause Google API issues
+			// Test with sheet name at exactly 100 characters (Google Sheets limit)
+			// Prefix: "TestSheet_GoogleAPIError_" (25) + timestamp (13) + "_" (1) = 39 chars
+			// Remaining: 100 - 39 = 61 chars for padding
 			const createData: SheetCreateRequest = {
-				name: `TestSheet_GoogleAPIError_${Date.now()}_${'x'.repeat(100)}` // Very long name
+				name: `TestSheet_GoogleAPIError_${Date.now()}_${'x'.repeat(61)}` // Exactly 100 characters
 			};
 
 			const response = await fetch(`${BASE_URL}/api/sheets`, {
