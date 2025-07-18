@@ -1,6 +1,5 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { logger } from '../utils/logger';
-import { dataInsertionRateLimiter, unauthenticatedRateLimiter } from '../utils/rate-limiter';
 import { sheetDataValidator } from '../utils/data-validator';
 import { drizzle } from 'drizzle-orm/d1';
 import {
@@ -2580,24 +2579,6 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			const { id: sheetId, columnId: columnName } = c.req.valid('param');
 			
-			// Apply rate limiting
-		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
-		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
-		const rateLimitKey = userId || clientIP;
-		
-		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
-		if (!rateLimitResult.allowed) {
-			logger.warn('Rate limit exceeded for data insertion', { 
-				userId, 
-				clientIP,
-				rateLimitKey 
-			});
-			return c.json({ 
-				success: false as const, 
-				error: rateLimitResult.error ?? 'Rate limit exceeded',
-				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-			}, 429);
-		}
 		
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
@@ -2738,24 +2719,6 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}, 400);
 			}
 			
-			// Apply rate limiting
-		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
-		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
-		const rateLimitKey = userId || clientIP;
-		
-		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
-		if (!rateLimitResult.allowed) {
-			logger.warn('Rate limit exceeded for data insertion', { 
-				userId, 
-				clientIP,
-				rateLimitKey 
-			});
-			return c.json({ 
-				success: false as const, 
-				error: rateLimitResult.error ?? 'Rate limit exceeded',
-				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-			}, 429);
-		}
 		
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
@@ -2894,24 +2857,6 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Apply rate limiting
-		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
-		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
-		const rateLimitKey = userId || clientIP;
-		
-		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
-		if (!rateLimitResult.allowed) {
-			logger.warn('Rate limit exceeded for data insertion', { 
-				userId, 
-				clientIP,
-				rateLimitKey 
-			});
-			return c.json({ 
-				success: false as const, 
-				error: rateLimitResult.error ?? 'Rate limit exceeded',
-				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-			}, 429);
-		}
 		
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
@@ -3030,24 +2975,6 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Apply rate limiting
-		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
-		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
-		const rateLimitKey = userId || clientIP;
-		
-		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
-		if (!rateLimitResult.allowed) {
-			logger.warn('Rate limit exceeded for data insertion', { 
-				userId, 
-				clientIP,
-				rateLimitKey 
-			});
-			return c.json({ 
-				success: false as const, 
-				error: rateLimitResult.error ?? 'Rate limit exceeded',
-				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-			}, 429);
-		}
 		
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
@@ -3189,24 +3116,6 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Apply rate limiting
-		const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
-		const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
-		const rateLimitKey = userId || clientIP;
-		
-		const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
-		if (!rateLimitResult.allowed) {
-			logger.warn('Rate limit exceeded for data insertion', { 
-				userId, 
-				clientIP,
-				rateLimitKey 
-			});
-			return c.json({ 
-				success: false as const, 
-				error: rateLimitResult.error ?? 'Rate limit exceeded',
-				retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-			}, 429);
-		}
 		
 		// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
@@ -3352,24 +3261,6 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Apply rate limiting
-			const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
-			const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
-			const rateLimitKey = userId || clientIP;
-			
-			const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
-			if (!rateLimitResult.allowed) {
-				logger.warn('Rate limit exceeded for data update', { 
-					userId, 
-					clientIP,
-					rateLimitKey 
-				});
-				return c.json({ 
-					success: false as const, 
-					error: rateLimitResult.error ?? 'Rate limit exceeded',
-					retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-				}, 429);
-			}
 			
 			// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
@@ -3512,24 +3403,6 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 				}
 			}
 			
-			// Apply rate limiting
-			const rateLimiter = userId ? dataInsertionRateLimiter : unauthenticatedRateLimiter;
-			const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
-			const rateLimitKey = userId || clientIP;
-			
-			const rateLimitResult = await rateLimiter.checkRateLimit(rateLimitKey, c.env?.RATE_LIMIT_KV);
-			if (!rateLimitResult.allowed) {
-				logger.warn('Rate limit exceeded for data deletion', { 
-					userId, 
-					clientIP,
-					rateLimitKey 
-				});
-				return c.json({ 
-					success: false as const, 
-					error: rateLimitResult.error ?? 'Rate limit exceeded',
-					retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-				}, 429);
-			}
 			
 			// Get Google Sheets configuration
 			const spreadsheetId = await getConfig(db, 'spreadsheet_id');
