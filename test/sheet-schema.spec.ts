@@ -5,19 +5,19 @@ describe('Sheet Schema Comparison', () => {
   // Create a test instance to access private methods
   class TestSheetsSetupManager extends SheetsSetupManager {
     public testSchemaRowsEqual(a: any[], b: any[]): boolean {
-      return this.schemaRowsEqual(a, b);
+      return (this as any).schemaRowsEqual(a, b);
     }
     
     public testDeepEquals(a: any, b: any): boolean {
-      return this.deepEquals(a, b);
+      return (this as any).deepEquals(a, b);
     }
     
     public testIsValidJSON(str: string): boolean {
-      return this.isValidJSON(str);
+      return (this as any).isValidJSON(str);
     }
     
     public testSafeJSONParse(str: string): any | null {
-      return this.safeJSONParse(str);
+      return (this as any).safeJSONParse(str);
     }
   }
 
