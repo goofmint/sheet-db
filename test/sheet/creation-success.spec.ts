@@ -9,20 +9,33 @@ import {
 	type SheetCreateResponse,
 	type SheetTestContext 
 } from './helpers';
+import { setupAllSheetMocks, mockEnv } from './mocks';
+import { OpenAPIHono } from '@hono/zod-openapi';
 
 describe('Sheet API - Creation Success Tests', () => {
 	let testContext: SheetTestContext;
+	let app: OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>;
 
 	beforeAll(async () => {
+		// Setup all mocks
+		setupAllSheetMocks();
+		
+		// Create app instance
+		const { registerSheetRoutes } = await import('../../src/api/sheet');
+		app = new OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>();
+		registerSheetRoutes(app);
+		
 		const auth = await setupSheetAuth();
 		testContext = {
 			...auth,
 			createdSheetIds: []
 		};
-	});
+		console.log('Test context setup:', { sessionId: testContext.sessionId, userInfo: testContext.userInfo });
+	}, 30000);
 
 	afterEach(async () => {
-		await cleanupSheets(testContext.sessionId, testContext.createdSheetIds);
+		// Skip cleanup in mocked environment
+		// await cleanupSheets(testContext.sessionId, testContext.createdSheetIds);
 		testContext.createdSheetIds = [];
 	});
 
@@ -38,12 +51,18 @@ describe('Sheet API - Creation Success Tests', () => {
 				user_write: [testContext.userInfo.sub]
 			};
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
+			if (response.status !== 200) {
+				const errorData = await response.json();
+				console.error('Sheet creation failed:', { status: response.status, error: errorData });
+			}
 			expect(response.status).toBe(200);
 			const data = await response.json() as SheetCreateResponse;
 
@@ -68,11 +87,13 @@ describe('Sheet API - Creation Success Tests', () => {
 				name: `TestSheet_Defaults_${Date.now()}`
 			});
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			expect(response.status).toBe(200);
 			const data = await response.json() as SheetCreateResponse;
@@ -99,11 +120,13 @@ describe('Sheet API - Creation Success Tests', () => {
 				user_write: ['user789']
 			};
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			expect(response.status).toBe(200);
 			const data = await response.json() as SheetCreateResponse;
