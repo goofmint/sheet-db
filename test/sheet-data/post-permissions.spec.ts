@@ -4,7 +4,6 @@ import {
 	testSessionId, 
 	BASE_URL,
 	createJsonHeaders,
-	requireSession,
 	type ApiErrorResponse 
 } from './helpers';
 
@@ -24,7 +23,10 @@ describe('Sheet Data POST API - Permissions', () => {
 				})
 			});
 			
-			expected(createSheetResp.ok).toBe(true);
+			if (!createSheetResp.ok) {
+				const errorText = await createSheetResp.text();
+				throw new Error(`Failed to create test sheet: ${createSheetResp.status} ${errorText}`);
+			}
 			const sheetData = await createSheetResp.json() as any;
 			const privateSheetId = sheetData.data.id;
 
@@ -38,7 +40,7 @@ describe('Sheet Data POST API - Permissions', () => {
 				body: JSON.stringify({ name: 'Test' })
 			});
 			
-			expected(resp.status).toBe(401);
+			expect(resp.status).toBe(401);
 			const data = await resp.json() as ApiErrorResponse;
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
@@ -56,7 +58,10 @@ describe('Sheet Data POST API - Permissions', () => {
 				})
 			});
 			
-			expected(createSheetResp.ok).toBe(true);
+			if (!createSheetResp.ok) {
+				const errorText = await createSheetResp.text();
+				throw new Error(`Failed to create test sheet: ${createSheetResp.status} ${errorText}`);
+			}
 			const sheetData = await createSheetResp.json() as any;
 			const readonlySheetId = sheetData.data.id;
 
@@ -70,7 +75,7 @@ describe('Sheet Data POST API - Permissions', () => {
 				body: JSON.stringify({ name: 'Test' })
 			});
 			
-			expected(resp.status).toBe(401);
+			expect(resp.status).toBe(401);
 			const data = await resp.json() as ApiErrorResponse;
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
@@ -89,7 +94,10 @@ describe('Sheet Data POST API - Permissions', () => {
 				})
 			});
 			
-			expected(createSheetResp.ok).toBe(true);
+			if (!createSheetResp.ok) {
+				const errorText = await createSheetResp.text();
+				throw new Error(`Failed to create test sheet: ${createSheetResp.status} ${errorText}`);
+			}
 			const sheetData = await createSheetResp.json() as any;
 			const writeonlySheetId = sheetData.data.id;
 
@@ -100,11 +108,11 @@ describe('Sheet Data POST API - Permissions', () => {
 				body: JSON.stringify({ name: 'Test' })
 			});
 			
-			expected(resp.status).toBe(200);
+			expect(resp.status).toBe(200);
 			const data = await resp.json() as { success: boolean; data: any };
 			expect(data.success).toBe(true);
 			// Data might be empty if user has no read permission
-			expected(data.data).toEqual({});
+			expect(data.data).toEqual({});
 		});
 	});
 });
