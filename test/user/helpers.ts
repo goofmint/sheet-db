@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { OpenAPIHono } from '@hono/zod-openapi';
+import type { D1Database, Fetcher } from '@cloudflare/workers-types';
 
 export type Bindings = {
 	DB: D1Database;
