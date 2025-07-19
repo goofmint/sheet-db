@@ -1,6 +1,7 @@
 import { beforeAll, afterEach } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
-import { validateAuth0Config, fetchAuth0Token, fetchAuth0UserInfo, BASE_URL } from '../helpers/auth';
+import { BASE_URL } from '../helpers/auth';
+import { getGlobalAuth } from '../setup/global-auth';
 import type { ApiErrorResponse, AuthCallbackResponse, BaseSuccessResponseWithData } from '../types/api-responses';
 
 // Define interfaces for API responses used in this file
@@ -121,82 +122,21 @@ export async function setupTestData() {
 	}
 }
 
-// Delay function to avoid Auth0 rate limiting
-function delay(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 // Setup function for all sheet data tests
 export function setupSheetDataTests() {
 	beforeAll(async () => {
-		// Add delay to avoid Auth0 rate limiting
-		await delay(1000); // 1 second delay
+		console.log('Setting up authentication for sheet data tests...');
 		
-		// Try to get Auth0 configuration but don't fail if it's not available
-		try {
-			const config = validateAuth0Config();
-			if (config) {
-				console.log('Setting up authentication for sheet data tests...');
-				
-				// Get a real Auth0 token for authentication
-				const accessToken = await fetchAuth0Token(config);
-				if (!accessToken) {
-					throw new Error('Failed to obtain Auth0 access token');
-				}
-				
-				// Add delay after token request to avoid rate limiting
-				await delay(500);
-				
-				// Get user info from Auth0
-				testUserInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
-				
-				if (testUserInfo) {
-					// Add delay after user info request
-					await delay(500);
-					
-					// Login to get session ID
-					const loginResponse = await fetch(`${BASE_URL}/api/login`, {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({
-							token: accessToken,
-							userInfo: testUserInfo
-						})
-					});
-					
-					if (!loginResponse.ok) {
-						const errorText = await loginResponse.text();
-						throw new Error(`Login request failed: ${loginResponse.status} ${errorText}`);
-					}
-					
-					const loginData = await loginResponse.json() as AuthCallbackResponse;
-					if (!loginData.data?.sessionId) {
-						throw new Error(`Login response missing sessionId: ${JSON.stringify(loginData)}`);
-					}
-					
-					testSessionId = loginData.data.sessionId;
-					console.log('Successfully authenticated for sheet data tests');
-					
-					// Add delay after successful login
-					await delay(500);
-				} else {
-					throw new Error('Failed to get user info from Auth0');
-				}
-			}
-		} catch (error) {
-			throw new Error(`Auth0 setup failed: ${error}`);
-		}
+		// Use global authentication (shared across all test files)
+		const auth = await getGlobalAuth();
+		testSessionId = auth.sessionId;
+		testUserInfo = auth.userInfo;
 		
-		// Ensure session was obtained
-		if (!testSessionId) {
-			throw new Error('Failed to obtain test session ID');
-		}
+		console.log('Successfully obtained shared authentication for sheet data tests');
 		
 		// Setup test data
 		await setupTestData();
-	}, 30000); // 30 second timeout for Auth0 retry logic
+	}, 30000); // 30 second timeout for potential Auth0 initialization
 	
 	afterEach(async () => {
 		// Clean up any data created during tests
