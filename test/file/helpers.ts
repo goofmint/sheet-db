@@ -16,46 +16,49 @@ export const createTestFile = (name: string, size: number, type: string): File =
 };
 
 // Setup authentication for file upload tests
-export const setupFileUploadAuth = async (): Promise<string | null> => {
+export const setupFileUploadAuth = async (): Promise<string> => {
 	try {
+		// This will throw if Auth0 configuration is incomplete
 		const config = validateAuth0Config();
-		if (!config) {
-			return 'mock-session-id-for-file-upload-testing';
-		}
 
 		// Get a real Auth0 token for authentication
 		const accessToken = await fetchAuth0Token(config);
 		if (!accessToken) {
-			return 'mock-session-id-for-file-upload-testing';
+			throw new Error('Failed to obtain Auth0 access token for file upload tests');
 		}
 
 		// Get user info from Auth0
 		const testUserInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
 		if (!testUserInfo) {
-			return 'mock-session-id-for-file-upload-testing';
+			throw new Error('Failed to get user info from Auth0 for file upload tests');
 		}
 
 		// Login to get session ID
 		const loginResponse = await fetch(`${BASE_URL}/api/login`, {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/json',
-				'Authorization': `Bearer ${accessToken}`
+				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				idToken: accessToken
+				token: accessToken,
+				userInfo: testUserInfo
 			})
 		});
 
-		if (loginResponse.ok) {
-			const loginData = await loginResponse.json() as AuthCallbackResponse;
-			return loginData.data?.sessionId || 'mock-session-id-for-file-upload-testing';
+		if (!loginResponse.ok) {
+			const errorText = await loginResponse.text();
+			throw new Error(`Login failed for file upload tests: ${loginResponse.status} ${errorText}`);
 		}
 
-		return 'mock-session-id-for-file-upload-testing';
+		const loginData = await loginResponse.json() as AuthCallbackResponse;
+		if (!loginData.data?.sessionId) {
+			throw new Error(`Login response missing sessionId for file upload tests: ${JSON.stringify(loginData)}`);
+		}
+
+		return loginData.data.sessionId;
 	} catch (error) {
-		console.warn('Auth0 configuration not available for testing, using mock session');
-		return 'mock-session-id-for-file-upload-testing';
+		// Re-throw the error instead of returning mock data
+		throw new Error(`File upload test authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
 	}
 };
 

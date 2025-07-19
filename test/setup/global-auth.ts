@@ -28,11 +28,8 @@ async function initializeGlobalAuth(): Promise<void> {
 
 	console.log('🔐 Initializing global Auth0 authentication...');
 
-	// Get Auth0 configuration
+	// Get Auth0 configuration (will throw if incomplete)
 	const config = validateAuth0Config();
-	if (!config) {
-		throw new Error('Auth0 configuration not complete - required for authentication');
-	}
 
 	// Get Auth0 access token (with retry logic)
 	const accessToken = await fetchAuth0Token(config);

@@ -18,8 +18,14 @@ export function validateAuth0Config(): {
 	const testPassword = env.AUTH0_TEST_PASSWORD;
 
 	if (!auth0Domain || !auth0ClientId || !auth0ClientSecret || !testEmail || !testPassword) {
-		console.log('Auth0 configuration incomplete');
-		return null;
+		const missing = [];
+		if (!auth0Domain) missing.push('AUTH0_DOMAIN');
+		if (!auth0ClientId) missing.push('AUTH0_CLIENT_ID');
+		if (!auth0ClientSecret) missing.push('AUTH0_CLIENT_SECRET');
+		if (!testEmail) missing.push('AUTH0_TEST_EMAIL');
+		if (!testPassword) missing.push('AUTH0_TEST_PASSWORD');
+		
+		throw new Error(`Auth0 configuration incomplete. Missing environment variables: ${missing.join(', ')}. Tests cannot run without proper Auth0 setup.`);
 	}
 
 	return { auth0Domain, auth0ClientId, auth0ClientSecret, testEmail, testPassword };
@@ -179,9 +185,6 @@ export async function authenticateWithAuth0(): Promise<string | null> {
 		console.log('Starting Auth0 authentication...');
 
 		const config = validateAuth0Config();
-		if (!config) {
-			return null;
-		}
 
 		const accessToken = await fetchAuth0Token(config);
 		if (!accessToken) {
