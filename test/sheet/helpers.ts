@@ -1,4 +1,5 @@
-import { validateAuth0Config, fetchAuth0Token, fetchAuth0UserInfo, BASE_URL } from '../helpers/auth';
+import { BASE_URL } from '../helpers/auth';
+import { getGlobalAuth } from '../setup/global-auth';
 
 export { BASE_URL };
 
@@ -37,58 +38,12 @@ export interface SheetTestContext {
 
 // Setup authentication for sheet tests
 export const setupSheetAuth = async (): Promise<Omit<SheetTestContext, 'createdSheetIds'>> => {
-	// Get Auth0 configuration from cloudflare:test environment
-	const config = validateAuth0Config();
-	if (!config) {
-		throw new Error('Auth0 configuration not complete - required for authentication');
-	}
-
-	// Get a real Auth0 token for authentication
-	const accessToken = await fetchAuth0Token(config);
-	if (!accessToken) {
-		throw new Error('Could not obtain Auth0 access token - authentication failed');
-	}
-
-	// Get user info from Auth0
-	const userInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
-	if (!userInfo) {
-		throw new Error('Could not obtain Auth0 user info - authentication failed');
-	}
-
-	// Login to get session ID
-	const loginResponse = await fetch(`${BASE_URL}/api/login`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({
-			token: accessToken,
-			userInfo: {
-				...userInfo,
-				name: 'Sheet Test User',
-				given_name: 'Sheet',
-				family_name: 'Test',
-				nickname: 'sheettest',
-				picture: 'https://example.com/avatar.jpg',
-				email_verified: true,
-				locale: 'en'
-			}
-		})
-	});
-
-	if (!loginResponse.ok) {
-		const errorText = await loginResponse.text();
-		throw new Error(`Login request failed: ${loginResponse.status} ${errorText}`);
-	}
-
-	const loginData = await loginResponse.json() as { success: boolean; data: { sessionId: string } };
-	if (!loginData.success) {
-		throw new Error(`Login failed: ${JSON.stringify(loginData)}`);
-	}
-
+	// Use global authentication (shared across all test files)
+	const auth = await getGlobalAuth();
+	
 	return {
-		sessionId: loginData.data.sessionId,
-		userInfo
+		sessionId: auth.sessionId,
+		userInfo: auth.userInfo
 	};
 };
 
