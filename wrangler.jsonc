@@ -6,10 +6,8 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "sheet-db",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-07-04",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
+	"compatibility_date": "2025-06-17",
+	"compatibility_flags": ["nodejs_compat"],
 	"observability": {
 		"enabled": true
 	},

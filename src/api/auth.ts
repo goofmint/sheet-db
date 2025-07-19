@@ -714,7 +714,8 @@ async function validateAuth0Token(db: DatabaseConnection, token: string, userInf
 		});
 		
 		if (!userInfoResponse.ok) {
-			console.error('Auth0 token validation failed:', userInfoResponse.status);
+			const errorText = await userInfoResponse.text();
+			console.error('Auth0 token validation failed:', userInfoResponse.status, errorText);
 			return { valid: false, error: 'Invalid Auth0 token' };
 		}
 		

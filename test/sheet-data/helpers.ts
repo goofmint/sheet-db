@@ -82,29 +82,36 @@ export async function setupTestData() {
 			})
 		});
 		
-		if (createDataResponse.ok) {
-			const data = await createDataResponse.json() as DataCreationResponse;
-			const dataId = data.data?.id || `${entry.id}-${timestamp}`;
-			createdDataIds.push({ sheetId: testSheetId, dataId });
-			
-			// Assign to appropriate variables
-			switch (entry.type) {
-				case 'existing':
-					existingDataId = dataId;
-					break;
-				case 'test':
-					testDataId = dataId;
-					break;
-				case 'public':
-					publicDataId = dataId;
-					break;
-				case 'user':
-					userSpecificDataId = dataId;
-					break;
-				case 'role':
-					roleSpecificDataId = dataId;
-					break;
-			}
+		if (!createDataResponse.ok) {
+			const errorText = await createDataResponse.text();
+			throw new Error(`Failed to create test data (${entry.type}): ${createDataResponse.status} ${errorText}`);
+		}
+		
+		const data = await createDataResponse.json() as DataCreationResponse;
+		if (!data.data?.id) {
+			throw new Error(`Test data creation response missing ID for ${entry.type}: ${JSON.stringify(data)}`);
+		}
+		
+		const dataId = data.data.id;
+		createdDataIds.push({ sheetId: testSheetId, dataId });
+		
+		// Assign to appropriate variables
+		switch (entry.type) {
+			case 'existing':
+				existingDataId = dataId;
+				break;
+			case 'test':
+				testDataId = dataId;
+				break;
+			case 'public':
+				publicDataId = dataId;
+				break;
+			case 'user':
+				userSpecificDataId = dataId;
+				break;
+			case 'role':
+				roleSpecificDataId = dataId;
+				break;
 		}
 	}
 	
@@ -125,29 +132,40 @@ export function setupSheetDataTests() {
 				
 				// Get a real Auth0 token for authentication
 				const accessToken = await fetchAuth0Token(config);
-				if (accessToken) {
-					// Get user info from Auth0
-					testUserInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
+				if (!accessToken) {
+					throw new Error('Failed to obtain Auth0 access token');
+				}
+				
+				// Get user info from Auth0
+				testUserInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
+				
+				if (testUserInfo) {
+					// Login to get session ID
+					const loginResponse = await fetch(`${BASE_URL}/api/login`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							token: accessToken,
+							userInfo: testUserInfo
+						})
+					});
 					
-					if (testUserInfo) {
-						// Login to get session ID
-						const loginResponse = await fetch(`${BASE_URL}/api/login`, {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json'
-							},
-							body: JSON.stringify({
-								token: accessToken,
-								userInfo: testUserInfo
-							})
-						});
-						
-						if (loginResponse.ok) {
-							const loginData = await loginResponse.json() as AuthCallbackResponse;
-							testSessionId = loginData.data.sessionId;
-							console.log('Successfully authenticated for sheet data tests');
-						}
+					if (!loginResponse.ok) {
+						const errorText = await loginResponse.text();
+						throw new Error(`Login request failed: ${loginResponse.status} ${errorText}`);
 					}
+					
+					const loginData = await loginResponse.json() as AuthCallbackResponse;
+					if (!loginData.data?.sessionId) {
+						throw new Error(`Login response missing sessionId: ${JSON.stringify(loginData)}`);
+					}
+					
+					testSessionId = loginData.data.sessionId;
+					console.log('Successfully authenticated for sheet data tests');
+				} else {
+					throw new Error('Failed to get user info from Auth0');
 				}
 			}
 		} catch (error) {

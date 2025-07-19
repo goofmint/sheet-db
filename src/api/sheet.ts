@@ -2892,11 +2892,11 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error ?? 'Failed to get sheet info') {
-				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
 					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error }, 500);
 			}
 			
 			const { sheetName, sheetId, columns, metadata } = sheetInfo;
@@ -3010,11 +3010,11 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error ?? 'Failed to get sheet info') {
-				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
 					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error }, 500);
 			}
 			
 			const { sheetName, sheetId, metadata } = sheetInfo;
@@ -3151,11 +3151,11 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error ?? 'Failed to get sheet info') {
-				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
 					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error }, 500);
 			}
 			
 			const { sheetName, sheetId, columns, metadata } = sheetInfo;
@@ -3296,11 +3296,11 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error ?? 'Failed to get sheet info') {
-				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
 					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error }, 500);
 			}
 			
 			const { sheetName, sheetId, columns, metadata } = sheetInfo;
@@ -3438,11 +3438,11 @@ export function registerSheetRoutes(app: OpenAPIHono<{ Bindings: Bindings }>) {
 			
 			// Get sheet information (ID or name search)
 			const sheetInfo = await getSheetInfo(sheetIdOrName, spreadsheetId, tokens.access_token);
-			if (sheetInfo.error ?? 'Failed to get sheet info') {
-				if (sheetInfo.error ?? 'Failed to get sheet info' === 'Sheet not found') {
+			if (sheetInfo.error) {
+				if (sheetInfo.error === 'Sheet not found') {
 					return c.json({ success: false as const, error: 'Sheet not found' }, 404);
 				}
-				return c.json({ success: false as const, error: sheetInfo.error ?? 'Failed to get sheet info' }, 500);
+				return c.json({ success: false as const, error: sheetInfo.error }, 500);
 			}
 			
 			const { sheetName, sheetId, columns, metadata } = sheetInfo;

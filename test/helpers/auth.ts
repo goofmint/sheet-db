@@ -50,7 +50,9 @@ export async function fetchAuth0Token(config: {
 		});
 
 		if (!tokenResponse.ok) {
-			console.log('Auth0 token request failed - Resource Owner Password Grant may not be enabled');
+			const errorText = await tokenResponse.text();
+			console.log(`Auth0 token request failed: ${tokenResponse.status} ${tokenResponse.statusText}`, errorText);
+			console.log('Resource Owner Password Grant may not be enabled in Auth0 dashboard');
 			return null;
 		}
 
@@ -67,7 +69,7 @@ export async function fetchAuth0Token(config: {
 
 		return tokens.access_token;
 	} catch (error) {
-		console.log('Auth0 token request error');
+		console.log('Auth0 token request error:', error);
 		return null;
 	}
 }
@@ -82,7 +84,8 @@ export async function fetchAuth0UserInfo(auth0Domain: string, accessToken: strin
 		});
 
 		if (!userInfoResponse.ok) {
-			console.log('Auth0 user info request failed');
+			const errorText = await userInfoResponse.text();
+			console.log(`Auth0 user info request failed: ${userInfoResponse.status} ${userInfoResponse.statusText}`, errorText);
 			return null;
 		}
 
@@ -94,7 +97,7 @@ export async function fetchAuth0UserInfo(auth0Domain: string, accessToken: strin
 
 		return { sub: userInfo.sub, email: userInfo.email };
 	} catch (error) {
-		console.log('Auth0 user info request error');
+		console.log('Auth0 user info request error:', error);
 		return null;
 	}
 }
