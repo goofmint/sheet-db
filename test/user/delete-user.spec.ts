@@ -1,33 +1,26 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { setupAllMocks, createUserApp, mockEnv, createAuthHeaders, mockFetchForNonExistentUser, type Bindings } from './helpers';
-import { OpenAPIHono } from '@hono/zod-openapi';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { setupUserAuth, createAuthHeaders, BASE_URL, type Bindings } from './helpers';
 
 describe('User API - DELETE /api/users/:id', () => {
-	let app: OpenAPIHono<{ Bindings: Bindings }>;
+	let sessionId: string;
+	let userInfo: { sub: string; email: string };
 
 	beforeAll(async () => {
-		setupAllMocks();
-		app = await createUserApp();
+		const auth = await setupUserAuth();
+		sessionId = auth.sessionId;
+		userInfo = auth.userInfo;
 	}, 30000);
-
-	afterEach(() => {
-		// Restore any mocked fetch functions
-		if (globalThis.fetch?.mockRestore) {
-			globalThis.fetch.mockRestore();
-		}
-	});
 
 	describe('Successful deletion', () => {
 		it('should delete user data with valid permissions', async () => {
-			const req = new Request('http://localhost/api/users/user123', {
+			const response = await fetch(`${BASE_URL}/api/users/${userInfo.sub}`, {
 				method: 'DELETE',
-				headers: createAuthHeaders('valid_session_id')
+				headers: createAuthHeaders(sessionId)
 			});
 
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
+			const data = await response.json() as any;
 
-			expect(res.status).toBe(200);
+			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.message).toContain('successfully deleted');
 		});
@@ -35,52 +28,42 @@ describe('User API - DELETE /api/users/:id', () => {
 
 	describe('Authentication and authorization', () => {
 		it('should return 401 for unauthenticated request', async () => {
-			const req = new Request('http://localhost/api/users/user123', {
+			const response = await fetch(`${BASE_URL}/api/users/${userInfo.sub}`, {
 				method: 'DELETE',
 				headers: createAuthHeaders('invalid_session_id')
 			});
 
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
+			const data = await response.json() as any;
 
-			expect(res.status).toBe(401);
+			expect(response.status).toBe(401);
 			expect(data.success).toBe(false);
 		});
 
 		it('should return 403 for insufficient permissions', async () => {
-			// Mock checkUserWritePermission to return false (no permission)
-			// This would need to be mocked at a higher level in a real test
-			const req = new Request('http://localhost/api/users/other_user', {
+			const response = await fetch(`${BASE_URL}/api/users/other_user_id`, {
 				method: 'DELETE',
-				headers: createAuthHeaders('valid_session_id')
+				headers: createAuthHeaders(sessionId)
 			});
 
-			// For this test, we'll assume the user has permission since we're mocking the same user
-			// In a real scenario, you'd mock different users and permission checks
-			const res = await app.fetch(req, mockEnv);
+			const data = await response.json() as any;
 
-			// Expect successful deletion since we're using the same user mock
-			expect(res.status).toBe(200);
+			// Should return 403 when trying to delete another user without admin permissions
+			expect(response.status).toBe(403);
+			expect(data.success).toBe(false);
 		});
 	});
 
 	describe('User not found', () => {
 		it('should return 404 for non-existent user', async () => {
-			const originalFetch = mockFetchForNonExistentUser();
-
-			const req = new Request('http://localhost/api/users/nonexistent', {
+			const response = await fetch(`${BASE_URL}/api/users/nonexistent-user-id`, {
 				method: 'DELETE',
-				headers: createAuthHeaders('valid_session_id')
+				headers: createAuthHeaders(sessionId)
 			});
 
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
+			const data = await response.json() as any;
 
-			expect(res.status).toBe(404);
+			expect(response.status).toBe(404);
 			expect(data.success).toBe(false);
-
-			// Restore original fetch
-			globalThis.fetch = originalFetch;
 		});
 	});
 });

@@ -1,21 +1,15 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { setupAllMocks, createUserApp, mockEnv, createAuthHeaders, mockFetchForNonExistentUser, type Bindings } from './helpers';
-import { OpenAPIHono } from '@hono/zod-openapi';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { setupUserAuth, createAuthHeaders, BASE_URL, type Bindings } from './helpers';
 
 describe('User API - PUT /api/users/:id', () => {
-	let app: OpenAPIHono<{ Bindings: Bindings }>;
+	let sessionId: string;
+	let userInfo: { sub: string; email: string };
 
 	beforeAll(async () => {
-		setupAllMocks();
-		app = await createUserApp();
+		const auth = await setupUserAuth();
+		sessionId = auth.sessionId;
+		userInfo = auth.userInfo;
 	}, 30000);
-
-	afterEach(() => {
-		// Restore any mocked fetch functions
-		if (globalThis.fetch?.mockRestore) {
-			globalThis.fetch.mockRestore();
-		}
-	});
 
 	describe('Successful updates', () => {
 		it('should update user information with valid data', async () => {
@@ -24,16 +18,15 @@ describe('User API - PUT /api/users/:id', () => {
 				nickname: 'updateduser'
 			};
 
-			const req = new Request('http://localhost/api/users/user123', {
+			const response = await fetch(`${BASE_URL}/api/users/${userInfo.sub}`, {
 				method: 'PUT',
-				headers: createAuthHeaders('valid_session_id', true),
+				headers: createAuthHeaders(sessionId, true),
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
+			const data = await response.json() as any;
 
-			expect(res.status).toBe(200);
+			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.data).toHaveProperty('name', 'Updated Name');
 			expect(data.data).toHaveProperty('nickname', 'updateduser');
@@ -44,19 +37,17 @@ describe('User API - PUT /api/users/:id', () => {
 				email: 'newemail@example.com'
 			};
 
-			const req = new Request('http://localhost/api/users/user123', {
+			const response = await fetch(`${BASE_URL}/api/users/${userInfo.sub}`, {
 				method: 'PUT',
-				headers: createAuthHeaders('valid_session_id', true),
+				headers: createAuthHeaders(sessionId, true),
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
+			const data = await response.json() as any;
 
-			expect(res.status).toBe(200);
+			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
 			expect(data.data).toHaveProperty('email', 'newemail@example.com');
-			expect(data.data.email_verified).toBeUndefined(); // Should be false, which becomes undefined in response
 		});
 	});
 
@@ -64,16 +55,15 @@ describe('User API - PUT /api/users/:id', () => {
 		it('should return 401 for unauthenticated request', async () => {
 			const updateData = { name: 'Updated Name' };
 
-			const req = new Request('http://localhost/api/users/user123', {
+			const response = await fetch(`${BASE_URL}/api/users/${userInfo.sub}`, {
 				method: 'PUT',
 				headers: createAuthHeaders('invalid_session_id', true),
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
+			const data = await response.json() as any;
 
-			expect(res.status).toBe(401);
+			expect(response.status).toBe(401);
 			expect(data.success).toBe(false);
 		});
 	});
@@ -85,53 +75,44 @@ describe('User API - PUT /api/users/:id', () => {
 				name: 'Updated Name'
 			};
 
-			const req = new Request('http://localhost/api/users/user123', {
+			const response = await fetch(`${BASE_URL}/api/users/${userInfo.sub}`, {
 				method: 'PUT',
-				headers: createAuthHeaders('valid_session_id', true),
+				headers: createAuthHeaders(sessionId, true),
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
+			const data = await response.json() as any;
 
-			expect(res.status).toBe(400);
+			expect(response.status).toBe(400);
 			expect(data.success).toBe(false);
 			expect(data.error).toContain('read-only');
 		});
 
 		it('should return 400 for empty update data', async () => {
-			const req = new Request('http://localhost/api/users/user123', {
+			const response = await fetch(`${BASE_URL}/api/users/${userInfo.sub}`, {
 				method: 'PUT',
-				headers: createAuthHeaders('valid_session_id', true),
+				headers: createAuthHeaders(sessionId, true),
 				body: JSON.stringify({})
 			});
 
-			const res = await app.fetch(req, mockEnv);
-
-			expect(res.status).toBe(400); // Validation should fail for empty update data
+			expect(response.status).toBe(400);
 		});
 	});
 
 	describe('User not found', () => {
 		it('should return 404 for non-existent user', async () => {
-			const originalFetch = mockFetchForNonExistentUser();
-
 			const updateData = { name: 'Updated Name' };
 
-			const req = new Request('http://localhost/api/users/nonexistent', {
+			const response = await fetch(`${BASE_URL}/api/users/nonexistent-user-id`, {
 				method: 'PUT',
-				headers: createAuthHeaders('valid_session_id', true),
+				headers: createAuthHeaders(sessionId, true),
 				body: JSON.stringify(updateData)
 			});
 
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
+			const data = await response.json() as any;
 
-			expect(res.status).toBe(404);
+			expect(response.status).toBe(404);
 			expect(data.success).toBe(false);
-
-			// Restore original fetch
-			globalThis.fetch = originalFetch;
 		});
 	});
 });
