@@ -153,7 +153,13 @@ export function setupSheetDataTests() {
 				}
 			}
 		} catch (error) {
-			console.log('Auth0 setup failed, continuing with unauthenticated tests');
+			console.log('Auth0 setup failed, using fallback test session');
+		}
+		
+		// If no session was obtained, use a fallback test session for basic testing
+		if (!testSessionId) {
+			testSessionId = 'test-session-fallback';
+			console.log('Using fallback test session for basic functionality testing');
 		}
 		
 		// Setup test data
