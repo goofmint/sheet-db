@@ -60,16 +60,19 @@ export async function setupTestData() {
 		throw new Error(`Failed to create test sheet: ${createSheetResponse.status} ${errorText}`);
 	}
 	
-	// Create test data entries
+	// Create test data entries using simpler structure
+	// Many sheet-data tests just need some data IDs to work with
+	// We'll create minimal data to satisfy the tests
 	const testDataEntries = [
-		{ id: 'existing-data', type: 'existing' },
-		{ id: 'test-data', type: 'test' },
-		{ id: 'public-data', type: 'public' },
-		{ id: 'user-specific-data', type: 'user' },
-		{ id: 'role-specific-data', type: 'role' }
+		{ type: 'existing' },
+		{ type: 'test' },
+		{ type: 'public' },
+		{ type: 'user' },
+		{ type: 'role' }
 	];
 	
 	for (const entry of testDataEntries) {
+		// Try creating data with minimal required fields
 		const createDataResponse = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 			method: 'POST',
 			headers: {
@@ -77,42 +80,89 @@ export async function setupTestData() {
 				...(testSessionId ? { 'Authorization': `Bearer ${testSessionId}` } : {})
 			},
 			body: JSON.stringify({
-				name: `${entry.type}-entry`,
-				description: `Test ${entry.type} data entry`,
-				value: Math.floor(Math.random() * 100)
+				// Use basic structure that should work with most sheets
+				test_data: `${entry.type}-entry-${Date.now()}`
 			})
 		});
 		
 		if (!createDataResponse.ok) {
 			const errorText = await createDataResponse.text();
-			throw new Error(`Failed to create test data (${entry.type}): ${createDataResponse.status} ${errorText}`);
-		}
-		
-		const data = await createDataResponse.json() as DataCreationResponse;
-		if (!data.data?.id) {
-			throw new Error(`Test data creation response missing ID for ${entry.type}: ${JSON.stringify(data)}`);
-		}
-		
-		const dataId = data.data.id;
-		createdDataIds.push({ sheetId: testSheetId, dataId });
-		
-		// Assign to appropriate variables
-		switch (entry.type) {
-			case 'existing':
-				existingDataId = dataId;
-				break;
-			case 'test':
-				testDataId = dataId;
-				break;
-			case 'public':
-				publicDataId = dataId;
-				break;
-			case 'user':
-				userSpecificDataId = dataId;
-				break;
-			case 'role':
-				roleSpecificDataId = dataId;
-				break;
+			
+			// If specific column doesn't exist, try with even simpler structure
+			if (errorText.includes('does not exist')) {
+				const simpleCreateResponse = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						...(testSessionId ? { 'Authorization': `Bearer ${testSessionId}` } : {})
+					},
+					body: JSON.stringify({
+						// Just send timestamp as data
+						timestamp: Date.now().toString()
+					})
+				});
+				
+				if (!simpleCreateResponse.ok) {
+					const simpleErrorText = await simpleCreateResponse.text();
+					throw new Error(`Failed to create test data (${entry.type}) even with simple structure: ${simpleCreateResponse.status} ${simpleErrorText}`);
+				}
+				
+				const simpleData = await simpleCreateResponse.json() as DataCreationResponse;
+				if (!simpleData.data?.id) {
+					throw new Error(`Test data creation response missing ID for ${entry.type}: ${JSON.stringify(simpleData)}`);
+				}
+				
+				const dataId = simpleData.data.id;
+				createdDataIds.push({ sheetId: testSheetId, dataId });
+				
+				// Assign to appropriate variables
+				switch (entry.type) {
+					case 'existing':
+						existingDataId = dataId;
+						break;
+					case 'test':
+						testDataId = dataId;
+						break;
+					case 'public':
+						publicDataId = dataId;
+						break;
+					case 'user':
+						userSpecificDataId = dataId;
+						break;
+					case 'role':
+						roleSpecificDataId = dataId;
+						break;
+				}
+			} else {
+				throw new Error(`Failed to create test data (${entry.type}): ${createDataResponse.status} ${errorText}`);
+			}
+		} else {
+			const data = await createDataResponse.json() as DataCreationResponse;
+			if (!data.data?.id) {
+				throw new Error(`Test data creation response missing ID for ${entry.type}: ${JSON.stringify(data)}`);
+			}
+			
+			const dataId = data.data.id;
+			createdDataIds.push({ sheetId: testSheetId, dataId });
+			
+			// Assign to appropriate variables
+			switch (entry.type) {
+				case 'existing':
+					existingDataId = dataId;
+					break;
+				case 'test':
+					testDataId = dataId;
+					break;
+				case 'public':
+					publicDataId = dataId;
+					break;
+				case 'user':
+					userSpecificDataId = dataId;
+					break;
+				case 'role':
+					roleSpecificDataId = dataId;
+					break;
+			}
 		}
 	}
 	
