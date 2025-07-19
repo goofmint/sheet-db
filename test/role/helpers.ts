@@ -30,12 +30,16 @@ export function setupRoleTests() {
 	beforeAll(async () => {
 		console.log('Setting up shared authentication for role tests...');
 		
-		const auth = await getSharedAuth();
-		testSessionId = auth.sessionId;
-		validAuthToken = `Bearer ${testSessionId}`;
-		
-		console.log('✅ Role tests using shared authentication');
-	});
+		try {
+			const auth = await getSharedAuth();
+			testSessionId = auth.sessionId;
+			validAuthToken = `Bearer ${testSessionId}`;
+			console.log('✅ Role tests using shared authentication');
+		} catch (error) {
+			console.error('❌ Shared authentication failed:', error);
+			throw error;
+		}
+	}, 60000); // 60 second timeout
 
 	afterAll(async () => {
 		// Post-test cleanup
