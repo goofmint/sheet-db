@@ -1,5 +1,6 @@
 import { env, SELF } from 'cloudflare:test';
-import { validateAuth0Config, fetchAuth0Token, fetchAuth0UserInfo, BASE_URL } from '../helpers/auth';
+import { getSharedAuth } from '../setup/shared-auth';
+import { BASE_URL } from '../helpers/auth';
 import type { AuthCallbackResponse } from '../types/api-responses';
 
 export { BASE_URL };
@@ -15,51 +16,14 @@ export const createTestFile = (name: string, size: number, type: string): File =
 	return new File([buffer], name, { type });
 };
 
-// Setup authentication for file upload tests
+// Setup authentication for file upload tests using shared auth
 export const setupFileUploadAuth = async (): Promise<string> => {
-	try {
-		// This will throw if Auth0 configuration is incomplete
-		const config = validateAuth0Config();
-
-		// Get a real Auth0 token for authentication
-		const accessToken = await fetchAuth0Token(config);
-		if (!accessToken) {
-			throw new Error('Failed to obtain Auth0 access token for file upload tests');
-		}
-
-		// Get user info from Auth0
-		const testUserInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
-		if (!testUserInfo) {
-			throw new Error('Failed to get user info from Auth0 for file upload tests');
-		}
-
-		// Login to get session ID
-		const loginResponse = await fetch(`${BASE_URL}/api/login`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				token: accessToken,
-				userInfo: testUserInfo
-			})
-		});
-
-		if (!loginResponse.ok) {
-			const errorText = await loginResponse.text();
-			throw new Error(`Login failed for file upload tests: ${loginResponse.status} ${errorText}`);
-		}
-
-		const loginData = await loginResponse.json() as AuthCallbackResponse;
-		if (!loginData.data?.sessionId) {
-			throw new Error(`Login response missing sessionId for file upload tests: ${JSON.stringify(loginData)}`);
-		}
-
-		return loginData.data.sessionId;
-	} catch (error) {
-		// Re-throw the error instead of returning fake data
-		throw new Error(`File upload test authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-	}
+	console.log('Setting up shared authentication for file upload tests...');
+	
+	const auth = await getSharedAuth();
+	console.log('✅ File upload tests using shared authentication');
+	
+	return auth.sessionId;
 };
 
 // Common test files
