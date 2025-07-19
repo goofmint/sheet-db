@@ -65,14 +65,17 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
     return { valid: false, error: 'Value is required' };
   }
 
-  // If value is empty and not required, it's valid
-  if (value === null || value === undefined || value === '') {
-    return { valid: true };
-  }
-
   // Type validation
   switch (schema.type) {
     case 'string':
+      // For string type, null and undefined are not valid strings
+      if (value === null || value === undefined) {
+        return { valid: false, error: 'Value must be a string' };
+      }
+      // Empty string is valid for non-required fields
+      if (value === '' && !schema.required) {
+        return { valid: true };
+      }
       if (typeof value !== 'string') {
         return { valid: false, error: `Expected string, got ${typeof value}` };
       }
@@ -99,6 +102,14 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
       break;
 
     case 'number':
+      // For number type, null and undefined are not valid numbers
+      if (value === null || value === undefined) {
+        return { valid: false, error: 'Value must be a number' };
+      }
+      // Empty string for non-required number field
+      if (value === '' && !schema.required) {
+        return { valid: true };
+      }
       const num = Number(value);
       if (isNaN(num)) {
         return { valid: false, error: 'Value must be a number' };
@@ -114,6 +125,14 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
       break;
 
     case 'boolean':
+      // For boolean type, null and undefined are not valid booleans
+      if (value === null || value === undefined) {
+        return { valid: false, error: 'Value must be a boolean' };
+      }
+      // Empty string for non-required boolean field
+      if (value === '' && !schema.required) {
+        return { valid: true };
+      }
       if (typeof value === 'string') {
         const lower = value.toLowerCase();
         if (lower !== 'true' && lower !== 'false') {
@@ -125,12 +144,28 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
       break;
 
     case 'datetime':
+      // For datetime type, null and undefined are not valid datetimes
+      if (value === null || value === undefined) {
+        return { valid: false, error: 'Value must be a valid datetime string' };
+      }
+      // Empty string for non-required datetime field
+      if (value === '' && !schema.required) {
+        return { valid: true };
+      }
       if (typeof value !== 'string' || isNaN(Date.parse(value))) {
         return { valid: false, error: 'Value must be a valid datetime string' };
       }
       break;
 
     case 'object':
+      // For object type, null and undefined are not valid objects
+      if (value === null || value === undefined) {
+        return { valid: false, error: 'Value must be valid JSON' };
+      }
+      // Empty string for non-required object field
+      if (value === '' && !schema.required) {
+        return { valid: true };
+      }
       if (typeof value === 'string') {
         try {
           JSON.parse(value);
@@ -141,6 +176,14 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
       break;
 
     case 'pointer':
+      // For pointer type, null and undefined are not valid pointers
+      if (value === null || value === undefined) {
+        return { valid: false, error: 'Pointer value must be a string' };
+      }
+      // Empty string for non-required pointer field
+      if (value === '' && !schema.required) {
+        return { valid: true };
+      }
       // Pointer type validation - should be a string representing an ID reference
       if (typeof value !== 'string') {
         return { valid: false, error: 'Pointer value must be a string' };
@@ -148,6 +191,14 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
       break;
 
     case 'array':
+      // For array type, null and undefined are not valid arrays
+      if (value === null || value === undefined) {
+        return { valid: false, error: 'Value must be an array' };
+      }
+      // Empty string for non-required array field
+      if (value === '' && !schema.required) {
+        return { valid: true };
+      }
       if (typeof value === 'string') {
         try {
           const parsed = JSON.parse(value);
@@ -163,6 +214,14 @@ export function validateValue(value: any, schema: ColumnSchema): { valid: boolea
       break;
 
     case 'image':
+      // For image type, null and undefined are not valid images
+      if (value === null || value === undefined) {
+        return { valid: false, error: 'Image value must be a string' };
+      }
+      // Empty string for non-required image field
+      if (value === '' && !schema.required) {
+        return { valid: true };
+      }
       if (typeof value !== 'string') {
         return { valid: false, error: 'Image value must be a string' };
       }
