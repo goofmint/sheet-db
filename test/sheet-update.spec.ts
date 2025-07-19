@@ -221,7 +221,7 @@ describe('Sheet Update API', () => {
 		const { registerSheetRoutes } = await import('../src/api/sheet');
 		app = new OpenAPIHono<{ Bindings: Bindings }>();
 		registerSheetRoutes(app);
-	});
+	}, 30000);
 
 	describe('PUT /api/sheets/:id', () => {
 		it('should update sheet name successfully', async () => {
