@@ -55,8 +55,8 @@ export async function setupTestData() {
 	});
 	
 	if (!createSheetResponse.ok) {
-		console.log('Failed to create test sheet, using fallback ID');
-		testSheetId = 'test-sheet';
+		const errorText = await createSheetResponse.text();
+		throw new Error(`Failed to create test sheet: ${createSheetResponse.status} ${errorText}`);
 	}
 	
 	// Create test data entries
@@ -108,12 +108,10 @@ export async function setupTestData() {
 		}
 	}
 	
-	// Set fallback IDs if creation failed
-	if (!existingDataId) existingDataId = 'existing-id';
-	if (!testDataId) testDataId = 'test-id';
-	if (!publicDataId) publicDataId = 'public-data-id';
-	if (!userSpecificDataId) userSpecificDataId = 'user-specific-data-id';
-	if (!roleSpecificDataId) roleSpecificDataId = 'role-specific-data-id';
+	// Verify all data IDs were created
+	if (!existingDataId || !testDataId || !publicDataId || !userSpecificDataId || !roleSpecificDataId) {
+		throw new Error('Failed to create all required test data');
+	}
 }
 
 // Setup function for all sheet data tests
@@ -153,13 +151,12 @@ export function setupSheetDataTests() {
 				}
 			}
 		} catch (error) {
-			console.log('Auth0 setup failed, using fallback test session');
+			throw new Error(`Auth0 setup failed: ${error}`);
 		}
 		
-		// If no session was obtained, use a fallback test session for basic testing
+		// Ensure session was obtained
 		if (!testSessionId) {
-			testSessionId = 'test-session-fallback';
-			console.log('Using fallback test session for basic functionality testing');
+			throw new Error('Failed to obtain test session ID');
 		}
 		
 		// Setup test data
