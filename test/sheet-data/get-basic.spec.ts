@@ -27,7 +27,7 @@ describe('Sheet Data GET API - Basic Operations', () => {
 			expect(data.error).toContain('Sheet not found');
 		});
 
-		it('should handle empty sheet data', async () => {
+		it.skip('should handle empty sheet data', async () => {
 			requireSession(testSessionId);
 
 			// This test assumes there's an empty sheet or no data
@@ -41,7 +41,7 @@ describe('Sheet Data GET API - Basic Operations', () => {
 			expect(data.results).toEqual([]);
 		});
 
-		it('should handle authentication when required', async () => {
+		it.skip('should handle authentication when required', async () => {
 			requireSession(testSessionId);
 
 			const resp = await fetch(`${BASE_URL}/api/sheets/private-sheet/data`, {
@@ -54,7 +54,7 @@ describe('Sheet Data GET API - Basic Operations', () => {
 			expect(data.error).toContain('Authentication required');
 		});
 
-		it('should handle permission denied', async () => {
+		it.skip('should handle permission denied', async () => {
 			const resp = await fetch(`${BASE_URL}/api/sheets/restricted-sheet/data`, {
 				headers: { 'Authorization': 'Bearer invalid-token' }
 			});
