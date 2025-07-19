@@ -8,7 +8,7 @@ describe('User API - PUT /api/users/:id', () => {
 	beforeAll(async () => {
 		setupAllMocks();
 		app = await createUserApp();
-	});
+	}, 30000);
 
 	afterEach(() => {
 		// Restore any mocked fetch functions

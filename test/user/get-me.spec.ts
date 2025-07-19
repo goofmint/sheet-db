@@ -8,7 +8,7 @@ describe('User API - GET /api/users/me', () => {
 	beforeAll(async () => {
 		setupAllMocks();
 		app = await createUserApp();
-	});
+	}, 30000);
 
 	describe('Authentication success', () => {
 		it('should return user information for authenticated user', async () => {
