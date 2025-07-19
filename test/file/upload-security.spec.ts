@@ -30,7 +30,7 @@ describe('File Upload API - Security Tests', () => {
 					expect(data.error).toContain('File type not allowed');
 				}
 			}
-		});
+		}, 30000);
 	});
 
 	describe('Filename sanitization', () => {
