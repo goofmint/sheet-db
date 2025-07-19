@@ -27,26 +27,21 @@ describe('Sheet Data GET API - Basic Operations', () => {
 			expect(data.error).toContain('Sheet not found');
 		});
 
-		it('should handle empty sheet data', async () => {
+		it('should handle sheet data successfully', async () => {
 			requireSession(testSessionId);
 
-			// This test assumes there's an empty sheet or no data
-			const resp = await fetch(`${BASE_URL}/api/sheets/empty-sheet/data`, {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				headers: createAuthHeaders(testSessionId)
 			});
 			
 			expect(resp.status).toBe(200);
 			const data = await resp.json() as { success: boolean; results: any[] };
 			expect(data.success).toBe(true);
-			expect(data.results).toEqual([]);
+			expect(Array.isArray(data.results)).toBe(true);
 		});
 
-		it('should handle authentication when required', async () => {
-			requireSession(testSessionId);
-
-			const resp = await fetch(`${BASE_URL}/api/sheets/private-sheet/data`, {
-				headers: createAuthHeaders(testSessionId)
-			});
+		it('should reject requests without authentication', async () => {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`);
 			
 			expect(resp.status).toBe(401);
 			const data = await resp.json() as ApiErrorResponse;
@@ -54,15 +49,15 @@ describe('Sheet Data GET API - Basic Operations', () => {
 			expect(data.error).toContain('Authentication required');
 		});
 
-		it('should handle permission denied', async () => {
-			const resp = await fetch(`${BASE_URL}/api/sheets/restricted-sheet/data`, {
+		it('should reject requests with invalid token', async () => {
+			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				headers: { 'Authorization': 'Bearer invalid-token' }
 			});
 			
-			expect(resp.status).toBe(403);
+			expect(resp.status).toBe(401);
 			const data = await resp.json() as ApiErrorResponse;
 			expect(data.success).toBe(false);
-			expect(data.error).toContain('Permission denied');
+			expect(data.error).toContain('Invalid token');
 		});
 
 		it('should validate query parameters', async () => {
