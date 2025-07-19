@@ -8,20 +8,32 @@ import {
 	type SheetCreateResponse,
 	type SheetTestContext 
 } from './helpers';
+import { setupAllSheetMocks, mockEnv } from './mocks';
+import { OpenAPIHono } from '@hono/zod-openapi';
 
 describe('Sheet API - Error Handling Tests', () => {
 	let testContext: SheetTestContext;
+	let app: OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>;
 
 	beforeAll(async () => {
+		// Setup all mocks
+		setupAllSheetMocks();
+		
+		// Create app instance
+		const { registerSheetRoutes } = await import('../../src/api/sheet');
+		app = new OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>();
+		registerSheetRoutes(app);
+		
 		const auth = await setupSheetAuth();
 		testContext = {
 			...auth,
 			createdSheetIds: []
 		};
-	});
+	}, 30000);
 
 	afterEach(async () => {
-		await cleanupSheets(testContext.sessionId, testContext.createdSheetIds);
+		// Skip cleanup in mocked environment
+		// await cleanupSheets(testContext.sessionId, testContext.createdSheetIds);
 		testContext.createdSheetIds = [];
 	});
 
@@ -33,11 +45,13 @@ describe('Sheet API - Error Handling Tests', () => {
 				name: `TestSheet_DBError_${Date.now()}`
 			};
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			// Should either succeed or fail gracefully with 500 error
 			expect([200, 500].includes(response.status)).toBe(true);
@@ -63,11 +77,13 @@ describe('Sheet API - Error Handling Tests', () => {
 				name: `TestSheet_GoogleAPIError_${Date.now()}_${'x'.repeat(61)}` // Exactly 100 characters
 			};
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			// Should either succeed or fail gracefully
 			expect([200, 400, 500].includes(response.status)).toBe(true);

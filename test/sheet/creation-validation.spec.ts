@@ -7,13 +7,24 @@ import {
 	type SheetCreateResponse,
 	type SheetTestContext 
 } from './helpers';
+import { setupAllSheetMocks, mockEnv } from './mocks';
+import { OpenAPIHono } from '@hono/zod-openapi';
 
 describe('Sheet API - Validation Tests', () => {
 	let testContext: Omit<SheetTestContext, 'createdSheetIds'>;
+	let app: OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>;
 
 	beforeAll(async () => {
+		// Setup all mocks
+		setupAllSheetMocks();
+		
+		// Create app instance
+		const { registerSheetRoutes } = await import('../../src/api/sheet');
+		app = new OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>();
+		registerSheetRoutes(app);
+		
 		testContext = await setupSheetAuth();
-	});
+	}, 30000);
 
 	describe('Input validation', () => {
 		it('should validate required name field', async () => {
@@ -22,11 +33,13 @@ describe('Sheet API - Validation Tests', () => {
 				// Missing required 'name' field
 			};
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			expect(response.status).toBe(400);
 			const data = await response.json() as SheetCreateResponse;
@@ -39,11 +52,13 @@ describe('Sheet API - Validation Tests', () => {
 				name: ''
 			};
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			expect(response.status).toBe(400);
 			const data = await response.json() as SheetCreateResponse;
@@ -52,11 +67,13 @@ describe('Sheet API - Validation Tests', () => {
 		});
 
 		it('should handle malformed JSON request', async () => {
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: '{ invalid json }'
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			expect(response.status).toBe(400);
 			// For malformed JSON, response might not be JSON itself
@@ -75,11 +92,13 @@ describe('Sheet API - Validation Tests', () => {
 				name: `TestSheet_NoContentType_${Date.now()}`
 			};
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId, false),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			// Log the actual status to understand what's happening
 			console.log('Response status for no Content-Type test:', response.status);

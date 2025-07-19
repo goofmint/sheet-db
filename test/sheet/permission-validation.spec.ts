@@ -6,13 +6,24 @@ import {
 	type SheetCreateResponse,
 	type SheetTestContext 
 } from './helpers';
+import { setupAllSheetMocks, mockEnv } from './mocks';
+import { OpenAPIHono } from '@hono/zod-openapi';
 
 describe('Sheet API - Permission Validation Tests', () => {
 	let testContext: Omit<SheetTestContext, 'createdSheetIds'>;
+	let app: OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>;
 
 	beforeAll(async () => {
+		// Setup all mocks
+		setupAllSheetMocks();
+		
+		// Create app instance
+		const { registerSheetRoutes } = await import('../../src/api/sheet');
+		app = new OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>();
+		registerSheetRoutes(app);
+		
 		testContext = await setupSheetAuth();
-	});
+	}, 30000);
 
 	describe('Permission field validation', () => {
 		it('should validate array types for permission fields', async () => {
@@ -24,11 +35,13 @@ describe('Sheet API - Permission Validation Tests', () => {
 				user_write: []
 			};
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			expect(response.status).toBe(400);
 			const data = await response.json() as SheetCreateResponse;
@@ -45,11 +58,13 @@ describe('Sheet API - Permission Validation Tests', () => {
 				role_write: []
 			};
 
-			const response = await fetch(`${BASE_URL}/api/sheets`, {
+			const req = new Request('http://localhost/api/sheets', {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
 				body: JSON.stringify(createData)
 			});
+			
+			const response = await app.fetch(req, mockEnv);
 
 			expect(response.status).toBe(400);
 			const data = await response.json() as SheetCreateResponse;
