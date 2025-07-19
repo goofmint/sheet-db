@@ -86,7 +86,7 @@ export async function fetchAuth0UserInfo(auth0Domain: string, accessToken: strin
 			return null;
 		}
 
-		const userInfo = await userInfoResponse.json();
+		const userInfo = await userInfoResponse.json() as { sub: string; email: string; name?: string; given_name?: string; family_name?: string; nickname?: string; picture?: string; email_verified?: boolean; locale?: string };
 		if (!userInfo.sub || !userInfo.email) {
 			console.log('Auth0 user info incomplete');
 			return null;
