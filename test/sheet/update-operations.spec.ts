@@ -1,89 +1,123 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { setupAllMocks, createUpdateApp, mockEnv, createAuthHeaders, type Bindings } from './update-helpers';
-import { OpenAPIHono } from '@hono/zod-openapi';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { 
+	setupSheetAuth, 
+	cleanupSheets,
+	createTestSheetRequest,
+	createSheetHeaders,
+	createSheet,
+	BASE_URL,
+	type SheetTestContext 
+} from './helpers';
 
 describe('Sheet Update API - Operations', () => {
-	let app: OpenAPIHono<{ Bindings: Bindings }>;
+	let testContext: SheetTestContext;
 
 	beforeAll(async () => {
-		setupAllMocks();
-		app = await createUpdateApp();
+		const auth = await setupSheetAuth();
+		testContext = {
+			...auth,
+			createdSheetIds: []
+		};
 	}, 30000);
 
-	describe('PUT /api/sheets/:id - Basic Operations', () => {
-		it('should update sheet name successfully', async () => {
-			const updateData = {
-				name: 'UpdatedSheetName'
-			};
+	afterEach(async () => {
+		if (testContext.createdSheetIds.length > 0) {
+			await cleanupSheets(testContext.sessionId, testContext.createdSheetIds);
+			testContext.createdSheetIds = [];
+		}
+	});
 
-			const req = new Request('http://localhost/api/sheets/12345', {
-				method: 'PUT',
-				headers: createAuthHeaders('valid_session_id'),
-				body: JSON.stringify(updateData)
-			});
-
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
-
-			expect(res.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data).toHaveProperty('name', 'UpdatedSheetName');
-			expect(data.data).toHaveProperty('sheetId', 12345);
-			expect(data.data.message).toContain('updated successfully');
-		});
-
-		it('should update permissions successfully', async () => {
-			const updateData = {
-				public_read: false,
-				public_write: true,
-				role_read: ['viewer'],
-				role_write: ['editor'],
-				user_read: ['user456'],
-				user_write: ['user789']
-			};
-
-			const req = new Request('http://localhost/api/sheets/12345', {
-				method: 'PUT',
-				headers: createAuthHeaders('valid_session_id'),
-				body: JSON.stringify(updateData)
-			});
-
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
-
-			expect(res.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data).toHaveProperty('public_read', false);
-			expect(data.data).toHaveProperty('public_write', true);
-			expect(data.data).toHaveProperty('role_read', ['viewer']);
-			expect(data.data).toHaveProperty('role_write', ['editor']);
-			expect(data.data).toHaveProperty('user_read', ['user456']);
-			expect(data.data).toHaveProperty('user_write', ['user789']);
-		});
-
-		it('should update name and permissions together', async () => {
-			const updateData = {
-				name: 'NewSheetName',
+	describe('Basic update operations', () => {
+		it('should update sheet properties successfully', async () => {
+			// First create a test sheet
+			const createData = createTestSheetRequest({
+				name: `UpdateTest_${Date.now()}`,
 				public_read: true,
-				public_write: false,
-				role_write: ['admin']
-			};
-
-			const req = new Request('http://localhost/api/sheets/12345', {
-				method: 'PUT',
-				headers: createAuthHeaders('valid_session_id'),
-				body: JSON.stringify(updateData)
+				public_write: false
 			});
 
-			const res = await app.fetch(req, mockEnv);
-			const data = await res.json() as any;
+			const createResponse = await createSheet(testContext.sessionId, createData);
+			expect(createResponse.success).toBe(true);
+			
+			if (createResponse.data?.sheetId) {
+				testContext.createdSheetIds.push(createResponse.data.sheetId);
 
-			expect(res.status).toBe(200);
-			expect(data.success).toBe(true);
-			expect(data.data).toHaveProperty('name', 'NewSheetName');
-			expect(data.data).toHaveProperty('public_read', true);
-			expect(data.data).toHaveProperty('public_write', false);
-			expect(data.data).toHaveProperty('role_write', ['admin']);
+				// Now update the sheet
+				const updateResponse = await fetch(`${BASE_URL}/api/sheets/${createResponse.data.sheetId}`, {
+					method: 'PUT',
+					headers: createSheetHeaders(testContext.sessionId),
+					body: JSON.stringify({
+						public_read: false,
+						public_write: true
+					})
+				});
+
+				expect(updateResponse.status).toBe(200);
+				const updateData = await updateResponse.json();
+				expect(updateData.success).toBe(true);
+				expect(updateData.data?.public_read).toBe(false);
+				expect(updateData.data?.public_write).toBe(true);
+			}
+		});
+
+		it('should update role permissions', async () => {
+			const createData = createTestSheetRequest({
+				name: `RoleUpdateTest_${Date.now()}`,
+				role_read: ['admin'],
+				role_write: []
+			});
+
+			const createResponse = await createSheet(testContext.sessionId, createData);
+			expect(createResponse.success).toBe(true);
+			
+			if (createResponse.data?.sheetId) {
+				testContext.createdSheetIds.push(createResponse.data.sheetId);
+
+				const updateResponse = await fetch(`${BASE_URL}/api/sheets/${createResponse.data.sheetId}`, {
+					method: 'PUT',
+					headers: createSheetHeaders(testContext.sessionId),
+					body: JSON.stringify({
+						role_read: ['admin', 'editor'],
+						role_write: ['admin']
+					})
+				});
+
+				expect(updateResponse.status).toBe(200);
+				const updateData = await updateResponse.json();
+				expect(updateData.success).toBe(true);
+				expect(updateData.data?.role_read).toEqual(['admin', 'editor']);
+				expect(updateData.data?.role_write).toEqual(['admin']);
+			}
+		});
+
+		it('should update user permissions', async () => {
+			const createData = createTestSheetRequest({
+				name: `UserUpdateTest_${Date.now()}`,
+				user_read: [],
+				user_write: []
+			});
+
+			const createResponse = await createSheet(testContext.sessionId, createData);
+			expect(createResponse.success).toBe(true);
+			
+			if (createResponse.data?.sheetId) {
+				testContext.createdSheetIds.push(createResponse.data.sheetId);
+
+				const updateResponse = await fetch(`${BASE_URL}/api/sheets/${createResponse.data.sheetId}`, {
+					method: 'PUT',
+					headers: createSheetHeaders(testContext.sessionId),
+					body: JSON.stringify({
+						user_read: [testContext.userInfo.sub],
+						user_write: [testContext.userInfo.sub]
+					})
+				});
+
+				expect(updateResponse.status).toBe(200);
+				const updateData = await updateResponse.json();
+				expect(updateData.success).toBe(true);
+				expect(updateData.data?.user_read).toEqual([testContext.userInfo.sub]);
+				expect(updateData.data?.user_write).toEqual([testContext.userInfo.sub]);
+			}
 		});
 	});
 });

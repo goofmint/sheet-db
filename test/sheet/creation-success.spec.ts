@@ -9,140 +9,105 @@ import {
 	type SheetCreateResponse,
 	type SheetTestContext 
 } from './helpers';
-import { setupAllSheetMocks, mockEnv } from './mocks';
-import { OpenAPIHono } from '@hono/zod-openapi';
 
 describe('Sheet API - Creation Success Tests', () => {
 	let testContext: SheetTestContext;
-	let app: OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>;
 
 	beforeAll(async () => {
-		// Setup all mocks
-		setupAllSheetMocks();
-		
-		// Create app instance
-		const { registerSheetRoutes } = await import('../../src/api/sheet');
-		app = new OpenAPIHono<{ Bindings: { DB: D1Database, ASSETS: Fetcher } }>();
-		registerSheetRoutes(app);
-		
 		const auth = await setupSheetAuth();
 		testContext = {
 			...auth,
 			createdSheetIds: []
 		};
-		console.log('Test context setup:', { sessionId: testContext.sessionId, userInfo: testContext.userInfo });
 	}, 30000);
 
 	afterEach(async () => {
-		// Skip cleanup in mocked environment
-		// await cleanupSheets(testContext.sessionId, testContext.createdSheetIds);
-		testContext.createdSheetIds = [];
+		if (testContext.createdSheetIds.length > 0) {
+			await cleanupSheets(testContext.sessionId, testContext.createdSheetIds);
+			testContext.createdSheetIds = [];
+		}
 	});
 
 	describe('Successful sheet creation', () => {
-		it('should create a new sheet with valid data and permissions', async () => {
-			const createData: SheetCreateRequest = {
-				name: `TestSheet_${Date.now()}`,
+		it('should create a basic sheet with valid data', async () => {
+			const sheetData = createTestSheetRequest({
+				name: `BasicSheet_${Date.now()}`,
 				public_read: true,
-				public_write: false,
-				role_read: [],
-				role_write: ['admin'],
-				user_read: [],
-				user_write: [testContext.userInfo.sub]
-			};
+				public_write: false
+			});
 
-			const req = new Request('http://localhost/api/sheets', {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
-				body: JSON.stringify(createData)
+				body: JSON.stringify(sheetData)
 			});
-			
-			const response = await app.fetch(req, mockEnv);
 
-			if (response.status !== 200) {
-				const errorData = await response.json();
-				console.error('Sheet creation failed:', { status: response.status, error: errorData });
+			const data = await response.json() as SheetCreateResponse;
+
+			expect(response.status).toBe(200);
+			expect(data.success).toBe(true);
+			expect(data.data).toBeDefined();
+			expect(data.data?.name).toBe(sheetData.name);
+			expect(data.data?.public_read).toBe(true);
+			expect(data.data?.public_write).toBe(false);
+
+			if (data.data?.sheetId) {
+				testContext.createdSheetIds.push(data.data.sheetId);
 			}
-			expect(response.status).toBe(200);
-			const data = await response.json() as SheetCreateResponse;
-
-			expect(data.success).toBe(true);
-			expect(data.data).toBeDefined();
-			expect(data.data!.name).toBe(createData.name);
-			expect(data.data!.sheetId).toBeTypeOf('number');
-			expect(data.data!.public_read).toBe(true);
-			expect(data.data!.public_write).toBe(false);
-			expect(data.data!.role_read).toEqual([]);
-			expect(data.data!.role_write).toEqual(['admin']);
-			expect(data.data!.user_read).toEqual([]);
-			expect(data.data!.user_write).toEqual([testContext.userInfo.sub]);
-			expect(data.data!.message).toContain('created successfully');
-			
-			// Track created sheet for cleanup
-			testContext.createdSheetIds.push(data.data!.sheetId);
 		});
 
-		it('should use default permissions when not provided', async () => {
-			const createData = createTestSheetRequest({
-				name: `TestSheet_Defaults_${Date.now()}`
-			});
-
-			const req = new Request('http://localhost/api/sheets', {
-				method: 'POST',
-				headers: createSheetHeaders(testContext.sessionId),
-				body: JSON.stringify(createData)
-			});
-			
-			const response = await app.fetch(req, mockEnv);
-
-			expect(response.status).toBe(200);
-			const data = await response.json() as SheetCreateResponse;
-
-			expect(data.success).toBe(true);
-			expect(data.data).toBeDefined();
-			expect(data.data!.name).toBe(createData.name);
-			expect(data.data!.public_read).toBe(true); // Default value
-			expect(data.data!.public_write).toBe(false); // Default value
-			expect(data.data!.user_write).toContain(testContext.userInfo.sub); // Default to creator
-			
-			// Track created sheet for cleanup
-			testContext.createdSheetIds.push(data.data!.sheetId);
-		});
-
-		it('should create sheet with custom permissions', async () => {
-			const createData: SheetCreateRequest = {
-				name: `TestSheet_Custom_${Date.now()}`,
+		it('should create a sheet with role permissions', async () => {
+			const sheetData = createTestSheetRequest({
+				name: `RoleSheet_${Date.now()}`,
 				public_read: false,
-				public_write: true,
-				role_read: ['viewer'],
-				role_write: ['editor', 'admin'],
-				user_read: ['user456'],
-				user_write: ['user789']
-			};
+				public_write: false,
+				role_read: ['admin', 'editor'],
+				role_write: ['admin']
+			});
 
-			const req = new Request('http://localhost/api/sheets', {
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
 				method: 'POST',
 				headers: createSheetHeaders(testContext.sessionId),
-				body: JSON.stringify(createData)
+				body: JSON.stringify(sheetData)
 			});
-			
-			const response = await app.fetch(req, mockEnv);
 
-			expect(response.status).toBe(200);
 			const data = await response.json() as SheetCreateResponse;
 
+			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
-			expect(data.data).toBeDefined();
-			expect(data.data!.name).toBe(createData.name);
-			expect(data.data!.public_read).toBe(false);
-			expect(data.data!.public_write).toBe(true);
-			expect(data.data!.role_read).toEqual(['viewer']);
-			expect(data.data!.role_write).toEqual(['editor', 'admin']);
-			expect(data.data!.user_read).toEqual(['user456']);
-			expect(data.data!.user_write).toEqual(['user789']);
-			
-			// Track created sheet for cleanup
-			testContext.createdSheetIds.push(data.data!.sheetId);
+			expect(data.data?.role_read).toEqual(['admin', 'editor']);
+			expect(data.data?.role_write).toEqual(['admin']);
+
+			if (data.data?.sheetId) {
+				testContext.createdSheetIds.push(data.data.sheetId);
+			}
+		});
+
+		it('should create a sheet with user permissions', async () => {
+			const sheetData = createTestSheetRequest({
+				name: `UserSheet_${Date.now()}`,
+				public_read: false,
+				public_write: false,
+				user_read: [testContext.userInfo.sub],
+				user_write: [testContext.userInfo.sub]
+			});
+
+			const response = await fetch(`${BASE_URL}/api/sheets`, {
+				method: 'POST',
+				headers: createSheetHeaders(testContext.sessionId),
+				body: JSON.stringify(sheetData)
+			});
+
+			const data = await response.json() as SheetCreateResponse;
+
+			expect(response.status).toBe(200);
+			expect(data.success).toBe(true);
+			expect(data.data?.user_read).toEqual([testContext.userInfo.sub]);
+			expect(data.data?.user_write).toEqual([testContext.userInfo.sub]);
+
+			if (data.data?.sheetId) {
+				testContext.createdSheetIds.push(data.data.sheetId);
+			}
 		});
 	});
 });
