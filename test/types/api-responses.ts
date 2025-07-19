@@ -97,7 +97,7 @@ export interface SheetSetupProgressData {
 
 export type AuthStartResponse = BaseSuccessResponseWithData<AuthStartData>;
 export type AuthCallbackResponse = BaseSuccessResponseWithData<AuthCallbackData>;
-export type AuthLogoutResponse = BaseSuccessResponseWithData<{}>;
+export type AuthLogoutResponse = BaseSuccessResponse;
 export type UserMeResponse = BaseSuccessResponseWithData<User>;
 export type UserUpdateResponse = BaseSuccessResponseWithData<User>;
 export type UserDeleteResponse = BaseSuccessResponseWithMessage;

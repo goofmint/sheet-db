@@ -14,21 +14,8 @@ export const auth0ClientSecret = env.AUTH0_CLIENT_SECRET;
 export const auth0TestEmail = env.AUTH0_TEST_EMAIL;
 export const auth0TestPassword = env.AUTH0_TEST_PASSWORD;
 
-// Helper functions for common test patterns
-export function createAuthHeaders(sessionId: string | null): HeadersInit {
-	return sessionId ? { 'Authorization': `Bearer ${sessionId}` } : {};
-}
-
-export function createJsonHeaders(sessionId: string | null): HeadersInit {
-	return {
-		'Content-Type': 'application/json',
-		...createAuthHeaders(sessionId)
-	};
-}
-
-export function requireSession(sessionId: string | null): asserts sessionId is string {
-	if (!sessionId) throw new Error('Test session not available');
-}
+// Import shared helper functions
+export { createAuthHeaders, createJsonHeaders, requireSession } from '../helpers/common';
 
 // Setup function for auth tests
 export function setupAuthTests() {

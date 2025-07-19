@@ -1,7 +1,25 @@
 import { beforeAll, afterEach } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { validateAuth0Config, fetchAuth0Token, fetchAuth0UserInfo, BASE_URL } from '../helpers/auth';
-import type { ApiErrorResponse, AuthCallbackResponse } from '../types/api-responses';
+import type { ApiErrorResponse, AuthCallbackResponse, BaseSuccessResponseWithData } from '../types/api-responses';
+
+// Define interfaces for API responses used in this file
+interface DataCreationResponse {
+	success: boolean;
+	data?: {
+		id: string;
+		[key: string]: any;
+	};
+}
+
+interface SheetCreationResponse {
+	success: boolean;
+	data?: {
+		id: string;
+		name: string;
+		[key: string]: any;
+	};
+}
 
 // Shared test state
 export let testSessionId: string | null = null;
@@ -65,7 +83,7 @@ export async function setupTestData() {
 		});
 		
 		if (createDataResponse.ok) {
-			const data = await createDataResponse.json() as any;
+			const data = await createDataResponse.json() as DataCreationResponse;
 			const dataId = data.data?.id || `${entry.id}-${timestamp}`;
 			createdDataIds.push({ sheetId: testSheetId, dataId });
 			
@@ -127,7 +145,7 @@ export function setupSheetDataTests() {
 						});
 						
 						if (loginResponse.ok) {
-							const loginData = await loginResponse.json() as any;
+							const loginData = await loginResponse.json() as AuthCallbackResponse;
 							testSessionId = loginData.data.sessionId;
 							console.log('Successfully authenticated for sheet data tests');
 						}
@@ -162,21 +180,8 @@ export function setupSheetDataTests() {
 	});
 }
 
-// Helper functions for common test patterns
-export function createAuthHeaders(sessionId: string | null): HeadersInit {
-	return sessionId ? { 'Authorization': `Bearer ${sessionId}` } : {};
-}
-
-export function createJsonHeaders(sessionId: string | null): HeadersInit {
-	return {
-		'Content-Type': 'application/json',
-		...createAuthHeaders(sessionId)
-	};
-}
-
-export function requireSession(sessionId: string | null): asserts sessionId is string {
-	if (!sessionId) throw new Error('Test session not available');
-}
+// Import shared helper functions
+export { createAuthHeaders, createJsonHeaders, requireSession } from '../helpers/common';
 
 // Export types for convenience
 export type { ApiErrorResponse, AuthCallbackResponse };
