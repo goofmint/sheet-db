@@ -131,10 +131,9 @@ describe('Sheet Data GET API - Sorting and Complex Queries', () => {
 				const curr = sortedResults[i];
 				
 				// Primary sort: category should be in ascending order
-				if (prev.category !== curr.category) {
-					expect(curr.category >= prev.category).toBe(true);
-				} else {
-					// Secondary sort: score should be in descending order within same category
+				expect(curr.category >= prev.category).toBe(true);
+				// Secondary sort: within same category, score should be descending
+				if (prev.category === curr.category) {
 					expect(curr.score <= prev.score).toBe(true);
 				}
 			}
@@ -182,10 +181,8 @@ describe('Sheet Data GET API - Sorting and Complex Queries', () => {
 			
 			// Verify all results are within the score range
 			for (const result of data.results) {
-				if (result.score !== undefined) {
-					expect(result.score).toBeGreaterThanOrEqual(100);
-					expect(result.score).toBeLessThanOrEqual(1000);
-				}
+				expect(result.score).toBeGreaterThanOrEqual(100);
+				expect(result.score).toBeLessThanOrEqual(1000);
 			}
 			
 			// Verify results are sorted by score in descending order
@@ -200,12 +197,11 @@ describe('Sheet Data GET API - Sorting and Complex Queries', () => {
 			// Should have at least 10 records in range (100-1000)
 			expect(data.count).toBeGreaterThanOrEqual(10);
 			
-			// Verify pagination metadata if available
-			if (data.pagination) {
-				expect(data.pagination.page).toBe(1);
-				expect(data.pagination.limit).toBe(5);
-				expect(data.pagination.total).toBe(data.count);
-			}
+			// Verify pagination metadata exists
+			expect(data.pagination).toBeDefined();
+			expect(data.pagination.page).toBe(1);
+			expect(data.pagination.limit).toBe(5);
+			expect(data.pagination.total).toBe(data.count);
 		});
 	});
 });
