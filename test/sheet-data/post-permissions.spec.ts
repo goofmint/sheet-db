@@ -24,11 +24,9 @@ describe('Sheet Data POST API - Permissions', () => {
 				})
 			});
 			
-			let privateSheetId = 'private-sheet-fallback';
-			if (createSheetResp.ok) {
-				const sheetData = await createSheetResp.json() as any;
-				privateSheetId = sheetData.data?.id || privateSheetId;
-			}
+			expected(createSheetResp.ok).toBe(true);
+			const sheetData = await createSheetResp.json() as any;
+			const privateSheetId = sheetData.data.id;
 
 			// Try to post without authentication
 			const resp = await fetch(`${BASE_URL}/api/sheets/${privateSheetId}/data`, {
@@ -40,15 +38,13 @@ describe('Sheet Data POST API - Permissions', () => {
 				body: JSON.stringify({ name: 'Test' })
 			});
 			
-			expect([401, 403, 404].includes(resp.status)).toBe(true);
+			expected(resp.status).toBe(401);
 			const data = await resp.json() as ApiErrorResponse;
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
 
 		it('should handle permission denied for write access', async () => {
-			requireSession(testSessionId);
-
 			// Create a read-only sheet
 			const createSheetResp = await fetch(`${BASE_URL}/api/sheets`, {
 				method: 'POST',
@@ -60,11 +56,9 @@ describe('Sheet Data POST API - Permissions', () => {
 				})
 			});
 			
-			let readonlySheetId = 'readonly-sheet-fallback';
-			if (createSheetResp.ok) {
-				const sheetData = await createSheetResp.json() as any;
-				readonlySheetId = sheetData.data?.id || readonlySheetId;
-			}
+			expected(createSheetResp.ok).toBe(true);
+			const sheetData = await createSheetResp.json() as any;
+			const readonlySheetId = sheetData.data.id;
 
 			// Try to post with invalid token (simulating no write permission)
 			const resp = await fetch(`${BASE_URL}/api/sheets/${readonlySheetId}/data`, {
@@ -76,7 +70,7 @@ describe('Sheet Data POST API - Permissions', () => {
 				body: JSON.stringify({ name: 'Test' })
 			});
 			
-			expect([401, 403, 404].includes(resp.status)).toBe(true);
+			expected(resp.status).toBe(401);
 			const data = await resp.json() as ApiErrorResponse;
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
@@ -95,11 +89,9 @@ describe('Sheet Data POST API - Permissions', () => {
 				})
 			});
 			
-			let writeonlySheetId = 'writeonly-sheet-fallback';
-			if (createSheetResp.ok) {
-				const sheetData = await createSheetResp.json() as any;
-				writeonlySheetId = sheetData.data?.id || writeonlySheetId;
-			}
+			expected(createSheetResp.ok).toBe(true);
+			const sheetData = await createSheetResp.json() as any;
+			const writeonlySheetId = sheetData.data.id;
 
 			// Try to post to write-only sheet with valid session
 			const resp = await fetch(`${BASE_URL}/api/sheets/${writeonlySheetId}/data`, {
@@ -108,20 +100,11 @@ describe('Sheet Data POST API - Permissions', () => {
 				body: JSON.stringify({ name: 'Test' })
 			});
 			
-			// Accept different behaviors: success with empty data or permission error
-			if (resp.status === 200) {
-				const data = await resp.json() as { success: boolean; data?: any };
-				expect(data.success).toBe(true);
-				// Data might be empty if user has no read permission
-				if (data.data !== undefined) {
-					expect(data.data).toEqual({});
-				}
-			} else {
-				// Or it might return a permission error
-				expect([401, 403, 404].includes(resp.status)).toBe(true);
-				const data = await resp.json() as ApiErrorResponse;
-				expect(data.success).toBe(false);
-			}
+			expected(resp.status).toBe(200);
+			const data = await resp.json() as { success: boolean; data: any };
+			expect(data.success).toBe(true);
+			// Data might be empty if user has no read permission
+			expected(data.data).toEqual({});
 		});
 	});
 });
