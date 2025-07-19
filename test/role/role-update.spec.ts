@@ -42,11 +42,6 @@ describe('Role Update API', () => {
 		});
 
 		it('should update role successfully (integration test)', async () => {
-			if (!auth0TestEmail || !auth0TestPassword) {
-				console.log('Skipping integration test: AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables not available');
-				return;
-			}
-
 			// First, create a test role
 			const createRoleName = `test-update-role-${Date.now()}`;
 			const createResponse = await fetch(`${BASE_URL}/api/roles`, {
@@ -55,14 +50,14 @@ describe('Role Update API', () => {
 				body: JSON.stringify({ name: createRoleName, public_read: false, public_write: false }),
 			});
 
-			if (createResponse.status === 401) {
-				const data = (await createResponse.json()) as ApiErrorResponse;
-				console.log(`Skipping integration test due to authentication failure: ${data.error}`);
-				return;
-			}
 			if (createResponse.status === 500) {
 				const data = (await createResponse.json()) as ApiErrorResponse;
 				throw new Error(`System error: ${data.error}. Check Google Sheets configuration and permissions.`);
+			}
+			
+			if (!createResponse.ok) {
+				const data = (await createResponse.json()) as ApiErrorResponse;
+				throw new Error(`Failed to create test role: ${createResponse.status} ${data.error}`);
 			}
 
 			expect(createResponse.status).toBe(200);
@@ -95,11 +90,6 @@ describe('Role Update API', () => {
 		});
 
 		it('should prevent duplicate names when updating (integration test)', async () => {
-			if (!auth0TestEmail || !auth0TestPassword) {
-				console.log('Skipping integration test: AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables not available');
-				return;
-			}
-
 			const timestamp = Date.now();
 			const firstRoleName = `test-role-1-${timestamp}`;
 			const secondRoleName = `test-role-2-${timestamp}`;
@@ -117,9 +107,13 @@ describe('Role Update API', () => {
 				body: JSON.stringify({ name: secondRoleName, public_read: false, public_write: false }),
 			});
 
-			if (createFirst.status !== 200 || createSecond.status !== 200) {
-				console.log('Skipping integration test due to role creation failure');
-				return;
+			if (!createFirst.ok) {
+				const data = await createFirst.json() as ApiErrorResponse;
+				throw new Error(`Failed to create first test role: ${createFirst.status} ${data.error}`);
+			}
+			if (!createSecond.ok) {
+				const data = await createSecond.json() as ApiErrorResponse;
+				throw new Error(`Failed to create second test role: ${createSecond.status} ${data.error}`);
 			}
 
 			// Try to change the name of the second role to be the same as the first role

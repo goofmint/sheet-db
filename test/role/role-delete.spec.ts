@@ -59,11 +59,6 @@ describe('Role Delete API', () => {
 		});
 
 		it('should delete role successfully (integration test)', async () => {
-			if (!auth0TestEmail || !auth0TestPassword) {
-				console.log('Skipping integration test: AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables not available');
-				return;
-			}
-
 			// First, create a test role
 			const deleteRoleName = `test-delete-role-${Date.now()}`;
 			const createResponse = await fetch(`${BASE_URL}/api/roles`, {
@@ -72,10 +67,9 @@ describe('Role Delete API', () => {
 				body: JSON.stringify({ name: deleteRoleName, public_read: false, public_write: false }),
 			});
 
-			if (createResponse.status === 401) {
+			if (!createResponse.ok) {
 				const data = (await createResponse.json()) as ApiErrorResponse;
-				console.log(`Skipping integration test due to authentication failure: ${data.error}`);
-				return;
+				throw new Error(`Failed to create test role: ${createResponse.status} ${data.error}`);
 			}
 			if (createResponse.status === 500) {
 				const data = (await createResponse.json()) as ApiErrorResponse;

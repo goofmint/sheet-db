@@ -59,9 +59,6 @@ describe('Role Create API', () => {
 		});
 
 		it('should create role with valid session (integration test)', async () => {
-			if (!auth0TestEmail || !auth0TestPassword) {
-				throw new Error('Integration test requires AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables');
-			}
 
 			const uniqueRoleName = `test-role-${Date.now()}`;
 			const response = await fetch(`${BASE_URL}/api/roles`, {
@@ -72,8 +69,7 @@ describe('Role Create API', () => {
 
 			if (response.status === 401) {
 				const data = (await response.json()) as ApiErrorResponse;
-				console.log(`Skipping integration test due to authentication failure: ${data.error}`);
-				return;
+				throw new Error(`Authentication failed: ${data.error}`);
 			}
 			if (response.status === 500) {
 				const data = (await response.json()) as ApiErrorResponse;
@@ -91,9 +87,6 @@ describe('Role Create API', () => {
 		});
 
 		it('should prevent duplicate role names (integration test)', async () => {
-			if (!auth0TestEmail || !auth0TestPassword) {
-				throw new Error('Integration test requires AUTH0_TEST_EMAIL and AUTH0_TEST_PASSWORD environment variables');
-			}
 
 			const duplicateRoleName = `duplicate-role-${Date.now()}`;
 
@@ -106,8 +99,7 @@ describe('Role Create API', () => {
 
 			if (firstResponse.status === 401) {
 				const data = (await firstResponse.json()) as ApiErrorResponse;
-				console.log(`Skipping integration test due to authentication failure: ${data.error}`);
-				return;
+				throw new Error(`Authentication failed: ${data.error}`);
 			}
 			if (firstResponse.status === 500) {
 				const data = (await firstResponse.json()) as ApiErrorResponse;
