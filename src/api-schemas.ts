@@ -473,10 +473,10 @@ export const GetColumnInfoResponseSchema = z.object({
 export const GetSheetDataQuerySchema = z.object({
 	query: z.string().optional(),
 	where: z.string().optional(),
-	limit: z.number().int().min(1).max(1000).optional(),
-	page: z.number().int().min(1).optional(),
+	limit: z.coerce.number().int().min(1).max(1000).optional(),
+	page: z.coerce.number().int().min(1).optional(),
 	order: z.string().optional(),
-	count: z.boolean().optional()
+	count: z.coerce.boolean().optional()
 });
 
 export const GetSheetDataResponseSchema = z.object({
