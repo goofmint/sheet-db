@@ -80,9 +80,7 @@ describe('Sheet Data GET API - WHERE Operators', () => {
 			
 			// Verify all results have score > 100
 			for (const result of data.results) {
-				if (result.score !== undefined) {
-					expect(result.score).toBeGreaterThan(100);
-				}
+				expect(result.score).toBeGreaterThan(100);
 			}
 			// Should have found at least 2 records with score > 100 (150 and 200)
 			expect(data.results.filter((r: any) => r.score > 100).length).toBeGreaterThanOrEqual(2);
@@ -118,9 +116,7 @@ describe('Sheet Data GET API - WHERE Operators', () => {
 			
 			// Verify all results have score < 1000
 			for (const result of data.results) {
-				if (result.score !== undefined) {
-					expect(result.score).toBeLessThan(1000);
-				}
+				expect(result.score).toBeLessThan(1000);
 			}
 			// Should not include the record with score=1500
 			expect(data.results.every((r: any) => r.score !== 1500)).toBe(true);
@@ -158,10 +154,8 @@ describe('Sheet Data GET API - WHERE Operators', () => {
 			
 			// Verify all results have score between 1000 and 3000 (inclusive)
 			for (const result of data.results) {
-				if (result.score !== undefined) {
-					expect(result.score).toBeGreaterThanOrEqual(1000);
-					expect(result.score).toBeLessThanOrEqual(3000);
-				}
+				expect(result.score).toBeGreaterThanOrEqual(1000);
+				expect(result.score).toBeLessThanOrEqual(3000);
 			}
 			// Should include exactly 3 records (1000, 2000, 3000)
 			const scoresInRange = data.results.filter((r: any) => r.score >= 1000 && r.score <= 3000);
@@ -199,9 +193,7 @@ describe('Sheet Data GET API - WHERE Operators', () => {
 			
 			// Verify no results have status === 'inactive'
 			for (const result of data.results) {
-				if (result.status !== undefined) {
-					expect(result.status).not.toBe('inactive');
-				}
+				expect(result.status).not.toBe('inactive');
 			}
 			// Should not include any inactive records
 			expect(data.results.filter((r: any) => r.status === 'inactive').length).toBe(0);
@@ -239,9 +231,7 @@ describe('Sheet Data GET API - WHERE Operators', () => {
 			
 			// Verify all results have category in ['A', 'B', 'C']
 			for (const result of data.results) {
-				if (result.category !== undefined) {
-					expect(['A', 'B', 'C']).toContain(result.category);
-				}
+				expect(['A', 'B', 'C']).toContain(result.category);
 			}
 			// Should not include categories D and E
 			expect(data.results.filter((r: any) => r.category === 'D' || r.category === 'E').length).toBe(0);
@@ -279,9 +269,7 @@ describe('Sheet Data GET API - WHERE Operators', () => {
 			
 			// Verify no results have category in ['X', 'Y', 'Z']
 			for (const result of data.results) {
-				if (result.category !== undefined) {
-					expect(['X', 'Y', 'Z']).not.toContain(result.category);
-				}
+				expect(['X', 'Y', 'Z']).not.toContain(result.category);
 			}
 			// Should only include categories not in the exclusion list
 			expect(data.results.filter((r: any) => ['X', 'Y', 'Z'].includes(r.category)).length).toBe(0);
@@ -318,9 +306,7 @@ describe('Sheet Data GET API - WHERE Operators', () => {
 			
 			// Verify all results have email field (even if empty)
 			for (const result of data.results) {
-				if (result.name && result.name.startsWith('user-')) {
-					expect(result).toHaveProperty('email');
-				}
+				expect(result).toHaveProperty('email');
 			}
 			// Should include records with email field defined
 			const withEmail = data.results.filter((r: any) => 'email' in r);
@@ -358,9 +344,7 @@ describe('Sheet Data GET API - WHERE Operators', () => {
 			
 			// Verify all results have email ending with @example.com
 			for (const result of data.results) {
-				if (result.email) {
-					expect(result.email).toMatch(/@example\.com$/);
-				}
+				expect(result.email).toMatch(/@example\.com$/);
 			}
 			// Should include only @example.com emails
 			const exampleEmails = data.results.filter((r: any) => r.email && r.email.endsWith('@example.com'));
@@ -398,9 +382,7 @@ describe('Sheet Data GET API - WHERE Operators', () => {
 			
 			// Verify all results contain 'search term' in description
 			for (const result of data.results) {
-				if (result.description) {
-					expect(result.description.toLowerCase()).toContain('search term');
-				}
+				expect(result.description.toLowerCase()).toContain('search term');
 			}
 			// Should include at least 2 records with 'search term'
 			const withSearchTerm = data.results.filter((r: any) => 
