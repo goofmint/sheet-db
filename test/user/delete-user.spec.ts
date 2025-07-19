@@ -59,8 +59,8 @@ describe('User API - DELETE /api/users/:id', () => {
 			// In a real scenario, you'd mock different users and permission checks
 			const res = await app.fetch(req, mockEnv);
 
-			// This test would need more sophisticated mocking to properly test permission denial
-			expect(res.status).toBeGreaterThanOrEqual(200);
+			// Expect successful deletion since we're using the same user mock
+			expect(res.status).toBe(200);
 		});
 	});
 
