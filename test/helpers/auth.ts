@@ -45,7 +45,24 @@ function delay(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Fetch Auth0 access token with retry logic
+// Global rate limiting - ensure Auth0 API calls are spaced out
+let lastAuth0CallTime = 0;
+const MIN_DELAY_BETWEEN_CALLS = 2000; // 2 seconds between any Auth0 API calls
+
+async function enforceRateLimit(): Promise<void> {
+	const now = Date.now();
+	const timeSinceLastCall = now - lastAuth0CallTime;
+	
+	if (timeSinceLastCall < MIN_DELAY_BETWEEN_CALLS) {
+		const waitTime = MIN_DELAY_BETWEEN_CALLS - timeSinceLastCall;
+		console.log(`⏳ Enforcing Auth0 rate limit: waiting ${waitTime}ms`);
+		await delay(waitTime);
+	}
+	
+	lastAuth0CallTime = Date.now();
+}
+
+// Fetch Auth0 access token with aggressive retry logic
 export async function fetchAuth0Token(config: {
 	auth0Domain: string;
 	auth0ClientId: string;
@@ -53,10 +70,12 @@ export async function fetchAuth0Token(config: {
 	testEmail: string;
 	testPassword: string;
 }): Promise<string | null> {
-	const maxRetries = 3;
+	const maxRetries = 5; // Increased from 3
 	let retryCount = 0;
 	
 	while (retryCount < maxRetries) {
+		// Always enforce rate limit before making a call
+		await enforceRateLimit();
 		try {
 			const tokenResponse = await fetch(`https://${config.auth0Domain}/oauth/token`, {
 				method: 'POST',
@@ -74,9 +93,9 @@ export async function fetchAuth0Token(config: {
 			});
 
 			if (tokenResponse.status === 429) {
-				// Rate limited, wait and retry
-				const waitTime = Math.pow(2, retryCount) * 2000; // Exponential backoff: 2s, 4s, 8s
-				console.log(`Auth0 rate limited, waiting ${waitTime}ms before retry ${retryCount + 1}/${maxRetries}`);
+				// Rate limited, wait and retry with longer backoff
+				const waitTime = Math.pow(2, retryCount) * 5000; // Exponential backoff: 5s, 10s, 20s, 40s, 80s
+				console.log(`🔴 Auth0 rate limited, waiting ${waitTime}ms before retry ${retryCount + 1}/${maxRetries}`);
 				await delay(waitTime);
 				retryCount++;
 				continue;
@@ -118,10 +137,12 @@ export async function fetchAuth0Token(config: {
 
 // Fetch user info using Auth0 token with retry logic
 export async function fetchAuth0UserInfo(auth0Domain: string, accessToken: string): Promise<{ sub: string; email: string } | null> {
-	const maxRetries = 3;
+	const maxRetries = 5; // Increased from 3
 	let retryCount = 0;
 	
 	while (retryCount < maxRetries) {
+		// Always enforce rate limit before making a call
+		await enforceRateLimit();
 		try {
 			const userInfoResponse = await fetch(`https://${auth0Domain}/userinfo`, {
 				headers: {
@@ -130,9 +151,9 @@ export async function fetchAuth0UserInfo(auth0Domain: string, accessToken: strin
 			});
 
 			if (userInfoResponse.status === 429) {
-				// Rate limited, wait and retry
-				const waitTime = Math.pow(2, retryCount) * 2000; // Exponential backoff: 2s, 4s, 8s
-				console.log(`Auth0 user info rate limited, waiting ${waitTime}ms before retry ${retryCount + 1}/${maxRetries}`);
+				// Rate limited, wait and retry with longer backoff
+				const waitTime = Math.pow(2, retryCount) * 5000; // Exponential backoff: 5s, 10s, 20s, 40s, 80s
+				console.log(`🔴 Auth0 user info rate limited, waiting ${waitTime}ms before retry ${retryCount + 1}/${maxRetries}`);
 				await delay(waitTime);
 				retryCount++;
 				continue;

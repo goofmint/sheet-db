@@ -37,8 +37,8 @@ async function initializeGlobalAuth(): Promise<void> {
 		throw new Error('Failed to obtain Auth0 access token');
 	}
 
-	// Add delay after token request
-	await delay(500);
+	// Add longer delay after token request for rate limiting
+	await delay(1000);
 
 	// Get user info from Auth0 (with retry logic)
 	const userInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
@@ -46,8 +46,8 @@ async function initializeGlobalAuth(): Promise<void> {
 		throw new Error('Failed to get user info from Auth0');
 	}
 
-	// Add delay after user info request
-	await delay(500);
+	// Add longer delay after user info request for rate limiting
+	await delay(1000);
 
 	// Login to get session ID
 	const loginResponse = await fetch(`${BASE_URL}/api/login`, {
@@ -81,8 +81,8 @@ async function initializeGlobalAuth(): Promise<void> {
 
 	console.log('✅ Global Auth0 authentication completed successfully');
 	
-	// Add delay after successful setup
-	await delay(500);
+	// Add longer delay after successful setup to reduce pressure on Auth0
+	await delay(2000);
 }
 
 // Get global authentication (initialize if needed)
