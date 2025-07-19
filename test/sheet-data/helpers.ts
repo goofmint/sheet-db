@@ -121,9 +121,17 @@ export async function setupTestData() {
 	}
 }
 
+// Delay function to avoid Auth0 rate limiting
+function delay(ms: number): Promise<void> {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Setup function for all sheet data tests
 export function setupSheetDataTests() {
 	beforeAll(async () => {
+		// Add delay to avoid Auth0 rate limiting
+		await delay(1000); // 1 second delay
+		
 		// Try to get Auth0 configuration but don't fail if it's not available
 		try {
 			const config = validateAuth0Config();
@@ -136,10 +144,16 @@ export function setupSheetDataTests() {
 					throw new Error('Failed to obtain Auth0 access token');
 				}
 				
+				// Add delay after token request to avoid rate limiting
+				await delay(500);
+				
 				// Get user info from Auth0
 				testUserInfo = await fetchAuth0UserInfo(config.auth0Domain, accessToken);
 				
 				if (testUserInfo) {
+					// Add delay after user info request
+					await delay(500);
+					
 					// Login to get session ID
 					const loginResponse = await fetch(`${BASE_URL}/api/login`, {
 						method: 'POST',
@@ -164,6 +178,9 @@ export function setupSheetDataTests() {
 					
 					testSessionId = loginData.data.sessionId;
 					console.log('Successfully authenticated for sheet data tests');
+					
+					// Add delay after successful login
+					await delay(500);
 				} else {
 					throw new Error('Failed to get user info from Auth0');
 				}
@@ -179,7 +196,7 @@ export function setupSheetDataTests() {
 		
 		// Setup test data
 		await setupTestData();
-	});
+	}, 30000); // 30 second timeout for Auth0 retry logic
 	
 	afterEach(async () => {
 		// Clean up any data created during tests

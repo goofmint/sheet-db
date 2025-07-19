@@ -25,7 +25,12 @@ export function validateAuth0Config(): {
 	return { auth0Domain, auth0ClientId, auth0ClientSecret, testEmail, testPassword };
 }
 
-// Fetch Auth0 access token
+// Delay function for rate limiting
+function delay(ms: number): Promise<void> {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Fetch Auth0 access token with retry logic
 export async function fetchAuth0Token(config: {
 	auth0Domain: string;
 	auth0ClientId: string;
@@ -33,73 +38,117 @@ export async function fetchAuth0Token(config: {
 	testEmail: string;
 	testPassword: string;
 }): Promise<string | null> {
-	try {
-		const tokenResponse = await fetch(`https://${config.auth0Domain}/oauth/token`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-			},
-			body: new URLSearchParams({
-				grant_type: 'password',
-				username: config.testEmail,
-				password: config.testPassword,
-				client_id: config.auth0ClientId,
-				client_secret: config.auth0ClientSecret,
-				scope: 'openid profile email',
-			}),
-		});
+	const maxRetries = 3;
+	let retryCount = 0;
+	
+	while (retryCount < maxRetries) {
+		try {
+			const tokenResponse = await fetch(`https://${config.auth0Domain}/oauth/token`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: new URLSearchParams({
+					grant_type: 'password',
+					username: config.testEmail,
+					password: config.testPassword,
+					client_id: config.auth0ClientId,
+					client_secret: config.auth0ClientSecret,
+					scope: 'openid profile email',
+				}),
+			});
 
-		if (!tokenResponse.ok) {
-			const errorText = await tokenResponse.text();
-			console.log(`Auth0 token request failed: ${tokenResponse.status} ${tokenResponse.statusText}`, errorText);
-			console.log('Resource Owner Password Grant may not be enabled in Auth0 dashboard');
-			return null;
+			if (tokenResponse.status === 429) {
+				// Rate limited, wait and retry
+				const waitTime = Math.pow(2, retryCount) * 2000; // Exponential backoff: 2s, 4s, 8s
+				console.log(`Auth0 rate limited, waiting ${waitTime}ms before retry ${retryCount + 1}/${maxRetries}`);
+				await delay(waitTime);
+				retryCount++;
+				continue;
+			}
+
+			if (!tokenResponse.ok) {
+				const errorText = await tokenResponse.text();
+				console.log(`Auth0 token request failed: ${tokenResponse.status} ${tokenResponse.statusText}`, errorText);
+				console.log('Resource Owner Password Grant may not be enabled in Auth0 dashboard');
+				return null;
+			}
+
+			const tokens = (await tokenResponse.json()) as {
+				access_token: string;
+				token_type: string;
+				expires_in: number;
+			};
+
+			if (!tokens.access_token) {
+				console.log('Auth0 token response invalid');
+				return null;
+			}
+
+			return tokens.access_token;
+			
+		} catch (error) {
+			console.log('Auth0 token request error:', error);
+			retryCount++;
+			if (retryCount >= maxRetries) {
+				return null;
+			}
+			// Wait before retrying
+			await delay(1000 * retryCount);
 		}
-
-		const tokens = (await tokenResponse.json()) as {
-			access_token: string;
-			token_type: string;
-			expires_in: number;
-		};
-
-		if (!tokens.access_token) {
-			console.log('Auth0 token response invalid');
-			return null;
-		}
-
-		return tokens.access_token;
-	} catch (error) {
-		console.log('Auth0 token request error:', error);
-		return null;
 	}
+	
+	return null; // All retries exhausted
 }
 
-// Fetch user info using Auth0 token
+// Fetch user info using Auth0 token with retry logic
 export async function fetchAuth0UserInfo(auth0Domain: string, accessToken: string): Promise<{ sub: string; email: string } | null> {
-	try {
-		const userInfoResponse = await fetch(`https://${auth0Domain}/userinfo`, {
-			headers: {
-				Authorization: `Bearer ${accessToken}`,
-			},
-		});
+	const maxRetries = 3;
+	let retryCount = 0;
+	
+	while (retryCount < maxRetries) {
+		try {
+			const userInfoResponse = await fetch(`https://${auth0Domain}/userinfo`, {
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+				},
+			});
 
-		if (!userInfoResponse.ok) {
-			const errorText = await userInfoResponse.text();
-			console.log(`Auth0 user info request failed: ${userInfoResponse.status} ${userInfoResponse.statusText}`, errorText);
-			return null;
+			if (userInfoResponse.status === 429) {
+				// Rate limited, wait and retry
+				const waitTime = Math.pow(2, retryCount) * 2000; // Exponential backoff: 2s, 4s, 8s
+				console.log(`Auth0 user info rate limited, waiting ${waitTime}ms before retry ${retryCount + 1}/${maxRetries}`);
+				await delay(waitTime);
+				retryCount++;
+				continue;
+			}
+
+			if (!userInfoResponse.ok) {
+				const errorText = await userInfoResponse.text();
+				console.log(`Auth0 user info request failed: ${userInfoResponse.status} ${userInfoResponse.statusText}`, errorText);
+				return null;
+			}
+
+			const userInfo = await userInfoResponse.json() as { sub: string; email: string; name?: string; given_name?: string; family_name?: string; nickname?: string; picture?: string; email_verified?: boolean; locale?: string };
+			if (!userInfo.sub || !userInfo.email) {
+				console.log('Auth0 user info incomplete');
+				return null;
+			}
+
+			return { sub: userInfo.sub, email: userInfo.email };
+			
+		} catch (error) {
+			console.log('Auth0 user info request error:', error);
+			retryCount++;
+			if (retryCount >= maxRetries) {
+				return null;
+			}
+			// Wait before retrying
+			await delay(1000 * retryCount);
 		}
-
-		const userInfo = await userInfoResponse.json() as { sub: string; email: string; name?: string; given_name?: string; family_name?: string; nickname?: string; picture?: string; email_verified?: boolean; locale?: string };
-		if (!userInfo.sub || !userInfo.email) {
-			console.log('Auth0 user info incomplete');
-			return null;
-		}
-
-		return { sub: userInfo.sub, email: userInfo.email };
-	} catch (error) {
-		console.log('Auth0 user info request error:', error);
-		return null;
 	}
+	
+	return null; // All retries exhausted
 }
 
 // Create test session ID
