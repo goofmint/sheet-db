@@ -10,12 +10,21 @@ export function validateAuth0Config(): {
 	auth0ClientSecret: string;
 	testEmail: string;
 	testPassword: string;
-} | null {
+} {
 	const auth0Domain = env.AUTH0_DOMAIN;
 	const auth0ClientId = env.AUTH0_CLIENT_ID;
 	const auth0ClientSecret = env.AUTH0_CLIENT_SECRET;
 	const testEmail = env.AUTH0_TEST_EMAIL;
 	const testPassword = env.AUTH0_TEST_PASSWORD;
+
+	// Debug: Log what we actually got
+	console.log('Auth0 config check:', {
+		auth0Domain: auth0Domain ? 'SET' : 'MISSING',
+		auth0ClientId: auth0ClientId ? 'SET' : 'MISSING',
+		auth0ClientSecret: auth0ClientSecret ? 'SET' : 'MISSING',
+		testEmail: testEmail ? 'SET' : 'MISSING',
+		testPassword: testPassword ? 'SET' : 'MISSING'
+	});
 
 	if (!auth0Domain || !auth0ClientId || !auth0ClientSecret || !testEmail || !testPassword) {
 		const missing = [];
