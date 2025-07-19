@@ -8,7 +8,6 @@ import {
 	BASE_URL,
 	createAuthHeaders,
 	createJsonHeaders,
-	requireSession,
 	type ApiErrorResponse 
 } from './helpers';
 
@@ -17,8 +16,6 @@ describe('Sheet Data DELETE API', () => {
 
 	describe('DELETE /api/sheets/:id/data/:dataId', () => {
 		it('should require valid sheet ID', async () => {
-			requireSession(testSessionId);
-
 			const resp = await fetch(`${BASE_URL}/api/sheets/invalid-sheet/data/${testDataId}`, {
 				method: 'DELETE',
 				headers: createAuthHeaders(testSessionId)
@@ -31,8 +28,6 @@ describe('Sheet Data DELETE API', () => {
 		});
 
 		it('should require valid data ID', async () => {
-			requireSession(testSessionId);
-
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/invalid-data-id`, {
 				method: 'DELETE',
 				headers: createAuthHeaders(testSessionId)
@@ -56,11 +51,12 @@ describe('Sheet Data DELETE API', () => {
 				})
 			});
 			
-			let privateSheetId = 'private-sheet-fallback';
-			if (createSheetResp.ok) {
-				const sheetData = await createSheetResp.json() as any;
-				privateSheetId = sheetData.data?.id || privateSheetId;
+			if (!createSheetResp.ok) {
+				const errorText = await createSheetResp.text();
+				throw new Error(`Failed to create test sheet: ${createSheetResp.status} ${errorText}`);
 			}
+			const sheetData = await createSheetResp.json() as any;
+			const privateSheetId = sheetData.data.id;
 
 			// Try to delete without authentication
 			const resp = await fetch(`${BASE_URL}/api/sheets/${privateSheetId}/data/${testDataId}`, {
@@ -68,15 +64,13 @@ describe('Sheet Data DELETE API', () => {
 				// No auth headers
 			});
 			
-			expect([401, 403, 404].includes(resp.status)).toBe(true);
+			expect(resp.status).toBe(401);
 			const data = await resp.json() as ApiErrorResponse;
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
 
 		it('should handle insufficient permissions', async () => {
-			requireSession(testSessionId);
-
 			// Create a read-only sheet
 			const createSheetResp = await fetch(`${BASE_URL}/api/sheets`, {
 				method: 'POST',
@@ -88,25 +82,26 @@ describe('Sheet Data DELETE API', () => {
 				})
 			});
 			
-			let readonlySheetId = 'readonly-sheet-fallback';
-			let testDataIdForReadonly = 'test-data-readonly';
-			
-			if (createSheetResp.ok) {
-				const sheetData = await createSheetResp.json() as any;
-				readonlySheetId = sheetData.data?.id || readonlySheetId;
-				
-				// Create some data in the readonly sheet
-				const createDataResp = await fetch(`${BASE_URL}/api/sheets/${readonlySheetId}/data`, {
-					method: 'POST',
-					headers: createJsonHeaders(testSessionId),
-					body: JSON.stringify({ name: 'test-data', value: 123 })
-				});
-				
-				if (createDataResp.ok) {
-					const dataResponse = await createDataResp.json() as any;
-					testDataIdForReadonly = dataResponse.data?.id || testDataIdForReadonly;
-				}
+			if (!createSheetResp.ok) {
+				const errorText = await createSheetResp.text();
+				throw new Error(`Failed to create test sheet: ${createSheetResp.status} ${errorText}`);
 			}
+			const sheetData = await createSheetResp.json() as any;
+			const readonlySheetId = sheetData.data.id;
+			
+			// Create some data in the readonly sheet
+			const createDataResp = await fetch(`${BASE_URL}/api/sheets/${readonlySheetId}/data`, {
+				method: 'POST',
+				headers: createJsonHeaders(testSessionId),
+				body: JSON.stringify({ name: 'test-data', value: 123 })
+			});
+			
+			if (!createDataResp.ok) {
+				const errorText = await createDataResp.text();
+				throw new Error(`Failed to create test data: ${createDataResp.status} ${errorText}`);
+			}
+			const dataResponse = await createDataResp.json() as any;
+			const testDataIdForReadonly = dataResponse.data.id;
 
 			// Try to delete with invalid token (simulating insufficient permissions)
 			const resp = await fetch(`${BASE_URL}/api/sheets/${readonlySheetId}/data/${testDataIdForReadonly}`, {
@@ -116,15 +111,13 @@ describe('Sheet Data DELETE API', () => {
 				}
 			});
 			
-			expect([401, 403, 404].includes(resp.status)).toBe(true);
+			expect(resp.status).toBe(401);
 			const data = await resp.json() as ApiErrorResponse;
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
 		});
 
 		it('should delete data successfully', async () => {
-			requireSession(testSessionId);
-
 			// Create test data specifically for deletion
 			const createDataResp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
@@ -136,11 +129,12 @@ describe('Sheet Data DELETE API', () => {
 				})
 			});
 			
-			let dataIdToDelete = existingDataId; // fallback
-			if (createDataResp.ok) {
-				const createData = await createDataResp.json() as any;
-				dataIdToDelete = createData.data?.id || dataIdToDelete;
+			if (!createDataResp.ok) {
+				const errorText = await createDataResp.text();
+				throw new Error(`Failed to create test data: ${createDataResp.status} ${errorText}`);
 			}
+			const createData = await createDataResp.json() as any;
+			const dataIdToDelete = createData.data.id;
 
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${dataIdToDelete}`, {
 				method: 'DELETE',
@@ -154,8 +148,6 @@ describe('Sheet Data DELETE API', () => {
 		});
 
 		it('should handle already deleted data', async () => {
-			requireSession(testSessionId);
-
 			// Create and then delete test data
 			const createDataResp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
@@ -166,17 +158,22 @@ describe('Sheet Data DELETE API', () => {
 				})
 			});
 			
-			let dataIdToDelete = 'fallback-id';
-			if (createDataResp.ok) {
-				const createData = await createDataResp.json() as any;
-				dataIdToDelete = createData.data?.id || dataIdToDelete;
+			if (!createDataResp.ok) {
+				const errorText = await createDataResp.text();
+				throw new Error(`Failed to create test data: ${createDataResp.status} ${errorText}`);
 			}
+			const createData = await createDataResp.json() as any;
+			const dataIdToDelete = createData.data.id;
 			
 			// First deletion
-			await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${dataIdToDelete}`, {
+			const firstDeleteResp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${dataIdToDelete}`, {
 				method: 'DELETE',
 				headers: createAuthHeaders(testSessionId)
 			});
+			if (!firstDeleteResp.ok) {
+				const errorText = await firstDeleteResp.text();
+				throw new Error(`Failed to delete test data: ${firstDeleteResp.status} ${errorText}`);
+			}
 
 			// Try to delete the same data again
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${dataIdToDelete}`, {
@@ -191,8 +188,6 @@ describe('Sheet Data DELETE API', () => {
 		});
 
 		it('should handle public_write permission for delete', async () => {
-			requireSession(testSessionId);
-
 			// Create a public-write sheet
 			const createSheetResp = await fetch(`${BASE_URL}/api/sheets`, {
 				method: 'POST',
@@ -204,28 +199,29 @@ describe('Sheet Data DELETE API', () => {
 				})
 			});
 			
-			let publicWriteSheetId = 'public-write-sheet-fallback';
-			let publicDataId = testDataId;
-			
-			if (createSheetResp.ok) {
-				const sheetData = await createSheetResp.json() as any;
-				publicWriteSheetId = sheetData.data?.id || publicWriteSheetId;
-				
-				// Create test data in the public sheet
-				const createDataResp = await fetch(`${BASE_URL}/api/sheets/${publicWriteSheetId}/data`, {
-					method: 'POST',
-					headers: createJsonHeaders(testSessionId),
-					body: JSON.stringify({
-						name: 'public-deletable-data',
-						value: 456
-					})
-				});
-				
-				if (createDataResp.ok) {
-					const dataResponse = await createDataResp.json() as any;
-					publicDataId = dataResponse.data?.id || publicDataId;
-				}
+			if (!createSheetResp.ok) {
+				const errorText = await createSheetResp.text();
+				throw new Error(`Failed to create test sheet: ${createSheetResp.status} ${errorText}`);
 			}
+			const sheetData = await createSheetResp.json() as any;
+			const publicWriteSheetId = sheetData.data.id;
+			
+			// Create test data in the public sheet
+			const createDataResp = await fetch(`${BASE_URL}/api/sheets/${publicWriteSheetId}/data`, {
+				method: 'POST',
+				headers: createJsonHeaders(testSessionId),
+				body: JSON.stringify({
+					name: 'public-deletable-data',
+					value: 456
+				})
+			});
+			
+			if (!createDataResp.ok) {
+				const errorText = await createDataResp.text();
+				throw new Error(`Failed to create test data: ${createDataResp.status} ${errorText}`);
+			}
+			const dataResponse = await createDataResp.json() as any;
+			const publicDataId = dataResponse.data.id;
 
 			const resp = await fetch(`${BASE_URL}/api/sheets/${publicWriteSheetId}/data/${publicDataId}`, {
 				method: 'DELETE',
@@ -239,8 +235,6 @@ describe('Sheet Data DELETE API', () => {
 		});
 
 		it('should handle cascade deletion validation', async () => {
-			requireSession(testSessionId);
-
 			// Create test data that might have references
 			const createDataResp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
@@ -253,11 +247,12 @@ describe('Sheet Data DELETE API', () => {
 				})
 			});
 			
-			let referencedDataId = 'fallback-referenced-id';
-			if (createDataResp.ok) {
-				const createData = await createDataResp.json() as any;
-				referencedDataId = createData.data?.id || referencedDataId;
+			if (!createDataResp.ok) {
+				const errorText = await createDataResp.text();
+				throw new Error(`Failed to create test data: ${createDataResp.status} ${errorText}`);
 			}
+			const createData = await createDataResp.json() as any;
+			const referencedDataId = createData.data.id;
 
 			// This test would check if deleting data with references
 			// handles cascade rules properly
@@ -266,8 +261,8 @@ describe('Sheet Data DELETE API', () => {
 				headers: createAuthHeaders(testSessionId)
 			});
 			
-			// Accept various status codes depending on implementation
-			expect([200, 400, 404, 409].includes(resp.status)).toBe(true);
+			// Expect successful deletion for this test
+			expect(resp.status).toBe(200);
 		});
 	});
 });
