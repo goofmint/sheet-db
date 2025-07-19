@@ -16,8 +16,6 @@ describe('Sheet Data POST API - Validation', () => {
 
 	describe('POST /api/sheets/:id/data - Input Validation', () => {
 		it('should require valid sheet ID', async () => {
-			requireSession(testSessionId);
-
 			const resp = await fetch(`${BASE_URL}/api/sheets/invalid-sheet/data`, {
 				method: 'POST',
 				headers: createJsonHeaders(testSessionId),
@@ -53,8 +51,6 @@ describe('Sheet Data POST API - Validation', () => {
 		});
 
 		it('should reject data with non-existent columns', async () => {
-			requireSession(testSessionId);
-
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: createJsonHeaders(testSessionId),
@@ -64,8 +60,7 @@ describe('Sheet Data POST API - Validation', () => {
 				})
 			});
 			
-			// API should return 400 for validation errors or 404 if sheet doesn't exist
-			expect([400, 404].includes(resp.status)).toBe(true);
+			expect(resp.status).toBe(400);
 			const data = await resp.json() as ApiErrorResponse;
 			expect(data.success).toBe(false);
 			expect(data.error).toBeDefined();
@@ -89,43 +84,30 @@ describe('Sheet Data POST API - Validation', () => {
 		});
 
 		it('should handle malformed JSON', async () => {
-			requireSession(testSessionId);
-
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: createJsonHeaders(testSessionId),
 				body: 'invalid-json'
 			});
 			
-			// API should return 400 for malformed JSON
 			expect(resp.status).toBe(400);
-			try {
-				const data = await resp.json() as ApiErrorResponse;
-				expect(data.success).toBe(false);
-			} catch (e) {
-				// Response might not be JSON if body is malformed
-				expect(e).toBeDefined();
-			}
+			const data = await resp.json() as ApiErrorResponse;
+			expect(data.success).toBe(false);
 		});
 
 		it('should handle missing Content-Type header', async () => {
-			requireSession(testSessionId);
-
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
 				headers: createAuthHeaders(testSessionId),
 				body: JSON.stringify({ name: 'Test' })
 			});
 			
-			// API should return 400 for missing Content-Type or 404 if sheet doesn't exist
-			expect([400, 404].includes(resp.status)).toBe(true);
+			expect(resp.status).toBe(400);
 			const data = await resp.json() as ApiErrorResponse;
 			expect(data.success).toBe(false);
 		});
 
 		it('should handle required field validation', async () => {
-			requireSession(testSessionId);
-
 			// This test depends on having a required field in the schema
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data`, {
 				method: 'POST',
@@ -143,8 +125,6 @@ describe('Sheet Data POST API - Validation', () => {
 		});
 
 		it('should validate against schema constraints', async () => {
-			requireSession(testSessionId);
-
 			// Test various schema constraints
 			const testCases = [
 				{
