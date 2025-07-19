@@ -1,8 +1,9 @@
 {
 	"extends": "../tsconfig.json",
 	"compilerOptions": {
-		"types": ["@cloudflare/vitest-pool-workers"],
-		"lib": ["es2022", "dom"]
+		"types": ["@cloudflare/vitest-pool-workers", "vitest/globals"],
+		"lib": ["es2022", "dom"],
+		"target": "es2022"
 	},
 	"include": ["./**/*.ts", "../worker-configuration.d.ts"],
 	"exclude": []

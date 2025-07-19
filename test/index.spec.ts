@@ -5,9 +5,8 @@ import { configTable, cacheTable, queueTable, sessionTable } from '../src/db/sch
 import { getTableColumns, sql } from 'drizzle-orm';
 import app from '../src/index';
 
-// For now, you'll need to do something like this to get a correctly-typed
-// `Request` to pass to `app.fetch()`.
-const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
+// Type assertion for Request with Cloudflare properties
+type IncomingRequest = Request & { cf?: IncomingRequestCfProperties };
 
 describe('Sheet DB API', () => {
 	beforeAll(async () => {
@@ -58,7 +57,7 @@ describe('Sheet DB API', () => {
 		}
 	});
 	it('redirects to playground when setup is complete (unit style)', async () => {
-		const request = new IncomingRequest('http://localhost:8787');
+		const request = new Request('http://localhost:8787') as IncomingRequest;
 		// Create an empty context to pass to `app.fetch()`.
 		const ctx = createExecutionContext();
 		const response = await app.fetch(request, env, ctx);

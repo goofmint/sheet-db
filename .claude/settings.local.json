@@ -40,7 +40,8 @@
       "mcp__container-use__environment_run_cmd",
       "mcp__container-use__environment_update",
       "mcp__container-use__environment_file_write",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(npx vitest run:*)"
     ],
     "deny": []
   }

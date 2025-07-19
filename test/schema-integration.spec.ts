@@ -1,25 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { SheetsSetupManager } from '../src/sheet-schema';
+import { deepEquals, safeJSONParse, schemaRowsEqual } from '../src/sheet-schema';
+
+// Mock Google Sheets Service for testing
+class MockGoogleSheetsService {
+  spreadsheetId: string;
+  accessToken: string;
+  
+  constructor(config: { spreadsheetId: string; accessToken: string }) {
+    this.spreadsheetId = config.spreadsheetId;
+    this.accessToken = config.accessToken;
+  }
+}
 
 describe('Schema Security Integration Tests', () => {
-  class TestSheetsSetupManager extends SheetsSetupManager {
-    public testSchemaRowsEqual(a: any[], b: any[]): boolean {
-      return this.schemaRowsEqual(a, b);
-    }
-    
-    public testSafeJSONParse(str: string): any | null {
-      return this.safeJSONParse(str);
-    }
-    
-    public testDeepEquals(a: any, b: any): boolean {
-      return this.deepEquals(a, b);
-    }
-  }
-
-  const testManager = new TestSheetsSetupManager({
-    spreadsheetId: 'test',
-    accessToken: 'test'
-  });
 
   describe('Security edge cases', () => {
     it('should handle ReDoS attack attempts in JSON parsing', () => {
@@ -27,7 +20,7 @@ describe('Schema Security Integration Tests', () => {
       const redosAttempt = '{"a": "' + 'x'.repeat(1000) + '"}';
       
       const startTime = Date.now();
-      const result = testManager.testSafeJSONParse(redosAttempt);
+      const result = safeJSONParse(redosAttempt);
       const endTime = Date.now();
       
       expect(result).toEqual({ a: 'x'.repeat(1000) });
@@ -43,8 +36,8 @@ describe('Schema Security Integration Tests', () => {
       const deep1 = createDeepObject(50);
       const deep2 = createDeepObject(50);
       
-      expect(() => testManager.testDeepEquals(deep1, deep2)).not.toThrow();
-      expect(testManager.testDeepEquals(deep1, deep2)).toBe(true);
+      expect(() => deepEquals(deep1, deep2)).not.toThrow();
+      expect(deepEquals(deep1, deep2)).toBe(true);
     });
 
     it('should handle objects with many properties efficiently', () => {
@@ -57,7 +50,7 @@ describe('Schema Security Integration Tests', () => {
       }
       
       const startTime = Date.now();
-      const result = testManager.testDeepEquals(largeObj1, largeObj2);
+      const result = deepEquals(largeObj1, largeObj2);
       const endTime = Date.now();
       
       expect(result).toBe(true);
@@ -73,7 +66,7 @@ describe('Schema Security Integration Tests', () => {
       ];
       
       pollutionAttempts.forEach(attempt => {
-        const result = testManager.testSafeJSONParse(attempt);
+        const result = safeJSONParse(attempt);
         expect(result).toBeTruthy();
         expect(({} as any).polluted).toBeUndefined();
       });
@@ -88,7 +81,7 @@ describe('Schema Security Integration Tests', () => {
       ];
       
       escapeTests.forEach(([json, expected]) => {
-        const result = testManager.testSafeJSONParse(json as string);
+        const result = safeJSONParse(json as string);
         expect(result).toEqual(expected);
       });
     });
@@ -108,7 +101,7 @@ describe('Schema Security Integration Tests', () => {
       ];
       
       edgeCases.forEach(([json1, json2, shouldEqual]) => {
-        const result = testManager.testSchemaRowsEqual([json1], [json2]);
+        const result = schemaRowsEqual([json1], [json2]);
         expect(result).toBe(shouldEqual);
       });
     });
