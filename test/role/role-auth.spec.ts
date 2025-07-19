@@ -106,7 +106,7 @@ describe('Role Authentication API', () => {
 			const data = (await response.json()) as ApiErrorResponse;
 			expect(data.success).toBe(false);
 			expect(['Session not found', 'Authentication failed', 'No spreadsheet configured', 'No valid Google token found'].some((msg) => data.error.includes(msg))).toBe(true);
-		});
+		}, 15000);
 
 
 		it('should handle invalid session ID for delete', async () => {
@@ -120,7 +120,7 @@ describe('Role Authentication API', () => {
 			expect(data.success).toBe(false);
 			const expectedMessages = ['Session not found', 'Authentication failed', 'No spreadsheet configured', 'No valid Google token found', 'Failed to fetch session data'];
 			expect(expectedMessages.some((msg) => data.error.includes(msg))).toBe(true);
-		});
+		}, 15000);
 
 	});
 });

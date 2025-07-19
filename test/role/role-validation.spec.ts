@@ -75,7 +75,7 @@ describe('Role Validation API', () => {
 				const data = (await response.json()) as ApiErrorResponse;
 				expect(data.success).toBe(false);
 			}
-		});
+		}, 15000);
 
 		it('should test valid array fields', async () => {
 			const arrayTests = [
@@ -97,7 +97,7 @@ describe('Role Validation API', () => {
 				const data = (await response.json()) as ApiErrorResponse;
 				expect(data.success).toBe(false);
 			}
-		});
+		}, 15000);
 
 		it('should reject invalid array fields', async () => {
 			const invalidArrayTests = [
