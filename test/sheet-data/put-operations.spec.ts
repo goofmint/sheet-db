@@ -14,8 +14,6 @@ describe('Sheet Data PUT API - Operations', () => {
 
 	describe('PUT /api/sheets/:id/data/:dataId - Update Operations', () => {
 		it('should update data successfully with valid fields', async () => {
-			requireSession(testSessionId);
-
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: createJsonHeaders(testSessionId),
@@ -46,8 +44,6 @@ describe('Sheet Data PUT API - Operations', () => {
 		});
 
 		it('should handle partial updates', async () => {
-			requireSession(testSessionId);
-
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: createJsonHeaders(testSessionId),
@@ -70,8 +66,6 @@ describe('Sheet Data PUT API - Operations', () => {
 		});
 
 		it('should update complex data types', async () => {
-			requireSession(testSessionId);
-
 			const resp = await fetch(`${BASE_URL}/api/sheets/${testSheetId}/data/${existingDataId}`, {
 				method: 'PUT',
 				headers: createJsonHeaders(testSessionId),
