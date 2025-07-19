@@ -4,7 +4,7 @@ import type { AuthCallbackResponse } from '../types/api-responses';
 
 export { BASE_URL };
 
-// Mock file data for testing
+// Test file data creation
 export const createTestFile = (name: string, size: number, type: string): File => {
 	const buffer = new ArrayBuffer(size);
 	const view = new Uint8Array(buffer);
@@ -57,7 +57,7 @@ export const setupFileUploadAuth = async (): Promise<string> => {
 
 		return loginData.data.sessionId;
 	} catch (error) {
-		// Re-throw the error instead of returning mock data
+		// Re-throw the error instead of returning fake data
 		throw new Error(`File upload test authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
 	}
 };

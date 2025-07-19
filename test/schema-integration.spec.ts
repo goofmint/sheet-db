@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { deepEquals, safeJSONParse, schemaRowsEqual } from '../src/sheet-schema';
 
-// Mock Google Sheets Service for testing
-class MockGoogleSheetsService {
+// Test Google Sheets Service for unit testing
+class TestGoogleSheetsService {
   spreadsheetId: string;
   accessToken: string;
   
