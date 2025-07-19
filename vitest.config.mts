@@ -2,8 +2,6 @@ import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
 
 export default defineWorkersConfig({
 	test: {
-		// Limit parallelism to reduce Auth0 API pressure
-		maxConcurrency: 3, // Limit concurrent test files
 		poolOptions: {
 			workers: {
 				wrangler: { configPath: './wrangler.jsonc' },

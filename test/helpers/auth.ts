@@ -45,22 +45,7 @@ function delay(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Global rate limiting - ensure Auth0 API calls are spaced out
-let lastAuth0CallTime = 0;
-const MIN_DELAY_BETWEEN_CALLS = 2000; // 2 seconds between any Auth0 API calls
-
-async function enforceRateLimit(): Promise<void> {
-	const now = Date.now();
-	const timeSinceLastCall = now - lastAuth0CallTime;
-	
-	if (timeSinceLastCall < MIN_DELAY_BETWEEN_CALLS) {
-		const waitTime = MIN_DELAY_BETWEEN_CALLS - timeSinceLastCall;
-		console.log(`⏳ Enforcing Auth0 rate limit: waiting ${waitTime}ms`);
-		await delay(waitTime);
-	}
-	
-	lastAuth0CallTime = Date.now();
-}
+// Remove artificial rate limiting since Auth0 is working correctly
 
 // Fetch Auth0 access token with aggressive retry logic
 export async function fetchAuth0Token(config: {
@@ -74,8 +59,6 @@ export async function fetchAuth0Token(config: {
 	let retryCount = 0;
 	
 	while (retryCount < maxRetries) {
-		// Always enforce rate limit before making a call
-		await enforceRateLimit();
 		try {
 			const tokenResponse = await fetch(`https://${config.auth0Domain}/oauth/token`, {
 				method: 'POST',
@@ -159,8 +142,6 @@ export async function fetchAuth0UserInfo(auth0Domain: string, accessToken: strin
 	let retryCount = 0;
 	
 	while (retryCount < maxRetries) {
-		// Always enforce rate limit before making a call
-		await enforceRateLimit();
 		try {
 			const userInfoResponse = await fetch(`https://${auth0Domain}/userinfo`, {
 				headers: {
