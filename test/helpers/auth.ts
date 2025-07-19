@@ -103,9 +103,27 @@ export async function fetchAuth0Token(config: {
 
 			if (!tokenResponse.ok) {
 				const errorText = await tokenResponse.text();
-				console.log(`Auth0 token request failed: ${tokenResponse.status} ${tokenResponse.statusText}`, errorText);
-				console.log('Resource Owner Password Grant may not be enabled in Auth0 dashboard');
-				return null;
+				console.log(`🔍 DETAILED AUTH0 TOKEN ERROR:
+  Status: ${tokenResponse.status}
+  Status Text: ${tokenResponse.statusText}
+  Headers: ${JSON.stringify(Object.fromEntries(tokenResponse.headers.entries()), null, 2)}
+  Response Body: ${errorText}
+  Retry Attempt: ${retryCount + 1}/${maxRetries}`);
+				
+				// Don't immediately return null, let's retry if it's not a permanent error
+				if (tokenResponse.status === 400 || tokenResponse.status === 401 || tokenResponse.status === 403) {
+					// These are likely configuration issues, don't retry
+					console.log('🚫 Permanent Auth0 error, not retrying');
+					return null;
+				}
+				// For other errors, retry
+				retryCount++;
+				if (retryCount >= maxRetries) {
+					console.log('🚫 Max retries reached for Auth0 token request');
+					return null;
+				}
+				await delay(1000 * retryCount); // Wait before retry
+				continue;
 			}
 
 			const tokens = (await tokenResponse.json()) as {
@@ -161,8 +179,28 @@ export async function fetchAuth0UserInfo(auth0Domain: string, accessToken: strin
 
 			if (!userInfoResponse.ok) {
 				const errorText = await userInfoResponse.text();
-				console.log(`Auth0 user info request failed: ${userInfoResponse.status} ${userInfoResponse.statusText}`, errorText);
-				return null;
+				console.log(`🔍 DETAILED AUTH0 USERINFO ERROR:
+  Status: ${userInfoResponse.status}
+  Status Text: ${userInfoResponse.statusText}
+  Headers: ${JSON.stringify(Object.fromEntries(userInfoResponse.headers.entries()), null, 2)}
+  Response Body: ${errorText}
+  Access Token (first 20 chars): ${accessToken.substring(0, 20)}...
+  Retry Attempt: ${retryCount + 1}/${maxRetries}`);
+				
+				// Don't immediately return null, let's retry if it's not a permanent error
+				if (userInfoResponse.status === 400 || userInfoResponse.status === 401 || userInfoResponse.status === 403) {
+					// These are likely token/auth issues, don't retry
+					console.log('🚫 Permanent Auth0 userinfo error, not retrying');
+					return null;
+				}
+				// For other errors, retry
+				retryCount++;
+				if (retryCount >= maxRetries) {
+					console.log('🚫 Max retries reached for Auth0 userinfo request');
+					return null;
+				}
+				await delay(1000 * retryCount); // Wait before retry
+				continue;
 			}
 
 			const userInfo = await userInfoResponse.json() as { sub: string; email: string; name?: string; given_name?: string; family_name?: string; nickname?: string; picture?: string; email_verified?: boolean; locale?: string };
