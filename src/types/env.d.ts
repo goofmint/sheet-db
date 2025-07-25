@@ -14,3 +14,8 @@ export interface Env {
   // Logging configuration
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error';
 }
+
+// Cloudflare test environment module
+declare module 'cloudflare:test' {
+  export const env: Env;
+}
