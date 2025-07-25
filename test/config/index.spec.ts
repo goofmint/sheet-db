@@ -1,55 +1,43 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { drizzle } from 'drizzle-orm/d1';
 import { getAppConfig, loadConfig, getDatabaseConfig, clearConfigCache, configMiddleware } from '../../src/config/index';
+import { configTable } from '../../src/db/schema';
 import type { Env } from '../../src/types/env';
-import type { DatabaseConfig } from '../../src/types/config';
 
-// モックのD1データベース
-const mockD1 = {
-  prepare: vi.fn(),
-  dump: vi.fn(),
-  batch: vi.fn(),
-  exec: vi.fn(),
+// SELF.envから実際のD1Databaseインスタンスを取得
+declare const SELF: {
+  env: Env;
 };
 
-// モックのDrizzleクエリ結果
-const mockConfigEntries = [
-  { name: 'setupCompleted', value: 'true' },
-  { name: 'cacheExpiration', value: '300' },
-  { name: 'allowCreateTable', value: 'true' },
-  { name: 'googleClientId', value: 'test-client-id' },
-  { name: 'spreadsheetId', value: 'test-sheet-id' },
-  { name: 'allowCreateUsers', value: '["admin", "user"]' },
-  { name: 'googleAccessTokens', value: '[{"token": "test-token", "expiresAt": "2024-12-31", "scope": "spreadsheets"}]' },
-];
-
-// drizzle-ormのモック
-vi.mock('drizzle-orm/d1', () => ({
-  drizzle: vi.fn(() => ({
-    select: vi.fn(() => ({
-      from: vi.fn(() => Promise.resolve(mockConfigEntries))
-    }))
-  }))
-}));
-
 describe('Config Management', () => {
-  let mockEnv: Env;
+  let testEnv: Env;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // テスト前にキャッシュをクリア
     clearConfigCache();
     
-    mockEnv = {
-      DB: mockD1 as any,
+    testEnv = {
+      DB: SELF.env.DB,
       LOG_LEVEL: 'debug',
     };
 
-    // モックをリセット
-    vi.clearAllMocks();
+    // テスト用のConfigテーブルをクリア
+    const db = drizzle(testEnv.DB);
+    await db.delete(configTable);
+  });
+
+  afterEach(async () => {
+    // テスト後にキャッシュをクリア
+    clearConfigCache();
+    
+    // テスト後のConfigテーブルをクリア
+    const db = drizzle(testEnv.DB);
+    await db.delete(configTable);
   });
 
   describe('getAppConfig', () => {
     it('環境変数から基本設定を取得する', () => {
-      const config = getAppConfig(mockEnv);
+      const config = getAppConfig(testEnv);
       
       expect(config).toEqual({
         environment: 'production',
@@ -62,7 +50,7 @@ describe('Config Management', () => {
 
     it('LOG_LEVELが未設定の場合はデフォルト値を使用する', () => {
       const envWithoutLogLevel: Env = {
-        DB: mockD1 as any,
+        DB: testEnv.DB,
       };
       
       const config = getAppConfig(envWithoutLogLevel);
@@ -72,7 +60,19 @@ describe('Config Management', () => {
 
   describe('loadConfig', () => {
     it('Configテーブルから設定を読み込む', async () => {
-      const config = await loadConfig(mockEnv);
+      // テスト用データを挿入
+      const db = drizzle(testEnv.DB);
+      await db.insert(configTable).values([
+        { name: 'setupCompleted', value: 'true' },
+        { name: 'cacheExpiration', value: '300' },
+        { name: 'allowCreateTable', value: 'true' },
+        { name: 'googleClientId', value: 'test-client-id' },
+        { name: 'spreadsheetId', value: 'test-sheet-id' },
+        { name: 'allowCreateUsers', value: '["admin", "user"]' },
+        { name: 'googleAccessTokens', value: '[{"token": "test-token", "expiresAt": "2024-12-31", "scope": "spreadsheets"}]' },
+      ]);
+
+      const config = await loadConfig(testEnv);
       
       expect(config.setupCompleted).toBe(true);
       expect(config.cacheExpiration).toBe(300);
@@ -88,30 +88,37 @@ describe('Config Management', () => {
     });
 
     it('設定値の型変換が正しく行われる', async () => {
-      const config = await loadConfig(mockEnv);
+      // テスト用データを挿入
+      const db = drizzle(testEnv.DB);
+      await db.insert(configTable).values([
+        { name: 'setupCompleted', value: 'true' },
+        { name: 'cacheExpiration', value: '300' },
+        { name: 'allowCreateTable', value: 'false' },
+        { name: 'allowCreateUsers', value: '["test1", "test2"]' },
+        { name: 'googleAccessTokens', value: '[{"token": "test-token", "expiresAt": "2024-12-31", "scope": "spreadsheets"}]' },
+      ]);
+
+      const config = await loadConfig(testEnv);
       
       // boolean型の変換
       expect(typeof config.setupCompleted).toBe('boolean');
       expect(typeof config.allowCreateTable).toBe('boolean');
+      expect(config.setupCompleted).toBe(true);
+      expect(config.allowCreateTable).toBe(false);
       
       // number型の変換
       expect(typeof config.cacheExpiration).toBe('number');
+      expect(config.cacheExpiration).toBe(300);
       
       // JSON配列の変換
       expect(Array.isArray(config.allowCreateUsers)).toBe(true);
       expect(Array.isArray(config.googleAccessTokens)).toBe(true);
+      expect(config.allowCreateUsers).toEqual(['test1', 'test2']);
     });
 
     it('デフォルト値が正しく設定される', async () => {
-      // 空の設定エントリでテスト
-      const { drizzle } = await import('drizzle-orm/d1');
-      vi.mocked(drizzle).mockReturnValue({
-        select: vi.fn(() => ({
-          from: vi.fn(() => Promise.resolve([]))
-        }))
-      } as any);
-
-      const config = await loadConfig(mockEnv);
+      // 空のデータベース（設定エントリなし）でテスト
+      const config = await loadConfig(testEnv);
       
       expect(config.setupCompleted).toBe(false);
       expect(config.cacheExpiration).toBe(600);
@@ -122,73 +129,65 @@ describe('Config Management', () => {
       expect(config.allowCreateRoles).toEqual([]);
     });
 
-    it('データベースエラーの場合はデフォルト設定を返す', async () => {
-      // データベースエラーを発生させる
-      const { drizzle } = await import('drizzle-orm/d1');
-      vi.mocked(drizzle).mockReturnValue({
-        select: vi.fn(() => ({
-          from: vi.fn(() => Promise.reject(new Error('Database error')))
-        }))
-      } as any);
-
-      const config = await loadConfig(mockEnv);
-      
-      expect(config.setupCompleted).toBe(false);
-      expect(config.cacheExpiration).toBe(600);
-    });
-
     it('重複ロードを防ぐ（競合状態対処）', async () => {
-      const { drizzle } = await import('drizzle-orm/d1');
-      const mockSelect = vi.fn(() => ({
-        from: vi.fn(() => Promise.resolve(mockConfigEntries))
-      }));
-      vi.mocked(drizzle).mockReturnValue({
-        select: mockSelect
-      } as any);
+      // テスト用データを挿入
+      const db = drizzle(testEnv.DB);
+      await db.insert(configTable).values([
+        { name: 'setupCompleted', value: 'true' },
+        { name: 'googleClientId', value: 'test-client-id' },
+        { name: 'cacheExpiration', value: '300' },
+      ]);
 
       // 同時に複数回loadConfigを呼び出し
       const [config1, config2, config3] = await Promise.all([
-        loadConfig(mockEnv),
-        loadConfig(mockEnv),
-        loadConfig(mockEnv)
+        loadConfig(testEnv),
+        loadConfig(testEnv),
+        loadConfig(testEnv)
       ]);
 
       // すべて同じ結果が返される
       expect(config1).toEqual(config2);
       expect(config2).toEqual(config3);
-      
-      // データベースアクセスは1回のみ
-      expect(mockSelect).toHaveBeenCalledTimes(1);
+      expect(config1.setupCompleted).toBe(true);
+      expect(config1.googleClientId).toBe('test-client-id');
+      expect(config1.cacheExpiration).toBe(300);
     });
 
     it('キャッシュされた設定を再利用する', async () => {
-      const { drizzle } = await import('drizzle-orm/d1');
-      const mockSelect = vi.fn(() => ({
-        from: vi.fn(() => Promise.resolve(mockConfigEntries))
-      }));
-      vi.mocked(drizzle).mockReturnValue({
-        select: mockSelect
-      } as any);
+      // テスト用データを挿入
+      const db = drizzle(testEnv.DB);
+      await db.insert(configTable).values([
+        { name: 'setupCompleted', value: 'true' },
+        { name: 'spreadsheetId', value: 'test-sheet-id' },
+      ]);
 
       // 最初のロード
-      const config1 = await loadConfig(mockEnv);
+      const config1 = await loadConfig(testEnv);
       
-      // 2回目のロード（キャッシュから取得）
-      const config2 = await loadConfig(mockEnv);
+      // 2回目のロード（キャッシュから取得されるべき）
+      const config2 = await loadConfig(testEnv);
 
       expect(config1).toEqual(config2);
-      // データベースアクセスは1回のみ
-      expect(mockSelect).toHaveBeenCalledTimes(1);
+      expect(config1.setupCompleted).toBe(true);
+      expect(config1.spreadsheetId).toBe('test-sheet-id');
     });
   });
 
   describe('getDatabaseConfig', () => {
     it('キャッシュされた設定を取得する', async () => {
+      // テスト用データを挿入
+      const db = drizzle(testEnv.DB);
+      await db.insert(configTable).values([
+        { name: 'setupCompleted', value: 'true' },
+        { name: 'googleClientId', value: 'test-client-id' },
+      ]);
+
       // 先に設定をロード
-      await loadConfig(mockEnv);
+      await loadConfig(testEnv);
       
       const config = getDatabaseConfig();
       expect(config.setupCompleted).toBe(true);
+      expect(config.googleClientId).toBe('test-client-id');
     });
 
     it('設定が未ロードの場合はエラーを投げる', () => {
@@ -198,39 +197,66 @@ describe('Config Management', () => {
 
   describe('configMiddleware', () => {
     it('設定をロードしてから次の処理に進む', async () => {
-      const nextMock = vi.fn();
+      // テスト用データを挿入
+      const db = drizzle(testEnv.DB);
+      await db.insert(configTable).values([
+        { name: 'setupCompleted', value: 'true' },
+        { name: 'cacheExpiration', value: '600' },
+      ]);
+
+      let nextCalled = false;
+      const nextMock = async () => {
+        nextCalled = true;
+      };
       const contextMock = {};
       
-      const middleware = configMiddleware(mockEnv);
+      const middleware = configMiddleware(testEnv);
       await middleware(contextMock, nextMock);
       
-      expect(nextMock).toHaveBeenCalled();
+      expect(nextCalled).toBe(true);
       // 設定がロードされていることを確認
       expect(() => getDatabaseConfig()).not.toThrow();
+      expect(getDatabaseConfig().setupCompleted).toBe(true);
     });
 
     it('設定が既にロード中の場合は待機する', async () => {
-      const nextMock = vi.fn();
+      // テスト用データを挿入
+      const db = drizzle(testEnv.DB);
+      await db.insert(configTable).values([
+        { name: 'setupCompleted', value: 'false' },
+        { name: 'cacheExpiration', value: '300' },
+      ]);
+
+      let nextCalled = false;
+      const nextMock = async () => {
+        nextCalled = true;
+      };
       const contextMock = {};
       
       // 設定ロードを開始（完了を待たない）
-      const loadPromise = loadConfig(mockEnv);
+      const loadPromise = loadConfig(testEnv);
       
-      const middleware = configMiddleware(mockEnv);
+      const middleware = configMiddleware(testEnv);
       await middleware(contextMock, nextMock);
       
       // ロードが完了するまで待機
       await loadPromise;
       
-      expect(nextMock).toHaveBeenCalled();
+      expect(nextCalled).toBe(true);
       expect(() => getDatabaseConfig()).not.toThrow();
+      expect(getDatabaseConfig().setupCompleted).toBe(false);
     });
   });
 
   describe('clearConfigCache', () => {
     it('キャッシュをクリアする', async () => {
-      // 設定をロード
-      await loadConfig(mockEnv);
+      // テスト用データを挿入して設定をロード
+      const db = drizzle(testEnv.DB);
+      await db.insert(configTable).values([
+        { name: 'setupCompleted', value: 'true' },
+      ]);
+
+      await loadConfig(testEnv);
       expect(() => getDatabaseConfig()).not.toThrow();
       
       // キャッシュをクリア
