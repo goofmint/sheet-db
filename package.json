@@ -6,12 +6,8 @@
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
-		"test": "./test-with-coverage.sh",
-		"test:quick": "npm run pretest:fresh && vitest",
-		"pretest": "npx vite-node test/setup/pre-test-auth.ts",
-		"pretest:fresh": "rm -f .test-auth-cache.json test/setup/auth-cache.ts && npx vite-node test/setup/pre-test-auth.ts",
-		"test:batch": "./test-batch.sh",
-		"coverage:merge": "npx nyc merge coverage coverage/coverage-final.json && npx nyc report -r html -r text",
+		"test": "vitest",
+		"test:quick": "vitest",
 		"cf-typegen": "wrangler types"
 	},
 	"devDependencies": {
