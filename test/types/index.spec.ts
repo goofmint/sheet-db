@@ -54,10 +54,10 @@ describe('Type Definitions', () => {
     it('should define Env interface correctly', () => {
       // Type-only test - if this compiles, the types are correctly defined
       const env: Partial<Env> = {
-        ENVIRONMENT: 'development',
         LOG_LEVEL: 'info',
+        CLOUDFLARE_ACCOUNT_ID: 'test-account-id',
       };
-      expect(env.ENVIRONMENT).toBe('development');
+      expect(env.LOG_LEVEL).toBe('info');
     });
   });
 
