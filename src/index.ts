@@ -4,11 +4,7 @@ import { logger } from 'hono/logger';
 import { healthHandler } from './api/health/get';
 import { setupHandler } from './setup';
 import { playgroundHandler } from './playground';
-
-// Minimal Env type definition
-interface Env {
-  DB: D1Database;
-}
+import type { Env } from './types';
 
 const app = new Hono<{ Bindings: Env }>();
 
