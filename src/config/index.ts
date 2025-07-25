@@ -9,6 +9,17 @@ let cachedDatabaseConfig: DatabaseConfig | null = null;
 let configLoadPromise: Promise<DatabaseConfig> | null = null;
 
 /**
+ * JSON文字列を安全にパースし、失敗時はデフォルト値を返す
+ */
+function safeJsonParse<T>(value: string, defaultValue: T): T {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return defaultValue;
+  }
+}
+
+/**
  * 環境変数からアプリケーション基本設定を取得
  */
 export function getAppConfig(env: Env): Config {
@@ -84,11 +95,7 @@ async function loadConfigFromDatabase(env: Env): Promise<DatabaseConfig> {
           config.googleClientSecret = value;
           break;
         case 'googleAccessTokens':
-          try {
-            config.googleAccessTokens = JSON.parse(value);
-          } catch {
-            config.googleAccessTokens = [];
-          }
+          config.googleAccessTokens = safeJsonParse(value, []);
           break;
         case 'spreadsheetId':
           config.spreadsheetId = value;
@@ -146,46 +153,22 @@ async function loadConfigFromDatabase(env: Env): Promise<DatabaseConfig> {
           config.allowDeleteTable = value === 'true';
           break;
         case 'allowCreateUsers':
-          try {
-            config.allowCreateUsers = JSON.parse(value);
-          } catch {
-            config.allowCreateUsers = [];
-          }
+          config.allowCreateUsers = safeJsonParse(value, []);
           break;
         case 'allowCreateRoles':
-          try {
-            config.allowCreateRoles = JSON.parse(value);
-          } catch {
-            config.allowCreateRoles = [];
-          }
+          config.allowCreateRoles = safeJsonParse(value, []);
           break;
         case 'allowModifyUsers':
-          try {
-            config.allowModifyUsers = JSON.parse(value);
-          } catch {
-            config.allowModifyUsers = [];
-          }
+          config.allowModifyUsers = safeJsonParse(value, []);
           break;
         case 'allowModifyRoles':
-          try {
-            config.allowModifyRoles = JSON.parse(value);
-          } catch {
-            config.allowModifyRoles = [];
-          }
+          config.allowModifyRoles = safeJsonParse(value, []);
           break;
         case 'allowDeleteUsers':
-          try {
-            config.allowDeleteUsers = JSON.parse(value);
-          } catch {
-            config.allowDeleteUsers = [];
-          }
+          config.allowDeleteUsers = safeJsonParse(value, []);
           break;
         case 'allowDeleteRoles':
-          try {
-            config.allowDeleteRoles = JSON.parse(value);
-          } catch {
-            config.allowDeleteRoles = [];
-          }
+          config.allowDeleteRoles = safeJsonParse(value, []);
           break;
       }
     }
