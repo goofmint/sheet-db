@@ -18,6 +18,17 @@
 			"database_id": "250f9762-08d9-4d28-9739-30e8b0076921"
 		}
 	],
+	"env": {
+		"test": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "sheet-db-test",
+					"database_id": "8ed8d9a7-05b1-4786-93ff-49eb4e86dc6e"
+				}
+			]
+		}
+	},
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

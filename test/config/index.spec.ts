@@ -1,13 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { env } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
 import { getAppConfig, loadConfig, getDatabaseConfig, clearConfigCache, configMiddleware } from '../../src/config/index';
 import { configTable } from '../../src/db/schema';
 import type { Env } from '../../src/types/env';
-
-// SELF.envから実際のD1Databaseインスタンスを取得
-declare const SELF: {
-  env: Env;
-};
 
 describe('Config Management', () => {
   let testEnv: Env;
@@ -17,12 +13,17 @@ describe('Config Management', () => {
     clearConfigCache();
     
     testEnv = {
-      DB: SELF.env.DB,
+      DB: env.DB,
       LOG_LEVEL: 'debug',
     };
 
-    // テスト用のConfigテーブルをクリア
+    // テスト用のConfigテーブルを作成・クリア
     const db = drizzle(testEnv.DB);
+    
+    // テーブルが存在しない場合は作成
+    await testEnv.DB.exec(`CREATE TABLE IF NOT EXISTS Config (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, value TEXT NOT NULL)`);
+    
+    // テーブルをクリア
     await db.delete(configTable);
   });
 
@@ -30,9 +31,15 @@ describe('Config Management', () => {
     // テスト後にキャッシュをクリア
     clearConfigCache();
     
-    // テスト後のConfigテーブルをクリア
-    const db = drizzle(testEnv.DB);
-    await db.delete(configTable);
+    // テスト後のConfigテーブルをクリア（エラーは無視）
+    if (testEnv?.DB) {
+      const db = drizzle(testEnv.DB);
+      try {
+        await db.delete(configTable);
+      } catch (error) {
+        // テーブルが存在しない場合はスキップ
+      }
+    }
   });
 
   describe('getAppConfig', () => {
