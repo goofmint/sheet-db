@@ -9,8 +9,8 @@ import type { Env } from './types';
 const app = new Hono<{ Bindings: Env }>();
 
 // Middleware
-app.use('*', cors());
-app.use('*', logger());
+app.use(cors());
+app.use(logger());
 
 // Root path handler
 app.get('/', async (c) => {
