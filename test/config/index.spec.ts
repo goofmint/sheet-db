@@ -17,16 +17,14 @@ describe('Config Management', () => {
       LOG_LEVEL: 'debug',
     };
 
-    // テスト用データベースにテーブルを作成してからクリア
-    await testEnv.DB.exec(`
-      CREATE TABLE IF NOT EXISTS Config (id INTEGER PRIMARY KEY, name TEXT, value TEXT);
-      CREATE TABLE IF NOT EXISTS Cache (id INTEGER PRIMARY KEY, name TEXT, value TEXT);
-      CREATE TABLE IF NOT EXISTS Session (id INTEGER PRIMARY KEY, userId TEXT, value TEXT, expiresAt INTEGER);
-    `);
-
-    // テーブルをクリア
+    // テスト用のConfigテーブルをクリア（エラーハンドリング）
     const db = drizzle(testEnv.DB);
-    await db.delete(configTable);
+    try {
+      await db.delete(configTable);
+    } catch (error) {
+      // テーブルが存在しない場合はスキップ
+      console.log('Config table cleanup skipped:', error);
+    }
   });
 
   afterEach(async () => {
