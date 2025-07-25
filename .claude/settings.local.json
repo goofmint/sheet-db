@@ -55,7 +55,8 @@
       "Bash(timeout 60 npm test:*)",
       "Bash(timeout 60s npx vitest run:*)",
       "Bash(timeout 30s npx vitest list test/sheet)",
-      "Bash(timeout 10s npx vitest run test/sheet)"
+      "Bash(timeout 10s npx vitest run test/sheet)",
+      "Bash(npx vitest test:*)"
     ],
     "deny": []
   }
