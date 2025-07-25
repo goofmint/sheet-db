@@ -3,7 +3,7 @@
 ## Phase 1: 基盤構築
 
 ### 1.1 プロジェクト構造のセットアップ
-- [ ] src/index.tsの作成（メインエントリーポイント）
+- [x] src/index.tsの作成（メインエントリーポイント）
 - [ ] src/types/index.tsの作成（型定義）
 - [ ] src/config/index.tsの作成（設定管理）
 - [ ] src/utils/logger.tsの作成（ログユーティリティ）
