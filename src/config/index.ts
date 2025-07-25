@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
+import { Context } from 'hono';
 import { configTable } from '../db/schema';
 import type { Config, DatabaseConfig } from '../types/config';
 import type { Env } from '../types/env';
@@ -214,7 +215,7 @@ export function clearConfigCache(): void {
  * 設定ロードのミドルウェア
  */
 export function configMiddleware(env: Env) {
-  return async (c: any, next: () => Promise<void>) => {
+  return async (c: Context, next: () => Promise<void>) => {
     // 設定がロードされていない場合は待機
     if (configLoadPromise) {
       await configLoadPromise;

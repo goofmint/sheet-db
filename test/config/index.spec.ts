@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
+import { Context } from 'hono';
 import { getAppConfig, loadConfig, getDatabaseConfig, clearConfigCache, configMiddleware } from '../../src/config/index';
 import { configTable } from '../../src/db/schema';
 import type { Env } from '../../src/types/env';
@@ -211,7 +212,7 @@ describe('Config Management', () => {
       const nextMock = async () => {
         nextCalled = true;
       };
-      const contextMock = {};
+      const contextMock = {} as Context;
       
       const middleware = configMiddleware(testEnv);
       await middleware(contextMock, nextMock);
@@ -234,7 +235,7 @@ describe('Config Management', () => {
       const nextMock = async () => {
         nextCalled = true;
       };
-      const contextMock = {};
+      const contextMock = {} as Context;
       
       // 設定ロードを開始（完了を待たない）
       const loadPromise = loadConfig(testEnv);
