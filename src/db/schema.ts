@@ -12,13 +12,6 @@ export const cacheTable = sqliteTable('Cache', {
   value: text().notNull(),
 });
 
-export const queueTable = sqliteTable('Queue', {
-  id: int().primaryKey({ autoIncrement: true }),
-  userId: text().notNull(),
-  action: text().notNull(),
-  value: text().notNull(),
-});
-
 export const sessionTable = sqliteTable('Session', {
   id: int().primaryKey({ autoIncrement: true }),
   userId: text().notNull(),
