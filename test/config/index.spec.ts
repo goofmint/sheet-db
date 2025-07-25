@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
 import { getAppConfig, loadConfig, getDatabaseConfig, clearConfigCache, configMiddleware } from '../../src/config/index';
@@ -7,6 +7,11 @@ import type { Env } from '../../src/types/env';
 
 describe('Config Management', () => {
   let testEnv: Env;
+
+  beforeAll(async () => {
+    // テスト開始前にConfigテーブルを一度だけ作成
+    await env.DB.exec(`CREATE TABLE IF NOT EXISTS Config (id INTEGER PRIMARY KEY, name TEXT, value TEXT)`);
+  });
 
   beforeEach(async () => {
     // テスト前にキャッシュをクリア
@@ -17,28 +22,19 @@ describe('Config Management', () => {
       LOG_LEVEL: 'debug',
     };
 
-    // テスト用のConfigテーブルをクリア（エラーハンドリング）
+    // テスト用のConfigテーブルをクリア
     const db = drizzle(testEnv.DB);
-    try {
-      await db.delete(configTable);
-    } catch (error) {
-      // テーブルが存在しない場合はスキップ
-      console.log('Config table cleanup skipped:', error);
-    }
+    await db.delete(configTable);
   });
 
   afterEach(async () => {
     // テスト後にキャッシュをクリア
     clearConfigCache();
     
-    // テスト後のConfigテーブルをクリア（エラーは無視）
+    // テスト後のConfigテーブルをクリア
     if (testEnv?.DB) {
       const db = drizzle(testEnv.DB);
-      try {
-        await db.delete(configTable);
-      } catch (error) {
-        // テーブルが存在しない場合はスキップ
-      }
+      await db.delete(configTable);
     }
   });
 
