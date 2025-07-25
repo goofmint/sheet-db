@@ -14,3 +14,4 @@ export interface Env {
   // Logging configuration
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error';
 }
+

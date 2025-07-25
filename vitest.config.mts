@@ -11,7 +11,10 @@ export default defineWorkersConfig({
 		fileParallelism: false,
 		poolOptions: {
 			workers: {
-				wrangler: { configPath: './wrangler.jsonc' },
+				wrangler: { 
+					configPath: './wrangler.jsonc',
+					environment: 'test'
+				},
 				singleWorker: true,
 			},
 		},
