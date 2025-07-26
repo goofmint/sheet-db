@@ -42,3 +42,40 @@ export interface SetupErrorResponse {
     message: string;
   };
 }
+
+// POST API Types
+export interface SetupRequest {
+  google: {
+    clientId: string;
+    clientSecret: string;
+  };
+  auth0: {
+    domain: string;
+    clientId: string;
+    clientSecret: string;
+  };
+  app: {
+    configPassword: string;
+  };
+  database?: {
+    url?: string;
+  };
+}
+
+export interface SetupSuccessResponse {
+  success: true;
+  message: string;
+  setup: {
+    isCompleted: true;
+    completedAt: string;
+    configuredServices: string[];
+  };
+  timestamp: string;
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+export type SetupPostResponse = SetupSuccessResponse | SetupErrorResponse;

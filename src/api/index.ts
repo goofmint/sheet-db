@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { healthHandler } from './v1/health/get';
 import { setupGetHandler } from './v1/setup/get';
+import { setupPostHandler } from './v1/setup/post';
 import type { Env } from '../types';
 
 /**
@@ -30,7 +31,7 @@ v1.get('/health', healthHandler);
 
 // Setup endpoints
 v1.get('/setup', setupGetHandler);
-// v1.post('/setup', setupPostHandler); // TODO: Implement POST handler
+v1.post('/setup', setupPostHandler);
 
 // Playground endpoint (to be implemented)  
 // v1.get('/playground', playgroundGetHandler);
