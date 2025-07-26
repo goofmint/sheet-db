@@ -60,6 +60,15 @@ export class ConfigService {
   }
 
   /**
+   * Initialize ConfigService for testing without database
+   */
+  static initializeForTesting(): void {
+    this.configCache.clear();
+    this.initialized = true;
+    this.db = null;
+  }
+
+  /**
    * Get config entry by key (synchronous)
    */
   static findByKey(key: string): Config | null {

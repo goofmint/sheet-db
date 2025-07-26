@@ -1,7 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import app from '../src/index';
+import { ConfigService } from '../src/services/config';
 
 describe('Main Application', () => {
+  beforeEach(async () => {
+    // Initialize ConfigService for testing without database
+    ConfigService.initializeForTesting();
+  });
+
   describe('GET /', () => {
     it('should redirect to /setup when setup is not completed', async () => {
       const response = await app.fetch(
