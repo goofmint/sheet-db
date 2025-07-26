@@ -1,19 +1,37 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
+import { env } from 'cloudflare:test';
+import { drizzle } from 'drizzle-orm/d1';
 import app from '../../../../src/index';
 import { ConfigService } from '../../../../src/services/config';
+import { configTable } from '../../../../src/db/schema';
+import type { DrizzleD1Database } from 'drizzle-orm/d1';
+import { setupTestDatabase } from '../../../utils/database-setup';
 
 describe('Setup API - GET /api/v1/setup', () => {
-  beforeEach(() => {
-    // Initialize ConfigService for testing (safe method)
-    ConfigService._testOnlyClearCache();
-    ConfigService._testOnlySetInitialized(true, null);
+  let db: DrizzleD1Database;
+
+  beforeAll(async () => {
+    // Get real D1 database from cloudflare:test environment
+    db = drizzle(env.DB);
+    
+    // Setup test database with all tables
+    await setupTestDatabase(db);
+    
+    // Initialize ConfigService with real database
+    await ConfigService.initialize(db);
+  });
+
+  beforeEach(async () => {
+    // Clear all config data before each test
+    await db.delete(configTable);
+    await ConfigService.refreshCache();
   });
 
   describe('Setup incomplete scenarios', () => {
     it('should return setup status when setup is incomplete', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/setup', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(200);
@@ -31,7 +49,7 @@ describe('Setup API - GET /api/v1/setup', () => {
     it('should include actual config values when setup is incomplete', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/setup', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       const data = await response.json() as any;
@@ -49,7 +67,7 @@ describe('Setup API - GET /api/v1/setup', () => {
     it('should calculate progress correctly', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/setup', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       const data = await response.json() as any;
@@ -63,7 +81,7 @@ describe('Setup API - GET /api/v1/setup', () => {
     it('should provide next steps when setup is incomplete', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/setup', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       const data = await response.json() as any;
@@ -75,35 +93,29 @@ describe('Setup API - GET /api/v1/setup', () => {
   });
 
   describe('Setup completed without authentication', () => {
-    beforeEach(() => {
-      // Set up completed state in ConfigService
-      ConfigService._testOnlyClearCache();
-      ConfigService._testOnlySetInitialized(true, null);
-      // Add setup completed flag directly to cache
-      ConfigService['configCache'].set('app.setup_completed', {
-        id: 1,
-        key: 'app.setup_completed',
-        value: 'true',
-        type: 'string' as const,
-        description: 'Setup completion status',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      ConfigService['configCache'].set('app.config_password', {
-        id: 2,
-        key: 'app.config_password',
-        value: 'test-secret',
-        type: 'string' as const,
-        description: 'Config password',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
+    beforeEach(async () => {
+      // Set up completed state in real database
+      await db.insert(configTable).values([
+        {
+          key: 'app.setup_completed',
+          value: 'true',
+          type: 'string',
+          description: 'Setup completion status'
+        },
+        {
+          key: 'app.config_password',
+          value: 'test-secret',
+          type: 'string',
+          description: 'Config password'
+        }
+      ]);
+      await ConfigService.refreshCache();
     });
 
     it('should require authentication when setup is completed', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/setup', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(401);
@@ -114,28 +126,23 @@ describe('Setup API - GET /api/v1/setup', () => {
   });
 
   describe('Setup completed with authentication', () => {
-    beforeEach(() => {
-      // Set up completed state with known password
-      ConfigService._testOnlyClearCache();
-      ConfigService._testOnlySetInitialized(true, null);
-      ConfigService['configCache'].set('app.setup_completed', {
-        id: 1,
-        key: 'app.setup_completed',
-        value: 'true',
-        type: 'string' as const,
-        description: 'Setup completion status',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      ConfigService['configCache'].set('app.config_password', {
-        id: 2,
-        key: 'app.config_password',
-        value: 'test-secret',
-        type: 'string' as const,
-        description: 'Config password',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
+    beforeEach(async () => {
+      // Set up completed state with known password in real database
+      await db.insert(configTable).values([
+        {
+          key: 'app.setup_completed',
+          value: 'true',
+          type: 'string',
+          description: 'Setup completion status'
+        },
+        {
+          key: 'app.config_password',
+          value: 'test-secret',
+          type: 'string',
+          description: 'Config password'
+        }
+      ]);
+      await ConfigService.refreshCache();
     });
 
     it('should accept valid Bearer token', async () => {
@@ -146,7 +153,7 @@ describe('Setup API - GET /api/v1/setup', () => {
             'Authorization': 'Bearer test-secret'
           }
         }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(200);
@@ -162,7 +169,7 @@ describe('Setup API - GET /api/v1/setup', () => {
             'Authorization': 'Bearer wrong-password'
           }
         }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(401);
@@ -178,7 +185,7 @@ describe('Setup API - GET /api/v1/setup', () => {
             'Authorization': 'InvalidFormat'
           }
         }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(401);
@@ -192,7 +199,7 @@ describe('Setup API - GET /api/v1/setup', () => {
       // Test error handling - this is difficult to trigger without mocking
       const response = await app.fetch(
         new Request('http://localhost/api/v1/setup', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(200);
@@ -203,7 +210,7 @@ describe('Setup API - GET /api/v1/setup', () => {
     it('should have correct response structure', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/setup', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       const data = await response.json() as any;
@@ -242,7 +249,7 @@ describe('Setup API - GET /api/v1/setup', () => {
             'Origin': 'https://example.com'
           }
         }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(200);

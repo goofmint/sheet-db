@@ -1,67 +1,10 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { env } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
 import { ConfigRepository } from '../../src/repositories/config';
 import { ConfigService } from '../../src/services/config';
-import { sql } from 'drizzle-orm';
-import { configTable } from '../../src/db/schema';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
-
-// Test setup function to prepare clean database schema using Drizzle
-async function setupTestDatabase(drizzleDb: DrizzleD1Database) {
-  // Drop existing tables if they exist using Drizzle sql
-  await drizzleDb.run(sql`DROP TABLE IF EXISTS Config`);
-
-  // Create Config table using direct SQL based on our schema definition
-  await drizzleDb.run(sql`
-    CREATE TABLE Config (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        key TEXT NOT NULL UNIQUE,
-        value TEXT NOT NULL,
-        type TEXT NOT NULL DEFAULT 'string' CHECK (type IN ('string', 'number', 'boolean', 'json')),
-        description TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // Create indexes for Config table
-  await drizzleDb.run(sql`CREATE INDEX idx_config_key ON Config(key)`);
-
-  // Insert initial config data using Drizzle
-  await drizzleDb.insert(configTable).values([
-    // Application basic settings
-    { key: 'app.setup_completed', value: 'false', type: 'boolean', description: 'Flag indicating whether setup is completed' },
-    { key: 'app.name', value: 'Sheet DB', type: 'string', description: 'Application name' },
-    { key: 'app.version', value: '1.0.0', type: 'string', description: 'Application version' },
-
-    // Cache settings
-    { key: 'cache.default_ttl', value: '600', type: 'number', description: 'Default cache TTL in seconds' },
-    { key: 'cache.max_entries', value: '1000', type: 'number', description: 'Maximum cache entries' },
-    { key: 'cache.cleanup_interval', value: '3600', type: 'number', description: 'Cache cleanup interval in seconds' },
-
-    // Session settings
-    { key: 'session.default_ttl', value: '86400', type: 'number', description: 'Default session TTL in seconds' },
-    { key: 'session.max_sessions_per_user', value: '10', type: 'number', description: 'Maximum sessions per user' },
-
-    // Google Sheets API settings
-    { key: 'google.sheets.batch_size', value: '1000', type: 'number', description: 'Maximum rows for batch processing' },
-    { key: 'google.sheets.rate_limit_delay', value: '100', type: 'number', description: 'Delay for API rate limit avoidance in milliseconds' },
-
-    // API permissions for sheet operations
-    { key: 'api.sheet.allow_create', value: 'false', type: 'boolean', description: 'Allow sheet creation via API' },
-    { key: 'api.sheet.allow_modify', value: 'false', type: 'boolean', description: 'Allow sheet modification (add/remove columns) via API' },
-    { key: 'api.sheet.allow_delete', value: 'false', type: 'boolean', description: 'Allow sheet deletion via API' },
-
-    // Security settings
-    { key: 'security.api_rate_limit', value: '100', type: 'number', description: 'API request limit per minute' },
-    { key: 'security.cors_origins', value: '["*"]', type: 'json', description: 'Allowed CORS origins (array)' },
-
-    // UI settings
-    { key: 'ui.theme', value: 'dark', type: 'string', description: 'Default theme' },
-    { key: 'ui.language', value: 'en', type: 'string', description: 'Default language' },
-    { key: 'ui.timezone', value: 'UTC', type: 'string', description: 'Default timezone' }
-  ]);
-}
+import { setupTestDatabase, insertDefaultConfigData } from '../utils/database-setup';
 
 describe('ConfigRepository Integration Tests', () => {
   let drizzleDb: DrizzleD1Database;
@@ -69,27 +12,25 @@ describe('ConfigRepository Integration Tests', () => {
 
   beforeAll(async () => {
     // Get the test database from cloudflare:test environment
-    // @ts-ignore - cloudflare:test is available in vitest workers environment
-    const env = await import('cloudflare:test');
-    const db = env.env.DB as D1Database;
+    const db = env.DB;
     
     // Initialize Drizzle and repository
-    drizzleDb = drizzle(db) as DrizzleD1Database;
+    drizzleDb = drizzle(db);
     repository = new ConfigRepository(drizzleDb);
     
-    // Setup clean database schema with initial data using Drizzle
+    // Setup clean database schema
     await setupTestDatabase(drizzleDb);
+    
+    // Insert default config data
+    await insertDefaultConfigData(drizzleDb);
     
     // Initialize ConfigService with test database
     await ConfigService.initialize(drizzleDb);
   });
 
   afterEach(async () => {
-    // Reset ConfigService cache for clean tests
-    ConfigService._testOnlyClearCache();
-    
-    // Re-initialize ConfigService to reload fresh data
-    await ConfigService.initialize(drizzleDb);
+    // Re-initialize ConfigService to reload fresh data from database
+    await ConfigService.refreshCache();
   });
 
   describe('Direct Database Operations', () => {
@@ -294,9 +235,9 @@ describe('ConfigRepository Integration Tests', () => {
     });
 
     it('should get JSON values', () => {
-      const corsOrigins = repository.getJson<string[]>('security.cors_origins');
-      expect(Array.isArray(corsOrigins)).toBe(true);
-      expect(corsOrigins).toEqual(['*']);
+      const allowedOperations = repository.getJson<string[]>('google.sheets.allowed_operations');
+      expect(Array.isArray(allowedOperations)).toBe(true);
+      expect(allowedOperations).toEqual(['read', 'write', 'create', 'delete']);
 
       const defaultValue = repository.getJson('non.existent', { default: true });
       expect(defaultValue).toEqual({ default: true });

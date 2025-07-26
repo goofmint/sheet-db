@@ -50,30 +50,6 @@ export class ConfigService {
     return this.initialized;
   }
 
-  /**
-   * Internal method for test environment setup only
-   * DO NOT USE IN PRODUCTION - only for testing
-   */
-  static _testOnlySetInitialized(initialized: boolean, db: DrizzleD1Database | null = null): void {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('_testOnlySetInitialized cannot be used in production');
-    }
-    this.initialized = initialized;
-    this.db = db;
-  }
-
-  /**
-   * Internal method for clearing cache - test use only
-   * DO NOT USE IN PRODUCTION - only for testing  
-   */
-  static _testOnlyClearCache(): void {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('_testOnlyClearCache cannot be used in production');
-    }
-    this.configCache.clear();
-  }
-
-
 
   /**
    * Get config entry by key (synchronous)

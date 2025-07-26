@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-
-// 実際のアプリケーションをインポート
+import { describe, it, expect, beforeAll } from 'vitest';
+import { env } from 'cloudflare:test';
+import { drizzle } from 'drizzle-orm/d1';
 import app from '../src/index';
 import { ConfigService } from '../src/services/config';
+import { setupTestDatabase } from './utils/database-setup';
+import type { DrizzleD1Database } from 'drizzle-orm/d1';
 
 interface ErrorResponse {
   error: {
@@ -14,16 +16,23 @@ interface ErrorResponse {
 }
 
 describe('Error Handling Integration', () => {
-  beforeEach(() => {
-    // Initialize ConfigService for testing
-    ConfigService._testOnlyClearCache();
-    ConfigService._testOnlySetInitialized(true, null);
+  let db: DrizzleD1Database;
+
+  beforeAll(async () => {
+    // Get real D1 database from cloudflare:test environment
+    db = drizzle(env.DB);
+    
+    // Setup test database with all tables
+    await setupTestDatabase(db);
+    
+    // Initialize ConfigService with real database
+    await ConfigService.initialize(db);
   });
 
   it('should test actual app existing routes work', async () => {
     const response = await app.fetch(
       new Request('http://localhost/api/v1/health'),
-      { DB: {} as D1Database }
+      env
     );
     
     expect(response.status).toBe(200);
@@ -32,7 +41,7 @@ describe('Error Handling Integration', () => {
   it('should test actual app not found behavior', async () => {
     const response = await app.fetch(
       new Request('http://localhost/nonexistent'),
-      { DB: {} as D1Database }
+      env
     );
     const body = await response.json() as ErrorResponse;
 
@@ -46,7 +55,7 @@ describe('Error Handling Integration', () => {
   it('should handle proper redirect from root', async () => {
     const response = await app.fetch(
       new Request('http://localhost/'),
-      { DB: {} as D1Database }
+      env
     );
     
     expect(response.status).toBe(302);
@@ -56,7 +65,7 @@ describe('Error Handling Integration', () => {
   it('should handle setup route', async () => {
     const response = await app.fetch(
       new Request('http://localhost/setup'),
-      { DB: {} as D1Database }
+      env
     );
     
     expect(response.status).toBe(200);
@@ -65,7 +74,7 @@ describe('Error Handling Integration', () => {
   it('should handle playground route', async () => {
     const response = await app.fetch(
       new Request('http://localhost/playground'),
-      { DB: {} as D1Database }
+      env
     );
     
     expect(response.status).toBe(200);

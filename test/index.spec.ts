@@ -1,19 +1,30 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { env } from 'cloudflare:test';
+import { drizzle } from 'drizzle-orm/d1';
 import app from '../src/index';
 import { ConfigService } from '../src/services/config';
+import { setupTestDatabase } from './utils/database-setup';
+import type { DrizzleD1Database } from 'drizzle-orm/d1';
 
 describe('Main Application', () => {
-  beforeEach(() => {
-    // Initialize ConfigService for testing
-    ConfigService._testOnlyClearCache();
-    ConfigService._testOnlySetInitialized(true, null);
+  let db: DrizzleD1Database;
+
+  beforeAll(async () => {
+    // Get real D1 database from cloudflare:test environment
+    db = drizzle(env.DB);
+    
+    // Setup test database with all tables
+    await setupTestDatabase(db);
+    
+    // Initialize ConfigService with real database
+    await ConfigService.initialize(db);
   });
 
   describe('GET /', () => {
     it('should redirect to /setup when setup is not completed', async () => {
       const response = await app.fetch(
         new Request('http://localhost/', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
       
       expect(response.status).toBe(302);
@@ -26,7 +37,7 @@ describe('Main Application', () => {
     it('should return setup page', async () => {
       const response = await app.fetch(
         new Request('http://localhost/setup', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
       
       expect(response.status).toBe(200);
@@ -42,7 +53,7 @@ describe('Main Application', () => {
     it('should return playground page', async () => {
       const response = await app.fetch(
         new Request('http://localhost/playground', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
       
       expect(response.status).toBe(200);
@@ -58,7 +69,7 @@ describe('Main Application', () => {
     it('should serve API routes at /api prefix', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
       
       expect(response.status).toBe(200);
@@ -70,7 +81,7 @@ describe('Main Application', () => {
     it('should serve health check via API route', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/health', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
       
       expect(response.status).toBe(200);
