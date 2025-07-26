@@ -60,7 +60,10 @@
       "Bash(npx wrangler d1 create:*)",
       "Bash(gh pr create:*)",
       "Bash(git cherry-pick:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(npx c8 npm test:*)",
+      "Bash(NODE_V8_COVERAGE=coverage npm test)",
+      "Bash(npx c8 report:*)"
     ],
     "deny": []
   }
