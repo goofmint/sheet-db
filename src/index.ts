@@ -4,7 +4,7 @@ import { logger } from 'hono/logger';
 import { drizzle } from 'drizzle-orm/d1';
 import { createErrorHandler, createNotFoundHandler } from './lib/error-handlers';
 import { ConfigService } from './services/config';
-import { healthHandler } from './api/health/get';
+import { api } from './api';
 import { setupHandler } from './setup';
 import { playgroundHandler } from './playground';
 import type { Env } from './types';
@@ -42,8 +42,10 @@ app.get('/', async (c) => {
   return c.redirect('/playground');
 });
 
-// Route handlers
-app.get('/health', healthHandler);
+// API routes
+app.route('/api', api);
+
+// Non-API routes
 app.get('/setup', setupHandler);
 app.get('/playground', playgroundHandler);
 

@@ -20,22 +20,6 @@ describe('Main Application', () => {
     });
   });
 
-  describe('GET /health', () => {
-    it('should return health status', async () => {
-      const response = await app.fetch(
-        new Request('http://localhost/health', { method: 'GET' }),
-        { DB: {} as D1Database }
-      );
-      
-      expect(response.status).toBe(200);
-      
-      const data = await response.json() as any;
-      expect(data.status).toBe('healthy');
-      expect(data.service).toBe('sheetDB');
-      expect(data.version).toBe('1.0.0');
-      expect(data.timestamp).toBeDefined();
-    });
-  });
 
   describe('GET /setup', () => {
     it('should return setup page', async () => {
@@ -67,5 +51,33 @@ describe('Main Application', () => {
       expect(html).toContain('SheetDB Playground');
       expect(html).toContain('API testing interface');
     });
+  });
+
+  describe('API Integration', () => {
+    it('should serve API routes at /api prefix', async () => {
+      const response = await app.fetch(
+        new Request('http://localhost/api', { method: 'GET' }),
+        { DB: {} as D1Database }
+      );
+      
+      expect(response.status).toBe(200);
+      
+      const data = await response.json() as any;
+      expect(data.name).toBe('Sheet DB API');
+    });
+
+    it('should serve health check via API route', async () => {
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/health', { method: 'GET' }),
+        { DB: {} as D1Database }
+      );
+      
+      expect(response.status).toBe(200);
+      
+      const data = await response.json() as any;
+      expect(data.status).toBe('healthy');
+      expect(data.service).toBe('sheetDB');
+    });
+
   });
 });
