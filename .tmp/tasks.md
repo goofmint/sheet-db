@@ -7,7 +7,7 @@
 - [x] src/types/index.tsの作成（型定義）
 - [x] src/config/index.tsの作成（設定管理）
 - [x] src/utils/logger.tsの作成（ログユーティリティ）
-- [ ] src/middleware/error-handler.tsの作成（エラーハンドリング）
+- [x] src/middleware/error-handler.tsの作成（エラーハンドリング）
 
 ### 1.2 D1データベーススキーマの実装
 - [ ] schema.sqlの更新（Config、Cache、Sessionテーブル）
