@@ -7,32 +7,17 @@ import type {
   
   // api.d.ts
   ApiResponse,
-  ErrorDetail,
-  ResponseMeta,
   ErrorResponse,
-  HealthResponse,
-  
-  // config.d.ts
-  DatabaseConfig,
-  GoogleAccessToken,
   
   // session.d.ts
   Session,
-  User,
-  Role,
-  Auth0Profile,
   
   // cache.d.ts
   CacheEntry,
-  CacheResult,
   
   // sheets.d.ts
   SheetRow,
   ColumnDefinition,
-  SheetMetadata,
-  SheetPermissions,
-  WhereClause,
-  OrderByClause,
 } from '../../src/types';
 
 // Import database schema types
@@ -47,10 +32,9 @@ describe('Type Definitions', () => {
     it('should define Env interface correctly', () => {
       // Type-only test - if this compiles, the types are correctly defined
       const env: Partial<Env> = {
-        LOG_LEVEL: 'info',
-        CLOUDFLARE_ACCOUNT_ID: 'test-account-id',
+        DB: {} as D1Database,
       };
-      expect(env.LOG_LEVEL).toBe('info');
+      expect(env.DB).toBeDefined();
     });
   });
 

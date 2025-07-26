@@ -60,6 +60,13 @@ export class ConfigService {
   }
 
   /**
+   * Clear the configuration cache
+   */
+  static clearCache(): void {
+    this.configCache.clear();
+  }
+
+  /**
    * Initialize ConfigService for testing without database
    */
   static initializeForTesting(): void {
