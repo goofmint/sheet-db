@@ -18,11 +18,11 @@
 - [x] マイグレーションスクリプトの作成と実行
 
 ### 1.3 基本的なAPIルーティング
-- [ ] src/api/index.tsの作成（ルートルーティング）
-- [ ] src/api/health/get.tsの作成（ヘルスチェック）
-- [ ] src/api/setup/get.tsの作成（セットアップ画面）
-- [ ] src/api/setup/post.tsの作成（セットアップ処理）
-- [ ] src/api/playground/get.tsの作成（Playground画面）
+- [x] src/api/index.tsの作成（ルートルーティング）
+- [x] src/api/v1/health/get.tsの作成（ヘルスチェック）
+- [ ] src/api/v1/setup/get.tsの作成（セットアップ画面）
+- [ ] src/api/v1/setup/post.tsの作成（セットアップ処理）
+- [ ] src/api/v1/playground/get.tsの作成（Playground画面）
 - [ ] HTMLテンプレートの作成（setup.html、playground.html）
 
 ### 1.4 エラーハンドリング基盤
