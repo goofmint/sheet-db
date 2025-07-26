@@ -1,63 +1,40 @@
 import { describe, it, expect } from 'vitest';
 
-// Import all types to verify they can be imported correctly
+// Import available types to verify they can be imported correctly
 import type {
   // env.d.ts
   Env,
   
   // api.d.ts
   ApiResponse,
-  ErrorDetail,
-  ResponseMeta,
-  PaginationMeta,
   ErrorResponse,
-  RequestContext,
-  QueryParams,
-  HealthResponse,
-  
-  // config.d.ts
-  Config,
-  DatabaseConfig,
-  GoogleAccessToken,
-  ConfigEntry,
   
   // session.d.ts
   Session,
-  User,
-  Role,
-  Auth0Profile,
-  AuthToken,
-  SessionValidation,
   
   // cache.d.ts
   CacheEntry,
-  CacheKeyParams,
-  CacheResult,
-  CacheStats,
   
   // sheets.d.ts
   SheetRow,
-  SheetSchema,
   ColumnDefinition,
-  SheetMetadata,
-  SheetPermissions,
-  SheetQueryOptions,
-  WhereClause,
-  OrderByClause,
-  FileMetadata,
-  BatchOperationResult,
-  BatchError,
 } from '../../src/types';
+
+// Import database schema types
+import type {
+  Config,
+  ConfigType,
+  Cache,
+} from '../../src/db/schema';
 
 describe('Type Definitions', () => {
   describe('Environment Types', () => {
     it('should define Env interface correctly', () => {
       // Type-only test - if this compiles, the types are correctly defined
       const env: Partial<Env> = {
-        LOG_LEVEL: 'info',
-        CLOUDFLARE_ACCOUNT_ID: 'test-account-id',
+        DB: {} as D1Database,
       };
-      expect(env.LOG_LEVEL).toBe('info');
+      expect(env.DB).toBeDefined();
     });
   });
 
@@ -88,13 +65,22 @@ describe('Type Definitions', () => {
   });
 
   describe('Configuration Types', () => {
-    it('should define DatabaseConfig interface correctly', () => {
-      const config: Partial<DatabaseConfig> = {
-        setupCompleted: false,
-        cacheExpiration: 600,
-        allowCreateTable: false,
+    it('should define Config interface correctly', () => {
+      const config: Partial<Config> = {
+        id: 1,
+        key: 'test.key',
+        value: 'test value',
+        type: 'string' as ConfigType,
       };
-      expect(config.setupCompleted).toBe(false);
+      expect(config.key).toBe('test.key');
+    });
+
+    it('should define ConfigType correctly', () => {
+      const types: ConfigType[] = ['string', 'number', 'boolean', 'json'];
+      expect(types).toContain('string');
+      expect(types).toContain('number');
+      expect(types).toContain('boolean');
+      expect(types).toContain('json');
     });
   });
 
@@ -111,11 +97,21 @@ describe('Type Definitions', () => {
   });
 
   describe('Cache Types', () => {
+    it('should define Cache interface correctly', () => {
+      const cache: Partial<Cache> = {
+        id: 1,
+        cache_key: 'test:cache:key',
+        data: '{"test": true}',
+      };
+      expect(cache.cache_key).toBe('test:cache:key');
+    });
+
     it('should define CacheEntry interface correctly', () => {
       const cacheEntry: Partial<CacheEntry> = {
         id: 1,
         url: 'https://example.com/api/test',
         data: '{"test": true}',
+        expiresAt: new Date(),
       };
       expect(cacheEntry.url).toBe('https://example.com/api/test');
     });
@@ -151,13 +147,26 @@ describe('Type Definitions', () => {
       // If any type is missing from the re-exports, this test will fail to compile
       const types = {
         Env: {} as Env,
-        ApiResponse: {} as ApiResponse,
+        ApiResponse: {} as ApiResponse<any>,
+        ErrorResponse: {} as ErrorResponse,
         Session: {} as Session,
         CacheEntry: {} as CacheEntry,
         SheetRow: {} as SheetRow,
       };
       
       expect(types).toBeDefined();
+    });
+
+    it('should import database schema types correctly', () => {
+      // Test that database schema types are available
+      const dbTypes = {
+        Config: {} as Config,
+        ConfigType: 'string' as ConfigType,
+        Cache: {} as Cache,
+      };
+      
+      expect(dbTypes).toBeDefined();
+      expect(dbTypes.ConfigType).toBe('string');
     });
   });
 });

@@ -7,15 +7,15 @@
 - [x] src/types/index.tsの作成（型定義）
 - [x] src/config/index.tsの作成（設定管理）
 - [x] src/utils/logger.tsの作成（ログユーティリティ）
-- [ ] src/middleware/error-handler.tsの作成（エラーハンドリング）
+- [x] src/middleware/error-handler.tsの作成（エラーハンドリング）
 
 ### 1.2 D1データベーススキーマの実装
-- [ ] schema.sqlの更新（Config、Cache、Sessionテーブル）
-- [ ] src/db/schema.tsの更新（Drizzle ORM定義）
-- [ ] src/repositories/config.tsの作成
-- [ ] src/repositories/cache.tsの作成
-- [ ] src/repositories/session.tsの作成
-- [ ] マイグレーションスクリプトの作成と実行
+- [x] schema.sqlの更新（Config、Cache、Sessionテーブル）
+- [x] src/db/schema.tsの更新（Drizzle ORM定義）
+- [x] src/repositories/config.tsの作成
+- [x] src/repositories/cache.tsの作成
+- [x] src/repositories/session.tsの作成
+- [x] マイグレーションスクリプトの作成と実行
 
 ### 1.3 基本的なAPIルーティング
 - [ ] src/api/index.tsの作成（ルートルーティング）
