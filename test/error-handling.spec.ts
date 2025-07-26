@@ -14,9 +14,10 @@ interface ErrorResponse {
 }
 
 describe('Error Handling Integration', () => {
-  beforeEach(async () => {
-    // Initialize ConfigService for testing without database
-    ConfigService.initializeForTesting();
+  beforeEach(() => {
+    // Initialize ConfigService for testing
+    ConfigService._testOnlyClearCache();
+    ConfigService._testOnlySetInitialized(true, null);
   });
 
   it('should test actual app existing routes work', async () => {

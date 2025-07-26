@@ -5,7 +5,8 @@ import { ConfigService } from '../../src/services/config';
 describe('API Router', () => {
   beforeEach(() => {
     // Initialize ConfigService for testing
-    ConfigService.initializeForTesting();
+    ConfigService._testOnlyClearCache();
+    ConfigService._testOnlySetInitialized(true, null);
   });
 
   describe('GET /api', () => {

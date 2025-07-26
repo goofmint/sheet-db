@@ -3,9 +3,10 @@ import app from '../src/index';
 import { ConfigService } from '../src/services/config';
 
 describe('Main Application', () => {
-  beforeEach(async () => {
-    // Initialize ConfigService for testing without database
-    ConfigService.initializeForTesting();
+  beforeEach(() => {
+    // Initialize ConfigService for testing
+    ConfigService._testOnlyClearCache();
+    ConfigService._testOnlySetInitialized(true, null);
   });
 
   describe('GET /', () => {

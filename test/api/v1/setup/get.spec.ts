@@ -4,9 +4,9 @@ import { ConfigService } from '../../../../src/services/config';
 
 describe('Setup API - GET /api/v1/setup', () => {
   beforeEach(() => {
-    // Initialize ConfigService for testing
-    ConfigService.initializeForTesting();
-    ConfigService.clearCache();
+    // Initialize ConfigService for testing (safe method)
+    ConfigService._testOnlyClearCache();
+    ConfigService._testOnlySetInitialized(true, null);
   });
 
   describe('Setup incomplete scenarios', () => {
@@ -77,7 +77,8 @@ describe('Setup API - GET /api/v1/setup', () => {
   describe('Setup completed without authentication', () => {
     beforeEach(() => {
       // Set up completed state in ConfigService
-      ConfigService.clearCache();
+      ConfigService._testOnlyClearCache();
+      ConfigService._testOnlySetInitialized(true, null);
       // Add setup completed flag directly to cache
       ConfigService['configCache'].set('app.setup_completed', {
         id: 1,
@@ -115,7 +116,8 @@ describe('Setup API - GET /api/v1/setup', () => {
   describe('Setup completed with authentication', () => {
     beforeEach(() => {
       // Set up completed state with known password
-      ConfigService.clearCache();
+      ConfigService._testOnlyClearCache();
+      ConfigService._testOnlySetInitialized(true, null);
       ConfigService['configCache'].set('app.setup_completed', {
         id: 1,
         key: 'app.setup_completed',

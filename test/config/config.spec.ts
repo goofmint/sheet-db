@@ -86,7 +86,7 @@ describe('ConfigRepository Integration Tests', () => {
 
   afterEach(async () => {
     // Reset ConfigService cache for clean tests
-    ConfigService.clearCache();
+    ConfigService._testOnlyClearCache();
     
     // Re-initialize ConfigService to reload fresh data
     await ConfigService.initialize(drizzleDb);
