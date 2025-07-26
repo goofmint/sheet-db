@@ -21,24 +21,27 @@
 #### エンドポイント定義
 - **メソッド**: `GET`
 - **パス**: `/api/v1/setup`
-- **レスポンス形式**: HTML または JSON（Accept ヘッダーに基づく）
+- **レスポンス形式**: JSON（セットアップ状態情報）
 
 #### レスポンス内容
 ```typescript
-interface SetupResponse {
-  // HTML レスポンスの場合
-  html: string;
-  
-  // JSON レスポンスの場合
+interface SetupStatusResponse {
   setup: {
     isCompleted: boolean;
     requiredFields: string[];
+    completedFields: string[];
     currentConfig: {
-      googleClientId?: string;
-      auth0Domain?: string;
-      // 他の設定項目
+      hasGoogleCredentials: boolean;
+      hasAuth0Config: boolean;
+      hasDatabaseConfig: boolean;
+      // 値そのものではなく、設定済みかどうかのフラグ
     };
     nextSteps: string[];
+    progress: {
+      percentage: number;
+      completedSteps: number;
+      totalSteps: number;
+    };
   };
   timestamp: string;
 }
@@ -46,10 +49,10 @@ interface SetupResponse {
 
 ### 3. 技術仕様
 
-#### HTMLテンプレート統合
-- 既存の`src/setup.ts`のHTMLテンプレートを活用
-- コードの重複を避けるための共通化
-- レスポンシブデザインの維持
+#### セットアップ状態の分析
+- 必要な設定項目の洗い出し
+- 設定完了状況の正確な判定
+- 次に必要なアクションの提示
 
 #### 設定状態の確認
 - `ConfigService`を使用した設定状態の取得
@@ -76,9 +79,9 @@ interface SetupResponse {
 ### 5. 既存システムとの連携
 
 #### 既存ルートとの関係
-- `/setup` (既存) - レガシーサポート継続
-- `/api/v1/setup` (新規) - API統一インターフェース
-- 両方のエンドポイントの一貫性維持
+- `/setup` (既存) - HTMLセットアップ画面
+- `/api/v1/setup` (新規) - セットアップ状態取得API
+- 役割分離による明確な責任範囲
 
 #### ConfigServiceとの統合
 ```typescript
@@ -95,40 +98,45 @@ const auth0Domain = ConfigService.getString('auth0.domain');
 - 適切なHTTPステータスコード使用
 - 標準的なHTTPヘッダー活用
 
-#### Content Negotiation
+#### JSON API設計
 ```typescript
-// Accept ヘッダーに基づくレスポンス切り替え
-const acceptHeader = c.req.header('Accept');
-if (acceptHeader?.includes('application/json')) {
-  return c.json(setupData);
-} else {
-  return c.html(setupHtml);
-}
+// セットアップ状態の詳細情報を提供
+const setupStatus = {
+  setup: {
+    isCompleted: ConfigService.getBoolean('app.setup_completed', false),
+    requiredFields: ['google.client_id', 'auth0.domain', 'database.url'],
+    completedFields: getCompletedFields(),
+    progress: calculateProgress(),
+    nextSteps: determineNextSteps()
+  },
+  timestamp: new Date().toISOString()
+};
+return c.json(setupStatus);
 ```
 
 ### 7. テスト要件
 
 #### 単体テスト
 - セットアップ状態判定のテスト
-- HTMLレスポンスの検証
-- JSONレスポンスの検証
+- JSONレスポンス構造の検証
+- 進捗計算ロジックのテスト
 - エラーハンドリングのテスト
 
 #### 統合テスト
-- 既存`/setup`エンドポイントとの整合性
 - ConfigServiceとの連携テスト
 - APIルーティングの動作確認
+- セットアップ状態の整合性確認
 
 ### 8. パフォーマンス考慮事項
 
 #### レスポンス最適化
-- HTMLテンプレートのキャッシュ化
 - 設定データの効率的な取得
 - 不要なデータベースアクセスの回避
+- レスポンスサイズの最小化
 
 #### メモリ使用量
-- テンプレートの効率的な管理
-- 大きなHTMLコンテンツの処理
+- 設定データの効率的な管理
+- オブジェクト生成の最適化
 - ガベージコレクションへの配慮
 
 ## 実装手順
@@ -140,7 +148,7 @@ if (acceptHeader?.includes('application/json')) {
 
 ### Phase 2: 機能実装
 1. ConfigServiceとの統合
-2. HTMLテンプレートの統合
+2. セットアップ状態分析ロジック
 3. JSON APIレスポンスの実装
 
 ### Phase 3: エラーハンドリング
@@ -157,9 +165,9 @@ if (acceptHeader?.includes('application/json')) {
 
 ### 機能要件
 - [ ] `/api/v1/setup` エンドポイントが正常動作
-- [ ] HTML と JSON 両方のレスポンスに対応
-- [ ] セットアップ状態の正確な判定
-- [ ] 既存 `/setup` との一貫性維持
+- [ ] セットアップ状態の正確な判定と情報提供
+- [ ] 進捗状況の適切な計算
+- [ ] 次のアクション提示
 
 ### 品質要件
 - [ ] 全テストが通る
