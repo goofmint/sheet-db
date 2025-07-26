@@ -31,10 +31,23 @@ interface SetupStatusResponse {
     requiredFields: string[];
     completedFields: string[];
     currentConfig: {
-      hasGoogleCredentials: boolean;
-      hasAuth0Config: boolean;
-      hasDatabaseConfig: boolean;
-      // 値そのものではなく、設定済みかどうかのフラグ
+      // セットアップ未完了時 OR X-CONFIG認証済み時は実際の値
+      google?: {
+        clientId?: string;
+        clientSecret?: string;
+      };
+      auth0?: {
+        domain?: string;
+        clientId?: string;
+        clientSecret?: string;
+      };
+      database?: {
+        url?: string;
+      };
+      // セットアップ完了時かつ未認証時はフラグのみ
+      hasGoogleCredentials?: boolean;
+      hasAuth0Config?: boolean;
+      hasDatabaseConfig?: boolean;
     };
     nextSteps: string[];
     progress: {
@@ -70,28 +83,35 @@ interface SetupStatusResponse {
 ```typescript
 // セットアップ状態に応じたアクセス制御
 const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
+const configPassword = c.req.header('X-CONFIG');
 
-if (!isSetupCompleted) {
-  // セットアップ未完了 → 現在の情報をJSONで返す
-  return c.json(setupStatusData);
-} else {
-  // セットアップ完了 → config_password認証が必要
-  const configPassword = c.req.header('X-CONFIG');
+if (isSetupCompleted) {
+  // セットアップ完了時：config_password認証が必要
   const storedPassword = ConfigService.getString('app.config_password');
   
   if (!configPassword || configPassword !== storedPassword) {
-    return c.json({ error: 'Authentication required' }, 401);
+    return c.json({ 
+      error: { 
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'X-CONFIG header required for setup information access' 
+      } 
+    }, 401);
   }
   
-  return c.json(setupStatusData);
+  // 認証成功：再セットアップのため設定値も含めて返す
+  return c.json(getDetailedSetupStatus());
+} else {
+  // セットアップ未完了：自由にアクセス可能（設定値も含む）
+  return c.json(getDetailedSetupStatus());
 }
 ```
 
 #### 機密情報の保護
-- 設定値の実際の値は絶対に返さない
-- 設定済みかどうかのフラグのみ提供
-- APIキーやシークレットの露出防止
-- パスワードハッシュの安全な管理
+- セットアップ未完了時：設定値を返す（初期セットアップ用）
+- セットアップ完了時：X-CONFIG認証後のみ設定値を返す（再セットアップ用）
+- 未認証時：設定済みフラグのみ返す
+- パスワードハッシュは安全に管理（平文では返さない）
+- APIキーやシークレットは適切な認証後のみ返す
 
 ### 5. 既存システムとの連携
 
@@ -102,15 +122,35 @@ if (!isSetupCompleted) {
 
 #### ConfigServiceとの統合
 ```typescript
-// 設定状態の確認例（機密情報は値を返さない）
+// 設定状態の確認と値の取得
 const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
+const isAuthenticated = validateConfigPassword(c.req.header('X-CONFIG'));
 
-// 設定済みかどうかのフラグのみ
-const hasGoogleCredentials = !!ConfigService.getString('google.client_id') && 
-                            !!ConfigService.getString('google.client_secret');
-const hasAuth0Config = !!ConfigService.getString('auth0.domain') && 
-                      !!ConfigService.getString('auth0.client_id');
-const configPassword = ConfigService.getString('app.config_password');
+// 認証状態に応じたデータ取得
+if (!isSetupCompleted || isAuthenticated) {
+  // セットアップ未完了時 OR 認証済み時：実際の値を返す（再セットアップ用）
+  const currentConfig = {
+    google: {
+      clientId: ConfigService.getString('google.client_id'),
+      clientSecret: ConfigService.getString('google.client_secret'),
+    },
+    auth0: {
+      domain: ConfigService.getString('auth0.domain'),
+      clientId: ConfigService.getString('auth0.client_id'),
+      clientSecret: ConfigService.getString('auth0.client_secret'),
+    },
+    database: {
+      url: ConfigService.getString('database.url'),
+    }
+  };
+} else {
+  // セットアップ完了時かつ未認証：フラグのみ
+  const currentConfig = {
+    hasGoogleCredentials: !!ConfigService.getString('google.client_id'),
+    hasAuth0Config: !!ConfigService.getString('auth0.domain'),
+    hasDatabaseConfig: !!ConfigService.getString('database.url'),
+  };
+}
 ```
 
 ### 6. API設計パターン
@@ -124,35 +164,33 @@ const configPassword = ConfigService.getString('app.config_password');
 ```typescript
 // セットアップ状態に応じた情報提供
 const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
+const configPassword = c.req.header('X-CONFIG');
+const isAuthenticated = isSetupCompleted ? isValidConfigPassword(configPassword) : true;
 
-if (!isSetupCompleted) {
-  // セットアップ未完了時は自由にアクセス可能
-  const setupStatus = {
-    setup: {
-      isCompleted: false,
-      requiredFields: ['google.client_id', 'auth0.domain', 'app.config_password'],
-      completedFields: getCompletedFields(),
-      progress: calculateProgress(),
-      nextSteps: determineNextSteps()
-    },
-    timestamp: new Date().toISOString()
-  };
-  return c.json(setupStatus);
-} else {
-  // セットアップ完了時は認証必須
-  const configPassword = c.req.header('X-CONFIG');
-  if (!isValidConfigPassword(configPassword)) {
-    return c.json({ 
-      error: { 
-        code: 'AUTHENTICATION_REQUIRED',
-        message: 'X-CONFIG header with valid config password required'
-      } 
-    }, 401);
-  }
-  
-  // 認証成功時のみ詳細情報を返す
-  return c.json(setupStatus);
+if (isSetupCompleted && !isAuthenticated) {
+  // セットアップ完了時かつ未認証：エラー返却
+  return c.json({ 
+    error: { 
+      code: 'AUTHENTICATION_REQUIRED',
+      message: 'X-CONFIG header with valid config password required for setup information access'
+    } 
+  }, 401);
 }
+
+// セットアップ未完了時 OR 認証済み時：詳細情報を返す
+const setupStatus = {
+  setup: {
+    isCompleted: isSetupCompleted,
+    requiredFields: ['google.client_id', 'auth0.domain', 'app.config_password'],
+    completedFields: getCompletedFields(),
+    currentConfig: isAuthenticated ? getActualConfigValues() : getConfigFlags(),
+    progress: calculateProgress(),
+    nextSteps: determineNextSteps()
+  },
+  timestamp: new Date().toISOString()
+};
+
+return c.json(setupStatus);
 ```
 
 ### 7. テスト要件
@@ -196,8 +234,10 @@ if (!isSetupCompleted) {
 
 ### Phase 2: 機能実装
 1. ConfigServiceとの統合
-2. セットアップ状態分析ロジック
-3. JSON APIレスポンスの実装
+2. X-CONFIG認証ロジックの実装
+3. 認証状態に応じたレスポンス分岐
+4. セットアップ状態分析ロジック
+5. JSON APIレスポンスの実装
 
 ### Phase 3: エラーハンドリング
 1. 各種エラーケースの処理
@@ -226,7 +266,8 @@ if (!isSetupCompleted) {
 ### セキュリティ要件
 - [ ] セットアップ未完了時の適切なアクセス許可
 - [ ] セットアップ完了時のX-CONFIG認証実装
-- [ ] 機密情報の適切な保護（値を返さない）
+- [ ] 認証後の設定値提供（再セットアップ対応）
+- [ ] 未認証時の機密情報保護（フラグのみ）
 - [ ] 不正アクセスの適切な拒否
 - [ ] セキュアなレスポンスヘッダー
 
