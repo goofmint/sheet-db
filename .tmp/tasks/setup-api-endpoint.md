@@ -66,15 +66,32 @@ interface SetupStatusResponse {
 
 ### 4. セキュリティ考慮事項
 
-#### 機密情報の保護
-- 設定値の機密情報は非表示
-- APIキーやシークレットの露出防止
-- 部分的な設定情報のみ表示
+#### アクセス制御（重要）
+```typescript
+// セットアップ状態に応じたアクセス制御
+const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
 
-#### アクセス制御
-- セットアップ完了前のみアクセス可能
-- 完了後は適切なリダイレクト処理
-- 不正アクセスの防止
+if (!isSetupCompleted) {
+  // セットアップ未完了 → 現在の情報をJSONで返す
+  return c.json(setupStatusData);
+} else {
+  // セットアップ完了 → config_password認証が必要
+  const configPassword = c.req.header('X-CONFIG');
+  const storedPassword = ConfigService.getString('app.config_password');
+  
+  if (!configPassword || configPassword !== storedPassword) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  
+  return c.json(setupStatusData);
+}
+```
+
+#### 機密情報の保護
+- 設定値の実際の値は絶対に返さない
+- 設定済みかどうかのフラグのみ提供
+- APIキーやシークレットの露出防止
+- パスワードハッシュの安全な管理
 
 ### 5. 既存システムとの連携
 
@@ -85,10 +102,15 @@ interface SetupStatusResponse {
 
 #### ConfigServiceとの統合
 ```typescript
-// 設定状態の確認例
+// 設定状態の確認例（機密情報は値を返さない）
 const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
-const googleClientId = ConfigService.getString('google.client_id');
-const auth0Domain = ConfigService.getString('auth0.domain');
+
+// 設定済みかどうかのフラグのみ
+const hasGoogleCredentials = !!ConfigService.getString('google.client_id') && 
+                            !!ConfigService.getString('google.client_secret');
+const hasAuth0Config = !!ConfigService.getString('auth0.domain') && 
+                      !!ConfigService.getString('auth0.client_id');
+const configPassword = ConfigService.getString('app.config_password');
 ```
 
 ### 6. API設計パターン
@@ -98,26 +120,46 @@ const auth0Domain = ConfigService.getString('auth0.domain');
 - 適切なHTTPステータスコード使用
 - 標準的なHTTPヘッダー活用
 
-#### JSON API設計
+#### JSON API設計（認証考慮）
 ```typescript
-// セットアップ状態の詳細情報を提供
-const setupStatus = {
-  setup: {
-    isCompleted: ConfigService.getBoolean('app.setup_completed', false),
-    requiredFields: ['google.client_id', 'auth0.domain', 'database.url'],
-    completedFields: getCompletedFields(),
-    progress: calculateProgress(),
-    nextSteps: determineNextSteps()
-  },
-  timestamp: new Date().toISOString()
-};
-return c.json(setupStatus);
+// セットアップ状態に応じた情報提供
+const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
+
+if (!isSetupCompleted) {
+  // セットアップ未完了時は自由にアクセス可能
+  const setupStatus = {
+    setup: {
+      isCompleted: false,
+      requiredFields: ['google.client_id', 'auth0.domain', 'app.config_password'],
+      completedFields: getCompletedFields(),
+      progress: calculateProgress(),
+      nextSteps: determineNextSteps()
+    },
+    timestamp: new Date().toISOString()
+  };
+  return c.json(setupStatus);
+} else {
+  // セットアップ完了時は認証必須
+  const configPassword = c.req.header('X-CONFIG');
+  if (!isValidConfigPassword(configPassword)) {
+    return c.json({ 
+      error: { 
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'X-CONFIG header with valid config password required'
+      } 
+    }, 401);
+  }
+  
+  // 認証成功時のみ詳細情報を返す
+  return c.json(setupStatus);
+}
 ```
 
 ### 7. テスト要件
 
 #### 単体テスト
 - セットアップ状態判定のテスト
+- X-CONFIG認証ロジックのテスト
 - JSONレスポンス構造の検証
 - 進捗計算ロジックのテスト
 - エラーハンドリングのテスト
@@ -126,6 +168,12 @@ return c.json(setupStatus);
 - ConfigServiceとの連携テスト
 - APIルーティングの動作確認
 - セットアップ状態の整合性確認
+
+#### セキュリティテスト
+- セットアップ未完了時のアクセステスト
+- セットアップ完了時の認証なしアクセステスト
+- 不正なX-CONFIGヘッダーでのアクセステスト
+- 正しいX-CONFIGヘッダーでのアクセステスト
 
 ### 8. パフォーマンス考慮事項
 
@@ -176,8 +224,10 @@ return c.json(setupStatus);
 - [ ] 適切なエラーハンドリング
 
 ### セキュリティ要件
-- [ ] 機密情報の適切な保護
-- [ ] 不正アクセスの防止
+- [ ] セットアップ未完了時の適切なアクセス許可
+- [ ] セットアップ完了時のX-CONFIG認証実装
+- [ ] 機密情報の適切な保護（値を返さない）
+- [ ] 不正アクセスの適切な拒否
 - [ ] セキュアなレスポンスヘッダー
 
 ### パフォーマンス要件
