@@ -50,30 +50,6 @@ export class ConfigService {
     return this.initialized;
   }
 
-  /**
-   * Reset ConfigService state (for testing)
-   */
-  static reset(): void {
-    this.configCache.clear();
-    this.initialized = false;
-    this.db = null;
-  }
-
-  /**
-   * Clear the configuration cache
-   */
-  static clearCache(): void {
-    this.configCache.clear();
-  }
-
-  /**
-   * Initialize ConfigService for testing without database
-   */
-  static initializeForTesting(): void {
-    this.configCache.clear();
-    this.initialized = true;
-    this.db = null;
-  }
 
   /**
    * Get config entry by key (synchronous)

@@ -1,18 +1,30 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { env } from 'cloudflare:test';
+import { drizzle } from 'drizzle-orm/d1';
 import app from '../../src/index';
 import { ConfigService } from '../../src/services/config';
+import { setupTestDatabase } from '../utils/database-setup';
+import type { DrizzleD1Database } from 'drizzle-orm/d1';
 
 describe('API Router', () => {
-  beforeEach(() => {
-    // Initialize ConfigService for testing
-    ConfigService.initializeForTesting();
+  let db: DrizzleD1Database;
+
+  beforeAll(async () => {
+    // Get real D1 database from cloudflare:test environment
+    db = drizzle(env.DB);
+    
+    // Setup test database with all tables
+    await setupTestDatabase(db);
+    
+    // Initialize ConfigService with real database
+    await ConfigService.initialize(db);
   });
 
   describe('GET /api', () => {
     it('should return API information', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(200);
@@ -29,7 +41,7 @@ describe('API Router', () => {
     it('should return health status', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/health', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(200);
@@ -46,7 +58,7 @@ describe('API Router', () => {
     it('should return API-specific 404 for unknown endpoints', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/unknown', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(404);
@@ -59,7 +71,7 @@ describe('API Router', () => {
     it('should return API-specific 404 for unknown v1 endpoints', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/unknown', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(404);
@@ -81,7 +93,7 @@ describe('API Router', () => {
             'Access-Control-Request-Headers': 'Content-Type',
           }
         }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(204);
@@ -97,7 +109,7 @@ describe('API Router', () => {
             'Origin': 'https://example.com',
           }
         }),
-        { DB: {} as D1Database }
+        env
       );
 
       expect(response.status).toBe(200);
@@ -109,7 +121,7 @@ describe('API Router', () => {
     it('should maintain consistent response format for info endpoint', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api', { method: 'GET' }),
-        { DB: {} as D1Database }
+        env
       );
 
       const data = await response.json() as any;

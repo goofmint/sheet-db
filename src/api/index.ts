@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { healthHandler } from './v1/health/get';
+import { setupGetHandler } from './v1/setup/get';
 import type { Env } from '../types';
 
 /**
@@ -27,9 +28,9 @@ const v1 = new Hono<{ Bindings: Env }>();
 // Health check endpoint
 v1.get('/health', healthHandler);
 
-// Setup endpoints (to be implemented)
-// v1.get('/setup', setupGetHandler);
-// v1.post('/setup', setupPostHandler);
+// Setup endpoints
+v1.get('/setup', setupGetHandler);
+// v1.post('/setup', setupPostHandler); // TODO: Implement POST handler
 
 // Playground endpoint (to be implemented)  
 // v1.get('/playground', playgroundGetHandler);
