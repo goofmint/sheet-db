@@ -195,14 +195,109 @@ describe('Setup API - GET /api/v1/setup', () => {
   });
 
   describe('Error handling', () => {
-    it('should handle internal errors gracefully', async () => {
-      // Test error handling - this is difficult to trigger without mocking
-      const response = await app.fetch(
-        new Request('http://localhost/api/v1/setup', { method: 'GET' }),
-        env
-      );
+    it('should handle ConfigService.getBoolean errors gracefully', async () => {
+      // Temporarily override ConfigService.getBoolean to throw an error
+      const originalGetBoolean = ConfigService.getBoolean;
+      ConfigService.getBoolean = () => {
+        throw new Error('Database connection failed');
+      };
 
-      expect(response.status).toBe(200);
+      try {
+        const response = await app.fetch(
+          new Request('http://localhost/api/v1/setup', { method: 'GET' }),
+          env
+        );
+
+        expect(response.status).toBe(500);
+        const data = await response.json() as any;
+        expect(data.error.code).toBe('INTERNAL_ERROR');
+        expect(data.error.message).toBe('Failed to retrieve setup information');
+      } finally {
+        // Restore original method
+        ConfigService.getBoolean = originalGetBoolean;
+      }
+    });
+
+    it('should handle ConfigService.getString errors gracefully', async () => {
+      // Temporarily override ConfigService.getString to throw an error
+      const originalGetString = ConfigService.getString;
+      ConfigService.getString = () => {
+        throw new Error('Cache corruption detected');
+      };
+
+      try {
+        const response = await app.fetch(
+          new Request('http://localhost/api/v1/setup', { method: 'GET' }),
+          env
+        );
+
+        expect(response.status).toBe(500);
+        const data = await response.json() as any;
+        expect(data.error.code).toBe('INTERNAL_ERROR');
+        expect(data.error.message).toBe('Failed to retrieve setup information');
+      } finally {
+        // Restore original method
+        ConfigService.getString = originalGetString;
+      }
+    });
+
+    it('should handle unexpected exceptions during setup completion check', async () => {
+      // Create a more complex error scenario by manipulating the request
+      const originalGetBoolean = ConfigService.getBoolean;
+      let callCount = 0;
+      
+      ConfigService.getBoolean = (key: string) => {
+        callCount++;
+        if (callCount === 1) {
+          // First call (app.setup_completed check) succeeds
+          return originalGetBoolean(key);
+        }
+        // Subsequent calls fail
+        throw new Error('Unexpected database error');
+      };
+
+      try {
+        const response = await app.fetch(
+          new Request('http://localhost/api/v1/setup', { method: 'GET' }),
+          env
+        );
+
+        expect(response.status).toBe(500);
+        const data = await response.json() as any;
+        expect(data.error.code).toBe('INTERNAL_ERROR');
+        expect(data.error.message).toBe('Failed to retrieve setup information');
+      } finally {
+        // Restore original method
+        ConfigService.getBoolean = originalGetBoolean;
+      }
+    });
+
+    it('should handle JSON parsing errors in error responses', async () => {
+      // Override to throw an error that might cause JSON parsing issues
+      const originalGetBoolean = ConfigService.getBoolean;
+      ConfigService.getBoolean = () => {
+        const error = new Error('Critical system failure');
+        error.name = 'SystemError';
+        throw error;
+      };
+
+      try {
+        const response = await app.fetch(
+          new Request('http://localhost/api/v1/setup', { method: 'GET' }),
+          env
+        );
+
+        expect(response.status).toBe(500);
+        expect(response.headers.get('content-type')).toContain('application/json');
+        
+        const data = await response.json() as any;
+        expect(data.error).toBeDefined();
+        expect(data.error.code).toBe('INTERNAL_ERROR');
+        expect(data.error.message).toBe('Failed to retrieve setup information');
+      } finally {
+        // Restore original method
+        ConfigService.getBoolean = originalGetBoolean;
+      }
     });
   });
 
