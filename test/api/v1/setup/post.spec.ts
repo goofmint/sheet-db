@@ -3,8 +3,9 @@ import { env } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
 import app from '../../../../src/index';
 import { ConfigService } from '../../../../src/services/config';
-import { configTable } from '../../../../src/db/schema';
+import { configTable, cacheTable, sessionTable } from '../../../../src/db/schema';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
+import type { SetupSuccessResponse, SetupErrorResponse } from '../../../../src/api/v1/setup/types';
 import { setupTestDatabase } from '../../../utils/database-setup';
 
 describe('Setup API - POST /api/v1/setup', () => {
@@ -22,8 +23,10 @@ describe('Setup API - POST /api/v1/setup', () => {
   });
 
   beforeEach(async () => {
-    // Clear all config data before each test
+    // Clear all data from all tables to ensure full test isolation
     await db.delete(configTable);
+    await db.delete(cacheTable);
+    await db.delete(sessionTable);
     await ConfigService.refreshCache();
   });
 
@@ -35,7 +38,7 @@ describe('Setup API - POST /api/v1/setup', () => {
     auth0: {
       domain: "test-domain.auth0.com",
       clientId: "abcdefghijklmnopqrstuvwxyz123456",
-      clientSecret: "abcdefghijklmnopqrstuvwxyz123456789abcdefghijklmnopqrstuvwxyz123"
+      clientSecret: "abcdefghijklmnopqrstuvwxyz123456789abcdefghijklmn"
     },
     app: {
       configPassword: "SecurePass123!"
@@ -60,7 +63,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(200);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.success).toBe(true);
       expect(data.message).toContain('Initial setup completed');
       expect(data.setup.isCompleted).toBe(true);
@@ -96,7 +99,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(200);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.success).toBe(true);
       expect(data.setup.configuredServices).toContain('google');
       expect(data.setup.configuredServices).toContain('auth0');
@@ -139,7 +142,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(200);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.success).toBe(true);
       expect(data.message).toContain('updated successfully');
     });
@@ -158,7 +161,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(401);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupErrorResponse;
       expect(data.error.code).toBe('AUTHENTICATION_REQUIRED');
       expect(data.error.message).toContain('Authorization header');
     });
@@ -178,7 +181,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(401);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupErrorResponse;
       expect(data.error.code).toBe('AUTHENTICATION_REQUIRED');
     });
   });
@@ -198,7 +201,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(400);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.error.code).toBe('INVALID_JSON');
     });
 
@@ -221,7 +224,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(400);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.error.code).toBe('VALIDATION_ERROR');
       expect(data.error.details).toBeInstanceOf(Array);
       expect(data.error.details.length).toBeGreaterThan(0);
@@ -249,7 +252,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(400);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.error.code).toBe('VALIDATION_ERROR');
       expect(data.error.details.some((detail: any) => 
         detail.field === 'google.clientId' && 
@@ -279,7 +282,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(400);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.error.code).toBe('VALIDATION_ERROR');
       expect(data.error.details.some((detail: any) => 
         detail.field === 'auth0.domain'
@@ -307,7 +310,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(400);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.error.code).toBe('VALIDATION_ERROR');
       expect(data.error.details.some((detail: any) => 
         detail.field === 'app.configPassword'
@@ -335,7 +338,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(400);
       
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.error.code).toBe('VALIDATION_ERROR');
       expect(data.error.details.some((detail: any) => 
         detail.field === 'database.url'
@@ -365,7 +368,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
         expect(response.status).toBe(500);
         
-        const data = await response.json() as any;
+        const data = await response.json() as SetupSuccessResponse;
         expect(data.error.code).toBe('INTERNAL_ERROR');
         expect(data.error.message).toBe('Failed to process setup configuration');
       } finally {
@@ -395,7 +398,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
         expect(response.status).toBe(500);
         
-        const data = await response.json() as any;
+        const data = await response.json() as SetupSuccessResponse;
         expect(data.error.code).toBe('INTERNAL_ERROR');
       } finally {
         // Restore original method
@@ -417,7 +420,7 @@ describe('Setup API - POST /api/v1/setup', () => {
         env
       );
 
-      const data = await response.json() as any;
+      const data = await response.json() as SetupSuccessResponse;
       
       // Check top-level structure
       expect(data).toHaveProperty('success');

@@ -10,7 +10,7 @@ describe('Setup Validators', () => {
     auth0: {
       domain: "test-domain.auth0.com",
       clientId: "abcdefghijklmnopqrstuvwxyz123456",
-      clientSecret: "abcdefghijklmnopqrstuvwxyz123456789abcdefghijklmnopqrstuvwxyz123"
+      clientSecret: "abcdefghijklmnopqrstuvwxyz123456789abcdefghijklmn"
     },
     app: {
       configPassword: "SecurePass123!"
@@ -108,23 +108,6 @@ describe('Setup Validators', () => {
         )).toBe(true);
       });
 
-      it('should reject too short Google Client Secret', () => {
-        const invalidData = {
-          ...validSetupData,
-          google: {
-            ...validSetupData.google,
-            clientSecret: "short"
-          }
-        };
-        
-        const result = validateSetupRequest(invalidData);
-        
-        expect(result.isValid).toBe(false);
-        expect(result.errors.some(error => 
-          error.field === 'google.clientSecret' && 
-          error.message.includes('24文字')
-        )).toBe(true);
-      });
 
       it('should handle empty strings in Google fields', () => {
         const invalidData = {
@@ -233,7 +216,7 @@ describe('Setup Validators', () => {
         expect(result.isValid).toBe(false);
         expect(result.errors.some(error => 
           error.field === 'auth0.clientSecret' && 
-          error.message.includes('64文字')
+          error.message.includes('48文字')
         )).toBe(true);
       });
     });

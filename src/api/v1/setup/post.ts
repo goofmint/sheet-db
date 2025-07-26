@@ -22,6 +22,16 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
       const token = authHeader?.replace('Bearer ', '');
       const storedPassword = ConfigService.getString('app.config_password');
       
+      // Defensive check: if storedPassword is undefined, treat as authentication failure
+      if (!storedPassword) {
+        return c.json({
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication configuration is missing'
+          }
+        }, 401);
+      }
+      
       const isAuthenticated = !!(token && token === storedPassword);
       
       if (!isAuthenticated) {
@@ -61,7 +71,7 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
 
     const setupData = validation.data!;
 
-    // Save configuration to database
+    // Save configuration to database with concurrent updates
     const configUpdates = [
       // Google OAuth settings
       { key: 'google.client_id', value: setupData.google.clientId, description: 'Google OAuth Client ID' },
@@ -88,14 +98,29 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
       });
     }
 
-    // Save all configurations
-    for (const config of configUpdates) {
-      await ConfigService.upsert(
-        config.key,
-        config.value,
-        config.type || 'string',
-        config.description
+    // Save all configurations concurrently
+    try {
+      await Promise.all(
+        configUpdates.map(config =>
+          ConfigService.upsert(
+            config.key,
+            config.value,
+            config.type || 'string',
+            config.description
+          )
+        )
       );
+    } catch (error) {
+      // If any update fails, attempt to rollback by refreshing cache from database
+      // This ensures consistency between cache and database state
+      try {
+        await ConfigService.refreshCache();
+      } catch (rollbackError) {
+        console.error('Failed to rollback configuration cache:', rollbackError);
+      }
+      
+      // Re-throw the original error
+      throw error;
     }
 
     // Determine configured services

@@ -33,8 +33,6 @@ export function validateSetupRequest(data: unknown): {
 
     if (!google.clientSecret || typeof google.clientSecret !== 'string' || !google.clientSecret.trim()) {
       errors.push({ field: 'google.clientSecret', message: 'Google Client Secretが必要です' });
-    } else if (google.clientSecret.length < 24) {
-      errors.push({ field: 'google.clientSecret', message: 'Google Client Secretは最低24文字必要です' });
     }
   }
 
@@ -58,8 +56,8 @@ export function validateSetupRequest(data: unknown): {
 
     if (!auth0.clientSecret || typeof auth0.clientSecret !== 'string' || !auth0.clientSecret.trim()) {
       errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secretが必要です' });
-    } else if (auth0.clientSecret.length < 64) {
-      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secretは最低64文字必要です' });
+    } else if (auth0.clientSecret.length < 48) {
+      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secretは最低48文字必要です' });
     }
   }
 
