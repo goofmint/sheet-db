@@ -38,7 +38,7 @@ export class ConfigService {
     const configs = await this.db.select().from(configTable);
     this.configCache.clear();
     
-    for (const config of configs) {
+    for (const config of configs as Config[]) {
       this.configCache.set(config.key, config);
     }
   }
@@ -170,7 +170,7 @@ export class ConfigService {
       })
       .returning();
 
-    const updated = result[0];
+    const updated = result[0] as Config;
     
     // Update cache
     this.configCache.set(key, updated);

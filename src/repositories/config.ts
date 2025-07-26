@@ -30,18 +30,20 @@ export class ConfigRepository extends AbstractBaseRepository<Config, ConfigInser
       .where(eq(configTable.id, id))
       .limit(1);
     
-    return result[0] || null;
+    return (result[0] as Config) || null;
   }
 
   /**
    * Find all configs with optional pagination
    */
   async findAll(limit = 100, offset = 0): Promise<Config[]> {
-    return await this.db
+    const result = await this.db
       .select()
       .from(configTable)
       .limit(limit)
       .offset(offset);
+    
+    return result as Config[];
   }
 
   /**
@@ -65,7 +67,7 @@ export class ConfigRepository extends AbstractBaseRepository<Config, ConfigInser
     // Use ConfigService.upsert to maintain cache consistency
     const updatedValue = data.value ?? current.value;
     const updatedType = data.type ?? current.type;
-    const updatedDescription = data.description ?? current.description;
+    const updatedDescription = data.description ?? current.description ?? undefined;
 
     return await ConfigService.upsert(current.key, updatedValue, updatedType, updatedDescription);
   }

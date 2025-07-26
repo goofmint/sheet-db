@@ -1,4 +1,4 @@
-import { eq, lt } from 'drizzle-orm';
+import { eq, lt, count } from 'drizzle-orm';
 import { AbstractBaseRepository } from './base';
 import { 
   cacheTable, 
@@ -210,8 +210,8 @@ export class CacheRepository extends AbstractBaseRepository<Cache, CacheInsert, 
     const now = new Date().toISOString();
     
     const [totalResult, expiredResult] = await Promise.all([
-      this.db.select({ count: 'COUNT(*)' }).from(cacheTable),
-      this.db.select({ count: 'COUNT(*)' }).from(cacheTable).where(lt(cacheTable.expires_at, now))
+      this.db.select({ count: count() }).from(cacheTable),
+      this.db.select({ count: count() }).from(cacheTable).where(lt(cacheTable.expires_at, now))
     ]);
 
     return {

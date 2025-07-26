@@ -46,7 +46,7 @@ describe('Error Handlers', () => {
       });
 
       const response = await app.request('/test');
-      const body = await response.json();
+      const body = await response.json() as any;
 
       expect(response.status).toBe(400);
       expect(body.error.code).toBe('BAD_REQUEST');
@@ -63,7 +63,7 @@ describe('Error Handlers', () => {
       });
 
       const response = await app.request('/test');
-      const body = await response.json();
+      const body = await response.json() as any;
 
       expect(response.status).toBe(500);
       expect(body.error.code).toBe('INTERNAL_SERVER_ERROR');
@@ -83,7 +83,7 @@ describe('Error Handlers', () => {
       });
 
       const response = await app.request('/test');
-      const body = await response.json();
+      const body = await response.json() as any;
 
       expect(response.status).toBe(401);
       expect(body.error.code).toBe('UNAUTHORIZED');
@@ -100,7 +100,7 @@ describe('Error Handlers', () => {
       app.notFound(createNotFoundHandler());
 
       const response = await app.request('/nonexistent');
-      const body = await response.json();
+      const body = await response.json() as any;
 
       expect(response.status).toBe(404);
       expect(body.error.code).toBe('NOT_FOUND');
