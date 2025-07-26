@@ -59,7 +59,8 @@
       "Bash(npx vitest test:*)",
       "Bash(npx wrangler d1 create:*)",
       "Bash(gh pr create:*)",
-      "Bash(git cherry-pick:*)"
+      "Bash(git cherry-pick:*)",
+      "Bash(npx tsx:*)"
     ],
     "deny": []
   }
