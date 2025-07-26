@@ -83,17 +83,19 @@ interface SetupStatusResponse {
 ```typescript
 // セットアップ状態に応じたアクセス制御
 const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
-const configPassword = c.req.header('X-CONFIG');
+const authHeader = c.req.header('Authorization');
 
 if (isSetupCompleted) {
   // セットアップ完了時：config_password認証が必要
   const storedPassword = ConfigService.getString('app.config_password');
   
-  if (!configPassword || configPassword !== storedPassword) {
+  // Bearer {config_password} 形式で認証
+  const token = authHeader?.replace('Bearer ', '');
+  if (!token || token !== storedPassword) {
     return c.json({ 
       error: { 
         code: 'AUTHENTICATION_REQUIRED',
-        message: 'X-CONFIG header required for setup information access' 
+        message: 'Authorization header with Bearer token required for setup information access' 
       } 
     }, 401);
   }
@@ -108,7 +110,7 @@ if (isSetupCompleted) {
 
 #### 機密情報の保護
 - セットアップ未完了時：設定値を返す（初期セットアップ用）
-- セットアップ完了時：X-CONFIG認証後のみ設定値を返す（再セットアップ用）
+- セットアップ完了時：Authorization Bearer認証後のみ設定値を返す（再セットアップ用）
 - 未認証時：設定済みフラグのみ返す
 - パスワードハッシュは安全に管理（平文では返さない）
 - APIキーやシークレットは適切な認証後のみ返す
@@ -124,7 +126,9 @@ if (isSetupCompleted) {
 ```typescript
 // 設定状態の確認と値の取得
 const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
-const isAuthenticated = validateConfigPassword(c.req.header('X-CONFIG'));
+const authHeader = c.req.header('Authorization');
+const token = authHeader?.replace('Bearer ', '');
+const isAuthenticated = validateConfigPassword(token);
 
 // 認証状態に応じたデータ取得
 if (!isSetupCompleted || isAuthenticated) {
@@ -164,15 +168,16 @@ if (!isSetupCompleted || isAuthenticated) {
 ```typescript
 // セットアップ状態に応じた情報提供
 const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
-const configPassword = c.req.header('X-CONFIG');
-const isAuthenticated = isSetupCompleted ? isValidConfigPassword(configPassword) : true;
+const authHeader = c.req.header('Authorization');
+const token = authHeader?.replace('Bearer ', '');
+const isAuthenticated = isSetupCompleted ? isValidConfigPassword(token) : true;
 
 if (isSetupCompleted && !isAuthenticated) {
   // セットアップ完了時かつ未認証：エラー返却
   return c.json({ 
     error: { 
       code: 'AUTHENTICATION_REQUIRED',
-      message: 'X-CONFIG header with valid config password required for setup information access'
+      message: 'Authorization header with Bearer token required for setup information access'
     } 
   }, 401);
 }
@@ -197,7 +202,7 @@ return c.json(setupStatus);
 
 #### 単体テスト
 - セットアップ状態判定のテスト
-- X-CONFIG認証ロジックのテスト
+- Authorization Bearer認証ロジックのテスト
 - JSONレスポンス構造の検証
 - 進捗計算ロジックのテスト
 - エラーハンドリングのテスト
@@ -210,8 +215,8 @@ return c.json(setupStatus);
 #### セキュリティテスト
 - セットアップ未完了時のアクセステスト
 - セットアップ完了時の認証なしアクセステスト
-- 不正なX-CONFIGヘッダーでのアクセステスト
-- 正しいX-CONFIGヘッダーでのアクセステスト
+- 不正なAuthorizationヘッダーでのアクセステスト
+- 正しいBearer tokenでのアクセステスト
 
 ### 8. パフォーマンス考慮事項
 
@@ -234,7 +239,7 @@ return c.json(setupStatus);
 
 ### Phase 2: 機能実装
 1. ConfigServiceとの統合
-2. X-CONFIG認証ロジックの実装
+2. Authorization Bearer認証ロジックの実装
 3. 認証状態に応じたレスポンス分岐
 4. セットアップ状態分析ロジック
 5. JSON APIレスポンスの実装
@@ -265,7 +270,7 @@ return c.json(setupStatus);
 
 ### セキュリティ要件
 - [ ] セットアップ未完了時の適切なアクセス許可
-- [ ] セットアップ完了時のX-CONFIG認証実装
+- [ ] セットアップ完了時のAuthorization Bearer認証実装
 - [ ] 認証後の設定値提供（再セットアップ対応）
 - [ ] 未認証時の機密情報保護（フラグのみ）
 - [ ] 不正アクセスの適切な拒否
