@@ -76,40 +76,96 @@ describe('Setup API - GET /api/v1/setup', () => {
 
   describe('Setup completed without authentication', () => {
     beforeEach(() => {
-      // Mock setup completed state
+      // Set up completed state in ConfigService
       ConfigService.clearCache();
-      // We can't easily mock the ConfigService in this test setup
-      // This would require a more complex mock setup
+      // Add setup completed flag directly to cache
+      ConfigService['configCache'].set('app.setup_completed', {
+        id: 1,
+        key: 'app.setup_completed',
+        value: 'true',
+        type: 'string' as const,
+        description: 'Setup completion status',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      ConfigService['configCache'].set('app.config_password', {
+        id: 2,
+        key: 'app.config_password',
+        value: 'test-secret',
+        type: 'string' as const,
+        description: 'Config password',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
     });
 
     it('should require authentication when setup is completed', async () => {
-      // This test would need setup completed state mocked
-      // For now, we'll test the authentication logic separately
       const response = await app.fetch(
         new Request('http://localhost/api/v1/setup', { method: 'GET' }),
         { DB: {} as D1Database }
       );
 
-      // Since we can't easily mock setup completion, 
-      // this will return the incomplete scenario
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(401);
+      const data = await response.json() as any;
+      expect(data.error.code).toBe('AUTHENTICATION_REQUIRED');
+      expect(data.error.message).toContain('Authorization header');
     });
   });
 
   describe('Setup completed with authentication', () => {
+    beforeEach(() => {
+      // Set up completed state with known password
+      ConfigService.clearCache();
+      ConfigService['configCache'].set('app.setup_completed', {
+        id: 1,
+        key: 'app.setup_completed',
+        value: 'true',
+        type: 'string' as const,
+        description: 'Setup completion status',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      ConfigService['configCache'].set('app.config_password', {
+        id: 2,
+        key: 'app.config_password',
+        value: 'test-secret',
+        type: 'string' as const,
+        description: 'Config password',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    });
+
     it('should accept valid Bearer token', async () => {
       const response = await app.fetch(
         new Request('http://localhost/api/v1/setup', { 
           method: 'GET',
           headers: {
-            'Authorization': 'Bearer test-password'
+            'Authorization': 'Bearer test-secret'
           }
         }),
         { DB: {} as D1Database }
       );
 
-      // Since setup is not actually completed in test, this should still work
       expect(response.status).toBe(200);
+      const data = await response.json() as any;
+      expect(data.setup.isCompleted).toBe(true);
+    });
+
+    it('should reject invalid Bearer token', async () => {
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/setup', { 
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer wrong-password'
+          }
+        }),
+        { DB: {} as D1Database }
+      );
+
+      expect(response.status).toBe(401);
+      const data = await response.json() as any;
+      expect(data.error.code).toBe('AUTHENTICATION_REQUIRED');
     });
 
     it('should handle malformed Authorization header', async () => {
@@ -123,8 +179,9 @@ describe('Setup API - GET /api/v1/setup', () => {
         { DB: {} as D1Database }
       );
 
-      // Should still work since setup is not completed
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(401);
+      const data = await response.json() as any;
+      expect(data.error.code).toBe('AUTHENTICATION_REQUIRED');
     });
   });
 
