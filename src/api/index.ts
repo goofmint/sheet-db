@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { healthHandler } from './health/get';
+import { healthHandler } from './v1/health/get';
 import type { Env } from '../types';
 
 /**
@@ -46,34 +46,10 @@ api.get('/', async (c) => {
     name: 'Sheet DB API',
     version: '1.0.0',
     description: 'Backend-as-a-Service using Google Sheets as database',
-    endpoints: {
-      health: '/api/v1/health',
-      setup: '/api/v1/setup',
-      playground: '/api/v1/playground',
-      sheets: '/api/v1/sheets (coming soon)',
-    },
-    documentation: '/api/docs (coming soon)',
     timestamp: new Date().toISOString(),
   });
 });
 
-// API 404 handler - more specific than global handler
-api.notFound((c) => {
-  return c.json({
-    error: {
-      code: 'API_ENDPOINT_NOT_FOUND',
-      message: `API endpoint not found: ${c.req.method} ${c.req.path}`,
-    },
-    timestamp: new Date().toISOString(),
-    path: c.req.path,
-    method: c.req.method,
-    availableEndpoints: [
-      'GET /api',
-      'GET /api/v1/health',
-      // Add more as they are implemented
-    ],
-  }, 404);
-});
 
 export { api };
 export default api;

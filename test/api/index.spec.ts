@@ -21,8 +21,6 @@ describe('API Router', () => {
       expect(data.name).toBe('Sheet DB API');
       expect(data.version).toBe('1.0.0');
       expect(data.description).toBeDefined();
-      expect(data.endpoints).toBeDefined();
-      expect(data.endpoints.health).toBe('/api/v1/health');
       expect(data.timestamp).toBeDefined();
     });
   });
@@ -120,14 +118,7 @@ describe('API Router', () => {
       expect(data).toHaveProperty('name');
       expect(data).toHaveProperty('version');
       expect(data).toHaveProperty('description');
-      expect(data).toHaveProperty('endpoints');
       expect(data).toHaveProperty('timestamp');
-      
-      // Check endpoints structure
-      expect(typeof data.endpoints).toBe('object');
-      expect(data.endpoints.health).toBeDefined();
-      expect(data.endpoints.setup).toBeDefined();
-      expect(data.endpoints.playground).toBeDefined();
     });
   });
 });

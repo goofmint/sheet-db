@@ -20,22 +20,6 @@ describe('Main Application', () => {
     });
   });
 
-  describe('GET /health', () => {
-    it('should return health status', async () => {
-      const response = await app.fetch(
-        new Request('http://localhost/health', { method: 'GET' }),
-        { DB: {} as D1Database }
-      );
-      
-      expect(response.status).toBe(200);
-      
-      const data = await response.json() as any;
-      expect(data.status).toBe('healthy');
-      expect(data.service).toBe('sheetDB');
-      expect(data.version).toBe('1.0.0');
-      expect(data.timestamp).toBeDefined();
-    });
-  });
 
   describe('GET /setup', () => {
     it('should return setup page', async () => {
@@ -80,7 +64,6 @@ describe('Main Application', () => {
       
       const data = await response.json() as any;
       expect(data.name).toBe('Sheet DB API');
-      expect(data.endpoints).toBeDefined();
     });
 
     it('should serve health check via API route', async () => {
@@ -96,25 +79,5 @@ describe('Main Application', () => {
       expect(data.service).toBe('sheetDB');
     });
 
-    it('should maintain backward compatibility with legacy routes', async () => {
-      const legacyResponse = await app.fetch(
-        new Request('http://localhost/health', { method: 'GET' }),
-        { DB: {} as D1Database }
-      );
-      
-      const apiResponse = await app.fetch(
-        new Request('http://localhost/api/v1/health', { method: 'GET' }),
-        { DB: {} as D1Database }
-      );
-      
-      expect(legacyResponse.status).toBe(200);
-      expect(apiResponse.status).toBe(200);
-      
-      const legacyData = await legacyResponse.json();
-      const apiData = await apiResponse.json();
-      
-      // Both should return the same health data
-      expect(legacyData).toEqual(apiData);
-    });
   });
 });

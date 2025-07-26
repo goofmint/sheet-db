@@ -5,7 +5,6 @@ import { drizzle } from 'drizzle-orm/d1';
 import { createErrorHandler, createNotFoundHandler } from './lib/error-handlers';
 import { ConfigService } from './services/config';
 import { api } from './api';
-import { healthHandler } from './api/health/get';
 import { setupHandler } from './setup';
 import { playgroundHandler } from './playground';
 import type { Env } from './types';
@@ -46,8 +45,7 @@ app.get('/', async (c) => {
 // API routes
 app.route('/api', api);
 
-// Legacy routes (for backward compatibility)
-app.get('/health', healthHandler);
+// Non-API routes
 app.get('/setup', setupHandler);
 app.get('/playground', playgroundHandler);
 

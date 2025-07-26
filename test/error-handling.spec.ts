@@ -21,7 +21,7 @@ describe('Error Handling Integration', () => {
 
   it('should test actual app existing routes work', async () => {
     const response = await app.fetch(
-      new Request('http://localhost/health'),
+      new Request('http://localhost/api/v1/health'),
       { DB: {} as D1Database }
     );
     
