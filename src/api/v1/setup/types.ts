@@ -42,3 +42,69 @@ export interface SetupErrorResponse {
     message: string;
   };
 }
+
+// POST API Types
+export interface SetupRequest {
+  google: {
+    clientId: string;
+    clientSecret: string;
+  };
+  auth0: {
+    domain: string;
+    clientId: string;
+    clientSecret: string;
+  };
+  app: {
+    configPassword: string;
+  };
+  database?: {
+    url?: string;
+  };
+}
+
+export interface SetupSuccessResponse {
+  success: true;
+  message: string;
+  setup: {
+    isCompleted: true;
+    completedAt: string;
+    configuredServices: string[];
+  };
+  timestamp: string;
+}
+
+export interface SetupValidationErrorResponse {
+  error: {
+    code: "VALIDATION_ERROR";
+    message: string;
+    details: {
+      field: string;
+      message: string;
+    }[];
+  };
+  timestamp: string;
+}
+
+export interface SetupAuthErrorResponse {
+  error: {
+    code: "AUTHENTICATION_REQUIRED";
+    message: string;
+  };
+  timestamp: string;
+}
+
+export interface SetupConflictErrorResponse {
+  error: {
+    code: "SETUP_ALREADY_COMPLETED" | "INVALID_CREDENTIALS";
+    message: string;
+  };
+  timestamp: string;
+}
+
+export interface SetupServerErrorResponse {
+  error: {
+    code: "INTERNAL_ERROR";
+    message: string;
+  };
+  timestamp: string;
+}
