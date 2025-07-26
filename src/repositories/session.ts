@@ -1,4 +1,4 @@
-import { eq, lt } from 'drizzle-orm';
+import { eq, lt, desc } from 'drizzle-orm';
 import { AbstractBaseRepository } from './base';
 import { 
   sessionTable, 
@@ -222,13 +222,13 @@ export class SessionRepository extends AbstractBaseRepository<Session, SessionIn
       .select()
       .from(sessionTable)
       .where(eq(sessionTable.user_id, userId))
-      .orderBy(sessionTable.created_at);
+      .orderBy(desc(sessionTable.created_at));
 
     if (sessions.length <= keepCount) {
       return 0;
     }
 
-    const sessionsToDelete = sessions.slice(0, sessions.length - keepCount);
+    const sessionsToDelete = sessions.slice(keepCount);
     let deletedCount = 0;
 
     for (const session of sessionsToDelete) {

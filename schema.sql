@@ -57,7 +57,7 @@ CREATE TRIGGER update_config_updated_at
     FOR EACH ROW
     WHEN NEW.updated_at = OLD.updated_at OR NEW.updated_at IS NULL
     BEGIN
-        SELECT NEW.updated_at := CURRENT_TIMESTAMP;
+        UPDATE Config SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
     END;
 
 CREATE TRIGGER update_cache_updated_at 
@@ -65,7 +65,7 @@ CREATE TRIGGER update_cache_updated_at
     FOR EACH ROW
     WHEN NEW.updated_at = OLD.updated_at OR NEW.updated_at IS NULL
     BEGIN
-        SELECT NEW.updated_at := CURRENT_TIMESTAMP;
+        UPDATE Cache SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
     END;
 
 CREATE TRIGGER update_session_updated_at 
@@ -73,7 +73,7 @@ CREATE TRIGGER update_session_updated_at
     FOR EACH ROW
     WHEN NEW.updated_at = OLD.updated_at OR NEW.updated_at IS NULL
     BEGIN
-        SELECT NEW.updated_at := CURRENT_TIMESTAMP;
+        UPDATE Session SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
     END;
 
 -- Initial configuration data

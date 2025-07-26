@@ -5,8 +5,9 @@
  * Executes schema.sql against Cloudflare D1 database
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -100,16 +101,32 @@ class DatabaseMigrator {
   }
 
   /**
-   * Execute a single SQL statement
+   * Execute a single SQL statement using temporary file to prevent command injection
    */
   private async executeStatement(statement: string): Promise<void> {
     const localFlag = this.options.local ? '--local' : '';
-    const command = `npx wrangler d1 execute ${this.options.databaseName} ${localFlag} --command="${statement.replace(/"/g, '\\"')}"`;
     
-    const { stdout, stderr } = await execAsync(command);
+    // Create temporary file with SQL statement
+    const tempFilePath = join(tmpdir(), `migration-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.sql`);
     
-    if (stderr && !stderr.includes('🌀') && !stderr.includes('⚡')) {
-      console.warn('⚠️ Warning:', stderr);
+    try {
+      // Write SQL statement to temporary file
+      writeFileSync(tempFilePath, statement, 'utf8');
+      
+      // Execute wrangler command referencing the file
+      const command = `npx wrangler d1 execute ${this.options.databaseName} ${localFlag} --file="${tempFilePath}"`;
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr && !stderr.includes('🌀') && !stderr.includes('⚡')) {
+        console.warn('⚠️ Warning:', stderr);
+      }
+    } finally {
+      // Clean up temporary file
+      try {
+        unlinkSync(tempFilePath);
+      } catch (cleanupError) {
+        console.warn(`Failed to clean up temporary file ${tempFilePath}:`, cleanupError);
+      }
     }
   }
 
@@ -186,6 +203,7 @@ async function main(): Promise<void> {
       case '--help':
         printHelp();
         process.exit(0);
+        break;
       default:
         console.error(`Unknown argument: ${args[i]}`);
         printHelp();
