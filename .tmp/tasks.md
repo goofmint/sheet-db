@@ -5,8 +5,8 @@
 ### 1.1 プロジェクト構造のセットアップ
 - [x] src/index.tsの作成（メインエントリーポイント）
 - [x] src/types/index.tsの作成（型定義）
-- [ ] src/config/index.tsの作成（設定管理）
-- [ ] src/utils/logger.tsの作成（ログユーティリティ）
+- [x] src/config/index.tsの作成（設定管理）
+- [x] src/utils/logger.tsの作成（ログユーティリティ）
 - [ ] src/middleware/error-handler.tsの作成（エラーハンドリング）
 
 ### 1.2 D1データベーススキーマの実装
