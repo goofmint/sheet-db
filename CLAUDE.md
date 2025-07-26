@@ -117,6 +117,13 @@ Tests are configured to run against Cloudflare Workers runtime using `@cloudflar
    - Split different scenarios into separate tests
    - This ensures all code paths are tested
 
+8. **NEVER Create Test-Only Objects**
+   - NEVER create `testApp`, `mockApp`, or any test-specific applications
+   - ALWAYS test the actual application imported from `src/index.ts`
+   - If you need specific endpoints for testing, add them to the actual app temporarily
+   - Test-only objects don't guarantee production behavior
+   - The goal is to test what actually runs in production
+
 **Example of what NOT to do:**
 ```typescript
 // BAD: Hiding failures with fallback
@@ -142,6 +149,11 @@ it('should handle response', async () => {
     expect(response.status).toBe(404); // This branch might never be tested
   }
 });
+
+// BAD: Creating test-only applications
+const testApp = new Hono(); // This doesn't test the real app!
+testApp.onError(/* some handler */);
+const response = await testApp.request('/test'); // Not testing production code
 ```
 
 **Example of correct approach:**
@@ -168,6 +180,10 @@ beforeAll(async () => {
   const auth0Config = getAuth0Config();
   expect(auth0Config).toBeDefined(); // Fails if not configured
 });
+
+// GOOD: Test the actual application
+import app from '../src/index'; // Import the real app
+const response = await app.fetch(new Request('http://localhost/api/test')); // Test real behavior
 ```
 
 ## Database Schema Updates
