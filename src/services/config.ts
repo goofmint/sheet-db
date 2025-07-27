@@ -219,7 +219,12 @@ export class ConfigService {
       'storage.r2.accessKeyId': 'R2 access key ID',
       'storage.r2.secretAccessKey': 'R2 secret access key',
       'storage.r2.endpoint': 'R2 endpoint URL',
-      'storage.gdrive.folderId': 'Google Drive folder ID'
+      'storage.gdrive.folderId': 'Google Drive folder ID',
+      
+      // File upload settings
+      'upload.enabled': 'Enable or disable file upload functionality',
+      'upload.max_file_size': 'Maximum file size for uploads in bytes',
+      'upload.allowed_types': 'List of allowed MIME types for file uploads'
     };
 
     // Return specific description or generate one based on key pattern

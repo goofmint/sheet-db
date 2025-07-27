@@ -102,33 +102,35 @@ if (!allowedTypes.includes(file.type)) {
 }
 ```
 
-### 4. レースコンディション対策
+### 4. レースコンディション対策（Config設定のみ）
 
-#### 問題
-- ユーザー作成時のemail重複チェックが非原子的
-- 同時リクエストで重複レコードが作成される可能性
-
-#### 解決策
 ```typescript
-// 一意制約バリデーション
-protected async validateUniqueConstraints(data: Partial<T>, excludeId?: string): Promise<void> {
-  const uniqueColumns = allColumns.filter(col => col.unique);
-  const existingRecords = await this.findAll();
-  
-  for (const column of uniqueColumns) {
-    const existing = existingRecords.find(record => {
-      if (excludeId && record.id === excludeId) return false;
-      return (record as any)[column.name] === value;
-    });
-    
-    if (existing) {
-      const error = new Error(`${column.name} must be unique`) as any;
-      error.status = 409;
-      throw error;
+// src/services/config.ts
+import { ConfigService } from './config';
+
+export class ConfigService {
+  // ...
+
+  async setAll(configs: Record<string, ConfigValue>): Promise<void> {
+    try {
+      await this.db.transaction(async (tx) => {
+        // 全ての更新を単一トランザクションで実行
+      });
+    } catch (transactionError) {
+      // トランザクション未対応環境での個別実行フォールバック
+      await this.setAllWithoutTransaction(configEntries);
     }
   }
 }
+```
 
+#### 問題
+
+- Config設定の同時更新で不整合が発生する可能性
+- D1データベースではトランザクションがサポートされている
+
+#### 解決策（ConfigServiceのみ）
+```typescript
 // トランザクション対応（フォールバック付き）
 async setAll(configs: Record<string, ConfigValue>): Promise<void> {
   try {
@@ -142,43 +144,7 @@ async setAll(configs: Record<string, ConfigValue>): Promise<void> {
 }
 ```
 
-### 5. 構造化ログシステム
-
-#### 実装
-```typescript
-// src/utils/logger.ts
-class Logger {
-  private sanitizeContext(context: Record<string, unknown>): Record<string, unknown> {
-    const sanitized = { ...context };
-    const sensitiveFields = ['accessToken', 'password', 'secret'];
-    
-    for (const field of sensitiveFields) {
-      if (sanitized[field]) {
-        const value = sanitized[field] as string;
-        sanitized[field] = value.length > 8 
-          ? `${value.slice(0, 4)}...${value.slice(-4)}`
-          : '***';
-      }
-    }
-    return sanitized;
-  }
-}
-```
-
-#### 置き換え例
-```typescript
-// Before
-console.log(`Attempting to freeze ${rowCount} rows for sheet: ${sheetName}`);
-
-// After
-logger.debug('Attempting to freeze header rows', { 
-  operation: 'freezeHeaderRows',
-  sheetName,
-  rowCount 
-});
-```
-
-### 6. 型安全性向上
+### 5. 型安全性向上
 
 #### Google OAuth トークンレスポンス
 ```typescript
@@ -195,7 +161,7 @@ interface GoogleOAuthTokenResponse {
 const tokenData = await tokenResponse.json() as GoogleOAuthTokenResponse;
 ```
 
-### 7. フロントエンド セキュリティ改善
+### 6. フロントエンド セキュリティ改善
 
 #### DOM要素の安全な取得
 ```typescript
@@ -240,6 +206,9 @@ async authenticate() {
 - 全110テストが成功
 - トランザクション機能のフォールバック動作確認
 - エラーハンドリングの適切な動作確認
+- モックは使わない
+- if文は禁止
+- テストはすべて実行され、スキップはしない
 
 ### 実装による改善点
 
@@ -250,14 +219,6 @@ async authenticate() {
 2. **インジェクション攻撃対策**
    - XSS攻撃の防止
    - 入力値の適切な検証・サニタイゼーション
-
-3. **データ整合性の向上**
-   - レースコンディション対策
-   - 原子的トランザクション実装
-
-4. **運用面でのセキュリティ向上**
-   - 構造化ログによる監査ログ
-   - 適切なエラーレスポンス
 
 ## 改善予定事項
 
@@ -281,7 +242,6 @@ Configテーブルを活用した設定管理に移行予定：
 **追加予定の設定項目:**
 - `upload.max_file_size`: ファイルサイズ上限（バイト数）
 - `upload.allowed_types`: 許可するMIMEタイプ（JSON配列）
-- `upload.enabled`: ファイルアップロード機能の有効/無効
 
 **実装予定の改善:**
 ```typescript

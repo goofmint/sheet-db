@@ -96,12 +96,13 @@ static getArray(key: string, defaultValue: any[] = []): any[] {
 }
 ```
 
-#### アップロード先ストレージの制限
+#### ストレージタイプ設定（既存）
 ```typescript
-'upload.allowed_storage_types': {
-  value: JSON.stringify(['r2', 'gdrive']),
-  type: 'json',
-  description: 'List of allowed storage types for uploads'
+// 既に存在する設定を活用
+'storage.type': {
+  value: 'r2', // または 'gdrive'
+  type: 'string',
+  description: 'File storage type'
 }
 ```
 
@@ -122,8 +123,6 @@ const maxFileSize = ConfigService.getNumber('upload.max_file_size', 10 * 1024 * 
 const allowedTypes = ConfigService.getArray('upload.allowed_types', [
   'image/jpeg', 'image/png', 'application/pdf'
 ]);
-const allowedStorageTypes = ConfigService.getArray('upload.allowed_storage_types', ['r2', 'gdrive']);
-
 // 機能有効性チェック
 if (!uploadEnabled) {
   return c.json({
@@ -132,13 +131,7 @@ if (!uploadEnabled) {
   }, 503);
 }
 
-// ストレージタイプの検証
-if (!allowedStorageTypes.includes(storageType)) {
-  return c.json({
-    error: 'Storage not allowed',
-    message: `Storage type ${storageType} is not permitted`
-  }, 403);
-}
+// ストレージタイプは既存のstorage.type設定を使用
 
 // ファイルサイズ検証
 if (file.size > maxFileSize) {
@@ -188,13 +181,7 @@ if (!allowedTypes.includes(file.type)) {
     </div>
   </div>
   
-  <div class="form-group">
-    <label for="allowed-storage">Allowed Storage Types</label>
-    <div class="checkbox-group">
-      <label><input type="checkbox" value="r2" /> Cloudflare R2</label>
-      <label><input type="checkbox" value="gdrive" /> Google Drive</label>
-    </div>
-  </div>
+  <!-- ストレージタイプは既存のstorage.type設定で管理されるため不要 -->
 </section>
 ```
 
@@ -221,13 +208,7 @@ for (const type of allowedTypes) {
   }
 }
 
-// ストレージタイプの検証
-const validStorageTypes = ['r2', 'gdrive'];
-for (const storage of allowedStorageTypes) {
-  if (!validStorageTypes.includes(storage)) {
-    throw new Error(`Invalid storage type: ${storage}`);
-  }
-}
+// ストレージタイプは既存のstorage.type設定で管理されるため追加検証は不要
 ```
 
 ## 実装ステップ
@@ -247,15 +228,25 @@ for (const storage of allowedStorageTypes) {
 2. 動的設定取得への置き換え
 3. エラーメッセージの改善
 
-### Phase 4: セットアップUIの拡張
-1. ファイルアップロード設定セクションの追加
-2. フォームバリデーションの実装
-3. 設定保存処理の更新
+### Phase 4: Config UIの作成
+
+1. Configテーブルに入っている各種値を編集できる画面
+2. 最初にパスワード認証を行う
+3. 各設定項目のUIコンポーネント作成
+4. 設定値の保存とバリデーション
+
+HTMLはTSXで作成し、HTMLをコード中に書かない。対象APIは以下の通り。
+
+- GET /api/v1/setup
+- POST /api/v1/setup
 
 ### Phase 5: テストとドキュメント
+
 1. 単体テストの追加
 2. 統合テストの更新
 3. APIドキュメントの更新
+
+モックを作らないように厳密に注意する。テストをスキップしない。
 
 ## 期待される効果
 

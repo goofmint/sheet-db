@@ -7,6 +7,15 @@ const storagesRouter = new Hono<{ Bindings: Env }>();
 // POST /api/v1/storages - Create/upload file
 storagesRouter.post('/', async (c) => {
   try {
+    // Check if upload is enabled
+    const uploadEnabled = ConfigService.getBoolean('upload.enabled', true);
+    if (!uploadEnabled) {
+      return c.json({
+        error: 'Upload disabled',
+        message: 'File upload functionality is currently disabled'
+      }, 503);
+    }
+
     // Get storage configuration
     const storageType = ConfigService.getString('storage.type');
     
@@ -28,8 +37,8 @@ storagesRouter.post('/', async (c) => {
       }, 400);
     }
 
-    // File size validation (10MB limit)
-    const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+    // File size validation (dynamic from config)
+    const maxFileSize = ConfigService.getNumber('upload.max_file_size', 10 * 1024 * 1024); // Default 10MB
     if (file.size > maxFileSize) {
       return c.json({
         error: 'File too large',
@@ -37,8 +46,8 @@ storagesRouter.post('/', async (c) => {
       }, 413);
     }
 
-    // File type validation
-    const allowedTypes = [
+    // File type validation (dynamic from config)
+    const defaultAllowedTypes = [
       'image/jpeg',
       'image/png', 
       'image/gif',
@@ -50,6 +59,7 @@ storagesRouter.post('/', async (c) => {
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
+    const allowedTypes = ConfigService.getJson<string[]>('upload.allowed_types', defaultAllowedTypes);
 
     if (!allowedTypes.includes(file.type)) {
       return c.json({

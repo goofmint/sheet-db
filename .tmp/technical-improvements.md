@@ -5,57 +5,10 @@
 
 ## 実装した技術的改善
 
-### 1. 構造化ログシステム
 
-#### 機能
-- ログレベル管理（DEBUG, INFO, WARN, ERROR）
-- 環境別設定（開発/本番）
-- 機密情報の自動マスキング
-- 子ログによるコンテキスト管理
+### 1. データベース操作の改善
 
-#### 実装例
-```typescript
-// src/utils/logger.ts
-export class Logger {
-  private minLogLevel: LogLevel;
-  private isProduction: boolean;
-
-  constructor() {
-    this.isProduction = process.env.NODE_ENV === 'production';
-    this.minLogLevel = this.isProduction ? LogLevel.INFO : LogLevel.DEBUG;
-  }
-
-  private sanitizeContext(context: Record<string, unknown>): Record<string, unknown> {
-    // 機密フィールドの自動マスキング
-    const sensitiveFields = ['accessToken', 'password', 'token'];
-    // ...
-  }
-
-  child(context: Record<string, unknown>): ChildLogger {
-    return new ChildLogger(this, context);
-  }
-}
-```
-
-#### 使用例
-```typescript
-// Before
-console.log(`Attempting to freeze ${rowCount} rows for sheet: ${sheetName}`);
-console.error(`Failed to freeze header rows: ${error}`);
-
-// After
-const sheetLogger = logger.child({ 
-  operation: 'freezeHeaderRows', 
-  sheetName, 
-  rowCount 
-});
-sheetLogger.debug('Attempting to freeze header rows');
-sheetLogger.error('Failed to freeze header rows', error, { status: response.status });
-```
-
-### 2. データベース操作の改善
-
-#### トランザクション対応
+#### トランザクション対応（ConfigServiceのみ）
 ```typescript
 static async setAll(configs: ConfigRecord): Promise<void> {
   const useTransaction = typeof this.db.transaction === 'function';
@@ -75,29 +28,8 @@ static async setAll(configs: ConfigRecord): Promise<void> {
 }
 ```
 
-#### 一意制約の動的検証
-```typescript
-protected async validateUniqueConstraints(data: Partial<T>, excludeId?: string): Promise<void> {
-  const allColumns = [...DEFAULT_COLUMNS, ...this.config.columns];
-  const uniqueColumns = allColumns.filter(col => col.unique);
-  
-  for (const column of uniqueColumns) {
-    const existing = existingRecords.find(record => {
-      if (excludeId && record.id === excludeId) return false;
-      return (record as any)[column.name] === value;
-    });
-    
-    if (existing) {
-      const error = new Error(`${column.name} must be unique`) as any;
-      error.status = 409;
-      error.field = column.name;
-      throw error;
-    }
-  }
-}
-```
 
-### 3. Google Sheets API操作の修正
+### 2. Google Sheets API操作の修正
 
 #### 動的シートID取得
 ```typescript
@@ -143,7 +75,7 @@ private escapeSheetName(sheetName: string): string {
 }
 ```
 
-### 4. 型安全性の向上
+### 3. 型安全性の向上
 
 #### Google OAuth レスポンス
 ```typescript
@@ -174,7 +106,7 @@ export interface Env {
 }
 ```
 
-### 5. 設定管理の改善
+### 4. 設定管理の改善
 
 #### 動的説明生成
 ```typescript
@@ -238,7 +170,7 @@ private static validateConfigs(configs: unknown): asserts configs is ConfigRecor
 }
 ```
 
-### 6. フロントエンド改善
+### 5. フロントエンド改善
 
 #### DOM要素の安全な管理
 ```typescript
@@ -279,7 +211,7 @@ switch (field.name) {
 }
 ```
 
-### 7. ファイルアップロード検証
+### 6. ファイルアップロード検証
 
 #### 包括的検証
 ```typescript
