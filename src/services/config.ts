@@ -293,44 +293,72 @@ export class ConfigService {
     const configEntries = Object.entries(configs);
 
     try {
-      // Use Drizzle transaction for atomicity
-      await this.db.transaction(async (tx) => {
-        const now = new Date().toISOString();
-        
-        for (const [key, config] of configEntries) {
-          const description = this.getConfigDescription(key);
-          const type = config.type || 'string';
-          
-          // Perform upsert within transaction
-          const existing = await tx.select().from(configTable).where(eq(configTable.key, key)).limit(1);
-          
-          if (existing.length > 0) {
-            // Update existing
-            await tx.update(configTable)
-              .set({
-                value: config.value,
-                type: type,
-                description: description,
-                updated_at: now
-              })
-              .where(eq(configTable.key, key));
-          } else {
-            // Insert new
-            await tx.insert(configTable).values({
-              key: key,
-              value: config.value,
-              type: type,
-              description: description
-            });
-          }
+      // Try to use Drizzle transaction for atomicity, fallback to individual operations
+      const useTransaction = typeof this.db.transaction === 'function';
+      
+      if (useTransaction) {
+        try {
+          await this.db.transaction(async (tx) => {
+            const now = new Date().toISOString();
+            
+            for (const [key, config] of configEntries) {
+              const description = this.getConfigDescription(key);
+              const type = config.type || 'string';
+              
+              // Perform upsert within transaction
+              const existing = await tx.select().from(configTable).where(eq(configTable.key, key)).limit(1);
+              
+              if (existing.length > 0) {
+                // Update existing
+                await tx.update(configTable)
+                  .set({
+                    value: config.value,
+                    type: type,
+                    description: description,
+                    updated_at: now
+                  })
+                  .where(eq(configTable.key, key));
+              } else {
+                // Insert new
+                await tx.insert(configTable).values({
+                  key: key,
+                  value: config.value,
+                  type: type,
+                  description: description
+                });
+              }
+            }
+          });
+        } catch (transactionError) {
+          // If transaction fails, fall back to individual operations
+          console.warn('Transaction not supported, falling back to individual operations');
+          await this.setAllWithoutTransaction(configEntries);
         }
-      });
+      } else {
+        // Environment doesn't support transactions, use fallback
+        await this.setAllWithoutTransaction(configEntries);
+      }
 
-      // Update cache after successful transaction
+      // Update cache after successful operations
       await this.refreshCache();
       
     } catch (error) {
       throw new Error(`Failed to update configs: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Fallback method for environments that don't support transactions
+   */
+  private static async setAllWithoutTransaction(configEntries: Array<[string, { value: string; type?: ConfigType }]>): Promise<void> {
+    const now = new Date().toISOString();
+    
+    for (const [key, config] of configEntries) {
+      const description = this.getConfigDescription(key);
+      const type = config.type || 'string';
+      
+      // Perform individual upsert operations
+      await this.upsert(key, config.value, type, description);
     }
   }
 
