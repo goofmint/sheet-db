@@ -2,6 +2,7 @@ import { Context } from 'hono';
 import { html } from 'hono/html';
 import { ConfigService } from '../../services/config';
 import SheetSelectionTemplate from '../../templates/sheet-selection';
+import { constantTimeEquals } from '../../utils/security';
 
 export async function sheetSelectHandler(c: Context) {
   const accessToken = c.req.query('accessToken');
@@ -26,7 +27,7 @@ export async function sheetSelectHandler(c: Context) {
       const formData = await c.req.formData();
       const submittedPassword = formData.get('password') as string;
       
-      if (submittedPassword !== configPassword) {
+      if (!constantTimeEquals(submittedPassword || '', configPassword || '')) {
         return c.html(html`${SheetSelectionTemplate({ 
           accessToken, 
           configPassword, 

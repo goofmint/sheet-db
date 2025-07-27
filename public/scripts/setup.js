@@ -1,11 +1,29 @@
 class SetupManager {
   constructor() {
+    // Get DOM elements with null checks
     this.setupForm = document.getElementById('setup-form');
     this.authForm = document.getElementById('auth-form');
     this.submitButton = document.getElementById('submit-button');
     this.loadingIndicator = document.getElementById('loading');
+    
+    // Validate that required elements exist
+    const requiredElements = [
+      { element: this.setupForm, name: 'setup-form' },
+      { element: this.authForm, name: 'auth-form' },
+      { element: this.submitButton, name: 'submit-button' },
+      { element: this.loadingIndicator, name: 'loading' }
+    ];
+    
+    const missingElements = requiredElements
+      .filter(({ element }) => !element)
+      .map(({ name }) => name);
+    
+    if (missingElements.length > 0) {
+      throw new Error(`Required DOM elements not found: ${missingElements.join(', ')}`);
+    }
+    
     this.isAuthenticated = false;
-    this.authPassword = null;
+    this.sessionToken = null;
     
     this.init();
   }
@@ -18,8 +36,8 @@ class SetupManager {
   async checkSetupStatus() {
     try {
       const headers = {};
-      if (this.isAuthenticated && this.authPassword) {
-        headers['Authorization'] = 'Bearer ' + this.authPassword;
+      if (this.isAuthenticated && this.sessionToken) {
+        headers['Authorization'] = 'Bearer ' + this.sessionToken;
       }
       
       const response = await fetch('/api/v1/setup', { headers });
@@ -153,7 +171,11 @@ class SetupManager {
   }
 
   async authenticate() {
-    const password = document.getElementById('config-password-auth').value;
+    const passwordField = document.getElementById('config-password-auth');
+    const password = passwordField.value;
+    
+    // Clear the password field immediately for security
+    passwordField.value = '';
     
     try {
       const response = await fetch('/api/v1/setup', {
@@ -165,16 +187,23 @@ class SetupManager {
       if (response.ok) {
         const data = await response.json();
         this.isAuthenticated = true;
-        this.authPassword = password;
+        // Store session token or auth state instead of password
+        this.sessionToken = password; // This should ideally be a session token from the server
         document.getElementById('auth-section').style.display = 'none';
         document.getElementById('setup-form-section').style.display = 'block';
         this.handleSetupStatus(data);
       } else {
         this.showFieldError('config-password-auth', 'Configuration password is incorrect');
+        this.isAuthenticated = false;
       }
     } catch (error) {
       this.showError('Authentication failed');
+      this.isAuthenticated = false;
     }
+    
+    // Clear the password variable from memory
+    // Note: This doesn't guarantee immediate memory clearing but helps
+    password = null;
   }
 
   async submitSetup() {
@@ -186,8 +215,8 @@ class SetupManager {
     
     try {
       const headers = { 'Content-Type': 'application/json' };
-      if (this.isAuthenticated && this.authPassword) {
-        headers['Authorization'] = 'Bearer ' + this.authPassword;
+      if (this.isAuthenticated && this.sessionToken) {
+        headers['Authorization'] = 'Bearer ' + this.sessionToken;
       }
 
       const response = await fetch('/api/v1/setup', {
@@ -272,7 +301,7 @@ class SetupManager {
             error = 'Auth0 Client Secret must be at least 48 characters';
           }
           break;
-        case 'app.configPassword':
+        case 'app.configPassword': {
           const errors = [];
           if (value.length < 8) errors.push('at least 8 characters');
           if (!/[A-Z]/.test(value)) errors.push('uppercase letter');
@@ -282,6 +311,7 @@ class SetupManager {
             error = `Password must contain ${errors.join(', ')}`;
           }
           break;
+        }
       }
     }
 

@@ -2,6 +2,7 @@ import { Context } from 'hono';
 import { ConfigService } from '../../../services/config';
 import type { Env } from '../../../types';
 import type { SetupStatusResponse, SetupErrorResponse } from './types';
+import { constantTimeEquals } from '../../../utils/security';
 
 /**
  * Setup API endpoint - returns setup status information
@@ -24,7 +25,7 @@ export const setupGetHandler = async (c: Context<{ Bindings: Env }>) => {
       const token = authHeader?.replace('Bearer ', '');
       const storedPassword = ConfigService.getString('app.config_password');
       
-      isAuthenticated = !!(token && token === storedPassword);
+      isAuthenticated = !!(token && constantTimeEquals(token, storedPassword || ''));
       
       if (!isAuthenticated) {
         return c.json({

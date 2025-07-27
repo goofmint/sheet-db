@@ -176,7 +176,7 @@ export default function SheetSelectionTemplate({ accessToken, configPassword, is
                   <button type="submit" className="btn btn-primary">
                     Authenticate
                   </button>
-                  <button type="button" className="btn btn-secondary" onclick="window.close()">
+                  <button type="button" className="btn btn-secondary" id="cancel-auth-btn">
                     Cancel
                   </button>
                 </form>
@@ -198,7 +198,7 @@ export default function SheetSelectionTemplate({ accessToken, configPassword, is
                 <button id="select-btn" className="btn btn-primary" disabled>
                   Select Sheet
                 </button>
-                <button className="btn btn-secondary" onclick="window.close()">
+                <button className="btn btn-secondary" id="cancel-success-btn">
                   Cancel
                 </button>
               </div>
@@ -207,14 +207,17 @@ export default function SheetSelectionTemplate({ accessToken, configPassword, is
         </div>
 
         {(!isSetupCompleted || isAuthenticated) && (
-          <script dangerouslySetInnerHTML={{
-            __html: `
-              const accessToken = '${accessToken}';
-              const configPassword = '${configPassword}';
-              let selectedSheetId = null;
+          <>
+            <div id="auth-data" style="display: none;" data-access-token={accessToken} data-config-password={configPassword}></div>
+            <script dangerouslySetInnerHTML={{
+              __html: `
+                let selectedSheetId = null;
 
               async function loadSheets() {
                 try {
+                  const authData = document.getElementById('auth-data');
+                  const accessToken = authData.dataset.accessToken;
+                  
                   const response = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent('mimeType="application/vnd.google-apps.spreadsheet"') + '&fields=files(id,name,webViewLink)', {
                     headers: {
                       'Authorization': 'Bearer ' + accessToken
@@ -242,12 +245,33 @@ export default function SheetSelectionTemplate({ accessToken, configPassword, is
                   return;
                 }
 
-                listElement.innerHTML = sheets.map(sheet => 
-                  '<div class="sheet-item" onclick="selectSheet(\\''+sheet.id+'\\', this)">' +
-                    '<div class="sheet-name">' + sheet.name + '</div>' +
-                    '<div class="sheet-url">' + sheet.webViewLink + '</div>' +
-                  '</div>'
-                ).join('');
+                // Clear the list
+                listElement.innerHTML = '';
+                
+                // Create sheet items using DOM methods
+                sheets.forEach(sheet => {
+                  const sheetItem = document.createElement('div');
+                  sheetItem.className = 'sheet-item';
+                  sheetItem.dataset.sheetId = sheet.id;
+                  
+                  const sheetName = document.createElement('div');
+                  sheetName.className = 'sheet-name';
+                  sheetName.textContent = sheet.name;
+                  
+                  const sheetUrl = document.createElement('div');
+                  sheetUrl.className = 'sheet-url';
+                  sheetUrl.textContent = sheet.webViewLink;
+                  
+                  sheetItem.appendChild(sheetName);
+                  sheetItem.appendChild(sheetUrl);
+                  
+                  // Add click event listener
+                  sheetItem.addEventListener('click', function() {
+                    selectSheet(sheet.id, this);
+                  });
+                  
+                  listElement.appendChild(sheetItem);
+                });
               }
 
               function selectSheet(sheetId, element) {
@@ -268,6 +292,10 @@ export default function SheetSelectionTemplate({ accessToken, configPassword, is
                 if (!selectedSheetId) return;
                 
                 try {
+                  const authData = document.getElementById('auth-data');
+                  const configPassword = authData.dataset.configPassword;
+                  const accessToken = authData.dataset.accessToken;
+                  
                   // Save selected sheet ID to backend with authentication
                   const response = await fetch('/api/v1/setup', {
                     method: 'POST',
@@ -289,10 +317,26 @@ export default function SheetSelectionTemplate({ accessToken, configPassword, is
                 }
               });
 
+              // Add event listeners for cancel buttons
+              const cancelAuthBtn = document.getElementById('cancel-auth-btn');
+              if (cancelAuthBtn) {
+                cancelAuthBtn.addEventListener('click', function() {
+                  window.close();
+                });
+              }
+              
+              const cancelSuccessBtn = document.getElementById('cancel-success-btn');
+              if (cancelSuccessBtn) {
+                cancelSuccessBtn.addEventListener('click', function() {
+                  window.close();
+                });
+              }
+
               // Load sheets on page load
               loadSheets();
             `
           }} />
+          </>
         )}
       </body>
     </html>

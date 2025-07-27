@@ -97,10 +97,13 @@ HTMLページを返却し、以下の機能を提供：
 
 ### 1. テスト可能なAPIエンドポイント情報
 自動的に利用可能なAPIエンドポイントを表示：
-- `GET /api` - API情報
-- `GET /api/v1/health` - ヘルスチェック
-- `GET /api/v1/setup` - セットアップ状態
-- `POST /api/v1/setup` - セットアップ実行
+- `GET /api` - API情報 ✅ 実装済み
+- `GET /api/v1/health` - ヘルスチェック ✅ 実装済み
+- `GET /api/v1/setup` - セットアップ状態 ✅ 実装済み
+- `POST /api/v1/setup` - セットアップ実行 ✅ 実装済み
+- `POST /api/v1/sheets` - シート作成 ✅ 実装済み
+- `GET /api/v1/playground` - プレイグラウンドページ ✅ 実装済み
+- `POST /api/v1/storages` - ファイルアップロード ✅ 実装済み
 
 このページから実際にこれらのAPIエンドポイントにHTTPリクエストを送信し、レスポンスを確認できます。
 

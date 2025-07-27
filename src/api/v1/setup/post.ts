@@ -4,6 +4,7 @@ import type { Env } from '../../../types';
 import type { SetupSuccessResponse } from './types';
 import type { ConfigType } from '../../../db/schema';
 import { validateSetupRequest } from './validators';
+import { constantTimeEquals } from '../../../utils/security';
 
 /**
  * Setup POST API endpoint - processes setup configuration
@@ -33,7 +34,7 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
         }, 401);
       }
       
-      const isAuthenticated = !!(token && token === storedPassword);
+      const isAuthenticated = !!(token && constantTimeEquals(token, storedPassword || ''));
       
       if (!isAuthenticated) {
         return c.json({

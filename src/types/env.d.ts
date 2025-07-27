@@ -1,3 +1,5 @@
+import type { Fetcher } from '@cloudflare/workers-types';
+
 // Cloudflare Workers environment bindings
 export interface Env {
   // D1 Database
@@ -13,5 +15,8 @@ export interface Env {
   
   // Logging configuration
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error';
+  
+  // Assets
+  ASSETS: Fetcher;
 }
 

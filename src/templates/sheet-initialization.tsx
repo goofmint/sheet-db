@@ -327,13 +327,18 @@ export default function SheetInitializationTemplate({ accessToken, configPasswor
         </div>
 
         {(!isSetupCompleted || isAuthenticated) && (
-          <script dangerouslySetInnerHTML={{
-          __html: `
-            const accessToken = '${accessToken}';
-            const configPassword = '${configPassword}';
-            let storageConfigured = false;
-            let roleSheetInitialized = false;
-            let userSheetInitialized = false;
+          <>
+            <div id="auth-data" style="display: none;" data-access-token={accessToken} data-config-password={configPassword}></div>
+            <script dangerouslySetInnerHTML={{
+            __html: `
+              let storageConfigured = false;
+              let roleSheetInitialized = false;
+              let userSheetInitialized = false;
+              
+              // Get auth data from data attributes
+              const authData = document.getElementById('auth-data');
+              const accessToken = authData.dataset.accessToken;
+              const configPassword = authData.dataset.configPassword;
 
             // Storage type toggle
             document.querySelectorAll('input[name="storage"]').forEach(radio => {
@@ -519,8 +524,9 @@ export default function SheetInitializationTemplate({ accessToken, configPasswor
               const statusDiv = document.getElementById('status-messages');
               statusDiv.innerHTML = \`<div class="status \${type}">\${message}</div>\`;
             }
-          `
-        }} />
+            `
+          }} />
+          </>
         )}
       </body>
     </html>

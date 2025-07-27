@@ -28,6 +28,36 @@ storagesRouter.post('/', async (c) => {
       }, 400);
     }
 
+    // File size validation (10MB limit)
+    const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxFileSize) {
+      return c.json({
+        error: 'File too large',
+        message: `File size ${Math.round(file.size / 1024 / 1024)}MB exceeds maximum limit of ${Math.round(maxFileSize / 1024 / 1024)}MB`
+      }, 413);
+    }
+
+    // File type validation
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png', 
+      'image/gif',
+      'image/webp',
+      'application/pdf',
+      'text/plain',
+      'text/csv',
+      'application/json',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      return c.json({
+        error: 'Invalid file type',
+        message: `File type ${file.type} is not allowed. Allowed types: ${allowedTypes.join(', ')}`
+      }, 415);
+    }
+
     let fileId: string;
     let fileUrl: string;
 

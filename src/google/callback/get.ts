@@ -4,6 +4,18 @@ import { ConfigService } from '../../services/config';
 import SheetSelectionTemplate from '../../templates/sheet-selection';
 import ErrorPageTemplate from '../../templates/oauth-error';
 
+/**
+ * Google OAuth 2.0 token response interface
+ */
+interface GoogleOAuthTokenResponse {
+  access_token: string;
+  expires_in: number;
+  token_type: string;
+  scope?: string;
+  refresh_token?: string;
+  id_token?: string;
+}
+
 export async function googleCallbackHandler(c: Context) {
   const code = c.req.query('code');
   const errorParam = c.req.query('error');
@@ -45,7 +57,7 @@ export async function googleCallbackHandler(c: Context) {
       throw new Error(`Token exchange failed: ${errorText}`);
     }
 
-    const tokenData = await tokenResponse.json() as any;
+    const tokenData = await tokenResponse.json() as GoogleOAuthTokenResponse;
     
     // Save access token to Config table
     await ConfigService.upsert('google.access_token', tokenData.access_token, 'string', 'Google OAuth access token');

@@ -106,9 +106,12 @@ export abstract class BaseDataService<T extends BaseRecord> {
   }
 
   /**
-   * Create new record
+   * Create new record with unique constraint validation
    */
   async create(data: Partial<T>): Promise<T> {
+    // Validate unique constraints before creation
+    await this.validateUniqueConstraints(data);
+
     const now = new Date().toISOString();
     const record = {
       ...data,
@@ -128,13 +131,16 @@ export abstract class BaseDataService<T extends BaseRecord> {
   }
 
   /**
-   * Update existing record
+   * Update existing record with unique constraint validation
    */
   async update(id: string, data: Partial<T>): Promise<T | null> {
     const existingRecord = await this.findById(id);
     if (!existingRecord) {
       return null;
     }
+
+    // Validate unique constraints before update (excluding the current record)
+    await this.validateUniqueConstraints(data, id);
 
     const updatedRecord = {
       ...existingRecord,
@@ -152,6 +158,42 @@ export abstract class BaseDataService<T extends BaseRecord> {
    */
   async delete(id: string): Promise<boolean> {
     return await this.sheetService.deleteRecord(this.config.name, id);
+  }
+
+  /**
+   * Validate unique constraints for the given data
+   */
+  protected async validateUniqueConstraints(data: Partial<T>, excludeId?: string): Promise<void> {
+    const allColumns = [...DEFAULT_COLUMNS, ...this.config.columns];
+    const uniqueColumns = allColumns.filter(col => col.unique);
+    
+    if (uniqueColumns.length === 0) {
+      return; // No unique constraints to validate
+    }
+
+    const existingRecords = await this.findAll();
+    
+    for (const column of uniqueColumns) {
+      const value = (data as any)[column.name];
+      if (value === undefined || value === null) {
+        continue; // Skip null/undefined values
+      }
+      
+      const existing = existingRecords.find(record => {
+        // Exclude the record being updated
+        if (excludeId && record.id === excludeId) {
+          return false;
+        }
+        return (record as any)[column.name] === value;
+      });
+      
+      if (existing) {
+        const error = new Error(`${column.name} must be unique. Value '${value}' already exists`) as any;
+        error.status = 409;
+        error.field = column.name;
+        throw error;
+      }
+    }
   }
 
   /**

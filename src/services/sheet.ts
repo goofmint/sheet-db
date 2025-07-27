@@ -1,4 +1,5 @@
 import { ConfigService } from './config';
+import { logger } from '../utils/logger';
 
 /**
  * Google Sheets API service
@@ -77,7 +78,10 @@ export class SheetService {
         try {
           await this.freezeHeaderRows(title, 2);
         } catch (error) {
-          console.warn(`Failed to freeze headers for ${title}, continuing anyway:`, error);
+          logger.warn(`Failed to freeze headers for ${title}, continuing anyway`, {
+            sheetName: title,
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       }
     } else {
@@ -155,7 +159,10 @@ export class SheetService {
       try {
         await this.freezeHeaderRows(sheetName, 2);
       } catch (error) {
-        console.warn(`Failed to freeze headers for ${sheetName}, continuing anyway:`, error);
+        logger.warn(`Failed to freeze headers for ${sheetName}, continuing anyway`, {
+          sheetName,
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     }
   }
@@ -359,6 +366,14 @@ export class SheetService {
    */
   async deleteRecord(sheetName: string, id: string): Promise<boolean> {
     await this.ensureInitialized();
+    
+    const deleteLogger = logger.child({
+      operation: 'deleteRecord',
+      sheetName,
+      recordId: id
+    });
+    
+    deleteLogger.debug('Starting record deletion');
 
     // Get all data to find the row index
     const escapedSheetName = this.escapeSheetName(sheetName);
@@ -396,9 +411,14 @@ export class SheetService {
     }
 
     if (rowIndex === -1) {
+      deleteLogger.warn('Record not found for deletion');
       return false;
     }
 
+    // Get the actual sheet ID for the target sheet
+    const sheetId = await this.getSheetId(sheetName);
+    deleteLogger.debug('Retrieved sheet ID for deletion', { sheetId, rowIndex });
+    
     // Delete the row using batchUpdate
     const deleteResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheetId}:batchUpdate`, {
       method: 'POST',
@@ -410,7 +430,7 @@ export class SheetService {
         requests: [{
           deleteDimension: {
             range: {
-              sheetId: 0, // TODO: Get actual sheet ID
+              sheetId: sheetId,
               dimension: 'ROWS',
               startIndex: rowIndex,
               endIndex: rowIndex + 1
@@ -420,7 +440,17 @@ export class SheetService {
       })
     });
 
-    return deleteResponse.ok;
+    if (deleteResponse.ok) {
+      deleteLogger.info('Successfully deleted record');
+      return true;
+    } else {
+      const errorText = await deleteResponse.text();
+      deleteLogger.error('Failed to delete record', undefined, {
+        status: deleteResponse.status,
+        error: errorText
+      });
+      return false;
+    }
   }
 
   /**
@@ -446,12 +476,18 @@ export class SheetService {
    * Freeze header rows in a sheet
    */
   private async freezeHeaderRows(sheetName: string, rowCount: number): Promise<void> {
+    const sheetLogger = logger.child({ 
+      operation: 'freezeHeaderRows', 
+      sheetName, 
+      rowCount 
+    });
+    
     try {
-      console.log(`Attempting to freeze ${rowCount} rows for sheet: ${sheetName}`);
+      sheetLogger.debug('Attempting to freeze header rows');
       
       // Get sheet ID first
       const sheetId = await this.getSheetId(sheetName);
-      console.log(`Sheet ID for ${sheetName}: ${sheetId}`);
+      sheetLogger.debug('Retrieved sheet ID', { sheetId });
       
       const requestBody = {
         requests: [{
@@ -467,7 +503,7 @@ export class SheetService {
         }]
       };
       
-      console.log(`Freeze request body:`, JSON.stringify(requestBody, null, 2));
+      sheetLogger.debug('Prepared freeze request');
       
       const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.spreadsheetId}:batchUpdate`, {
         method: 'POST',
@@ -480,13 +516,16 @@ export class SheetService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Failed to freeze header rows for ${sheetName}: ${response.status} ${errorText}`);
+        sheetLogger.error('Failed to freeze header rows', undefined, {
+          status: response.status,
+          error: errorText
+        });
         throw new Error(`Failed to freeze header rows: ${errorText}`);
       } else {
-        console.log(`Successfully froze ${rowCount} rows for sheet: ${sheetName}`);
+        sheetLogger.info('Successfully froze header rows');
       }
     } catch (error) {
-      console.error(`Error freezing header rows for ${sheetName}:`, error);
+      sheetLogger.error('Error freezing header rows', error instanceof Error ? error : new Error(String(error)));
       throw error; // Re-throw instead of just warning
     }
   }
@@ -516,10 +555,27 @@ export class SheetService {
   }
 
   /**
-   * Escape sheet name for Google Sheets API
+   * Escape sheet name for Google Sheets API according to A1-notation rules
+   * 
+   * Per Google Sheets A1-notation:
+   * - Sheet names containing only letters, numbers, and underscores don't need escaping
+   * - All other sheet names must be wrapped in single quotes
+   * - Single quotes within the name must be doubled (escaped as '')
    */
   private escapeSheetName(sheetName: string): string {
-    return sheetName.includes(' ') || sheetName.includes('_') || sheetName.includes("'") ? `'${sheetName}'` : sheetName;
+    // Check if the sheet name contains only safe characters (letters, numbers, underscores)
+    const safeCharactersOnly = /^[a-zA-Z0-9_]+$/.test(sheetName);
+    
+    if (safeCharactersOnly) {
+      // No escaping needed for names with only letters, numbers, and underscores
+      return sheetName;
+    }
+    
+    // Escape internal single quotes by doubling them
+    const escapedName = sheetName.replace(/'/g, "''");
+    
+    // Wrap the entire name in single quotes
+    return `'${escapedName}'`;
   }
 
   /**
