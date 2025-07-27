@@ -338,6 +338,92 @@ catch (transactionError) {
 
 ただし、これらのオーバーヘッドはセキュリティ向上の効果に比べて軽微であり、実用上問題ありません。
 
+## 改善予定事項
+
+### ファイルアップロード設定の動的管理
+
+#### 背景
+現在のファイルアップロード機能では、ファイルサイズ制限と許可ファイルタイプがハードコードされており、運用時の柔軟性に欠けています。
+
+#### 改善計画
+
+**ConfigServiceの拡張予定:**
+```typescript
+// 新規追加予定のメソッド
+static getNumber(key: string, defaultValue: number): number;
+static getArray(key: string, defaultValue: any[]): any[];
+```
+
+**設定項目の追加:**
+```typescript
+// 追加予定の設定項目
+const uploadConfigs = {
+  'upload.max_file_size': { 
+    value: '10485760', // 10MB in bytes
+    type: 'number',
+    description: 'Maximum file size for uploads in bytes'
+  },
+  'upload.allowed_types': {
+    value: JSON.stringify([
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf', 'text/plain', 'text/csv', 'application/json'
+    ]),
+    type: 'json',
+    description: 'List of allowed MIME types for file uploads'
+  },
+  'upload.enabled': {
+    value: 'true',
+    type: 'boolean', 
+    description: 'Enable or disable file upload functionality'
+  }
+};
+```
+
+**ストレージルートの改善予定:**
+```typescript
+// 改善後の実装予定
+export default async function storagesHandler(c: Context) {
+  // 機能有効性チェック
+  const uploadEnabled = ConfigService.getBoolean('upload.enabled', true);
+  if (!uploadEnabled) {
+    return c.json({ error: 'File upload is disabled' }, 503);
+  }
+
+  // 動的ファイルサイズ制限
+  const maxFileSize = ConfigService.getNumber('upload.max_file_size', 10 * 1024 * 1024);
+  if (file.size > maxFileSize) {
+    return c.json({
+      error: 'File too large',
+      message: `File size exceeds maximum limit of ${Math.round(maxFileSize / 1024 / 1024)}MB`
+    }, 413);
+  }
+
+  // 動的ファイルタイプ制限
+  const allowedTypes = ConfigService.getArray('upload.allowed_types', [
+    'image/jpeg', 'image/png', 'application/pdf'
+  ]);
+  
+  if (!allowedTypes.includes(file.type)) {
+    return c.json({
+      error: 'Invalid file type',
+      message: `File type ${file.type} is not allowed`
+    }, 415);
+  }
+}
+```
+
+**セットアップUIでの設定対応:**
+- ファイルアップロード設定セクションの追加
+- ファイルサイズ制限の入力フィールド
+- 許可ファイルタイプの選択UI
+- 機能有効/無効の切り替えスイッチ
+
+**期待される効果:**
+- 運用環境に応じた柔軟な制限調整
+- セキュリティポリシーの動的適用
+- サーバー再起動不要の設定変更
+- 管理者による直感的な設定管理
+
 ## 今後の改善計画
 
 ### 短期的改善

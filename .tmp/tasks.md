@@ -106,6 +106,7 @@
 
 ### 5.1 ファイルアップロード（R2/Google Drive）
 - [x] src/api/v1/storages/route.tsの作成（アップロード）
+- [ ] ファイルアップロード設定のConfig化（サイズ制限、許可タイプ）
 - [ ] src/api/files/$fileId/get.tsの作成（ダウンロード）
 - [ ] src/api/files/$fileId/delete.tsの作成（削除）
 - [x] src/services/storage/r2.tsの作成（R2ストレージ）

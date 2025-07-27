@@ -259,6 +259,46 @@ async authenticate() {
    - 構造化ログによる監査ログ
    - 適切なエラーレスポンス
 
+## 改善予定事項
+
+### ファイルアップロード設定の設定可能化
+
+#### 現在の問題
+現在、ファイルアップロードの制限がハードコードされており、運用時の柔軟性に欠けています：
+
+```typescript
+// 現在のハードコード実装
+const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+const allowedTypes = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf', 'text/plain', 'text/csv', 'application/json'
+];
+```
+
+#### 改善計画
+Configテーブルを活用した設定管理に移行予定：
+
+**追加予定の設定項目:**
+- `upload.max_file_size`: ファイルサイズ上限（バイト数）
+- `upload.allowed_types`: 許可するMIMEタイプ（JSON配列）
+- `upload.enabled`: ファイルアップロード機能の有効/無効
+
+**実装予定の改善:**
+```typescript
+// 予定している改善後の実装
+const maxFileSize = ConfigService.getNumber('upload.max_file_size', 10 * 1024 * 1024);
+const allowedTypes = ConfigService.getArray('upload.allowed_types', [
+  'image/jpeg', 'image/png', 'application/pdf'
+]);
+const uploadEnabled = ConfigService.getBoolean('upload.enabled', true);
+```
+
+**期待される効果:**
+- 運用環境に応じた柔軟な制限設定
+- アプリケーション再起動なしでの設定変更
+- セキュリティポリシーに応じた動的制御
+- 管理者による簡単な設定管理
+
 ## 今後の推奨事項
 
 ### 追加で検討すべきセキュリティ対策
