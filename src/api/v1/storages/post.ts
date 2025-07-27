@@ -47,20 +47,8 @@ export default async function storagesPostHandler(c: Context<{ Bindings: Env }>)
       }, 413);
     }
 
-    // File type validation (dynamic from config)
-    const defaultAllowedTypes = [
-      'image/jpeg',
-      'image/png', 
-      'image/gif',
-      'image/webp',
-      'application/pdf',
-      'text/plain',
-      'text/csv',
-      'application/json',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ];
-    const allowedTypes = ConfigService.getJson<string[]>('upload.allowed_types', defaultAllowedTypes);
+    // File type validation (from config)
+    const allowedTypes = ConfigService.getJson<string[]>('upload.allowed_types');
 
     if (!allowedTypes.includes(file.type)) {
       return c.json({
