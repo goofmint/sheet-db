@@ -15,9 +15,6 @@ describe('Setup Validators', () => {
     app: {
       configPassword: "SecurePass123!"
     },
-    database: {
-      url: "https://api.example.com/database"
-    }
   };
 
   describe('validateSetupRequest', () => {
@@ -29,19 +26,6 @@ describe('Setup Validators', () => {
       expect(result.data).toEqual(validSetupData);
     });
 
-    it('should validate request without optional database field', () => {
-      const dataWithoutDb = {
-        google: validSetupData.google,
-        auth0: validSetupData.auth0,
-        app: validSetupData.app
-      };
-      
-      const result = validateSetupRequest(dataWithoutDb);
-      
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.data).toEqual(dataWithoutDb);
-    });
 
     it('should reject null/undefined input', () => {
       const result1 = validateSetupRequest(null);
@@ -247,44 +231,6 @@ describe('Setup Validators', () => {
       });
     });
 
-    describe('Database validation', () => {
-      it('should accept valid database URLs', () => {
-        const validUrls = [
-          "https://api.example.com",
-          "http://localhost:3000",
-          "https://db.myservice.com/api/v1"
-        ];
-
-        validUrls.forEach(url => {
-          const testData = {
-            ...validSetupData,
-            database: { url }
-          };
-          
-          const result = validateSetupRequest(testData);
-          expect(result.isValid).toBe(true);
-        });
-      });
-
-      it('should reject invalid database URLs', () => {
-        const invalidUrls = [
-          "not-a-url",
-          "ftp://invalid-protocol.com",
-          "javascript:alert('xss')"
-        ];
-
-        invalidUrls.forEach(url => {
-          const invalidData = {
-            ...validSetupData,
-            database: { url }
-          };
-          
-          const result = validateSetupRequest(invalidData);
-          expect(result.isValid).toBe(false);
-          expect(result.errors.some(error => error.field === 'database.url')).toBe(true);
-        });
-      });
-    });
   });
 
   describe('validateConfigPassword', () => {

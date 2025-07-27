@@ -51,6 +51,9 @@ describe('Main Application', () => {
 
   describe('GET /playground', () => {
     it('should return playground page', async () => {
+      // Set setup as completed
+      await ConfigService.upsert('app.setup_completed', 'true', 'boolean');
+      
       const response = await app.fetch(
         new Request('http://localhost/playground', { method: 'GET' }),
         env
@@ -60,8 +63,8 @@ describe('Main Application', () => {
       expect(response.headers.get('content-type')).toContain('text/html');
       
       const html = await response.text();
-      expect(html).toContain('SheetDB Playground');
-      expect(html).toContain('API testing interface');
+      expect(html).toContain('Sheet DB Playground');
+      expect(html).toContain('Your Google Sheets API is ready');
     });
   });
 

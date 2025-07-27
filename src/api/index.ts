@@ -3,7 +3,10 @@ import { cors } from 'hono/cors';
 import { healthHandler } from './v1/health/get';
 import { setupGetHandler } from './v1/setup/get';
 import { setupPostHandler } from './v1/setup/post';
-import type { Env } from '../types';
+import { sheetsPostHandler } from './v1/sheets/post';
+import { playgroundGetHandler } from './v1/playground/get';
+import storagesRouter from './v1/storages/route';
+import type { Env } from '../types/env';
 
 /**
  * API Router - Centralized routing for all API endpoints
@@ -33,8 +36,14 @@ v1.get('/health', healthHandler);
 v1.get('/setup', setupGetHandler);
 v1.post('/setup', setupPostHandler);
 
-// Playground endpoint (to be implemented)  
-// v1.get('/playground', playgroundGetHandler);
+// Sheets endpoints
+v1.post('/sheets', sheetsPostHandler);
+
+// Storage endpoints
+v1.route('/storages', storagesRouter);
+
+// Playground endpoint
+v1.get('/playground', playgroundGetHandler);
 
 // Future endpoints for Google Sheets integration
 // v1.route('/sheets', sheetsRouter);

@@ -2,6 +2,7 @@ import { Context } from 'hono';
 import { ConfigService } from '../../../services/config';
 import type { Env } from '../../../types';
 import type { SetupStatusResponse, SetupErrorResponse } from './types';
+import { constantTimeEquals } from '../../../utils/security';
 
 /**
  * Setup API endpoint - returns setup status information
@@ -24,7 +25,7 @@ export const setupGetHandler = async (c: Context<{ Bindings: Env }>) => {
       const token = authHeader?.replace('Bearer ', '');
       const storedPassword = ConfigService.getString('app.config_password');
       
-      isAuthenticated = !!(token && token === storedPassword);
+      isAuthenticated = !!(token && constantTimeEquals(token, storedPassword || ''));
       
       if (!isAuthenticated) {
         return c.json({
@@ -87,9 +88,6 @@ export const setupGetHandler = async (c: Context<{ Bindings: Env }>) => {
           clientId: ConfigService.getString('auth0.client_id') || undefined,
           clientSecret: ConfigService.getString('auth0.client_secret') || undefined,
         },
-        database: {
-          url: ConfigService.getString('database.url') || undefined,
-        }
       };
     } else {
       // セットアップ完了時かつ未認証：フラグのみ
@@ -98,7 +96,6 @@ export const setupGetHandler = async (c: Context<{ Bindings: Env }>) => {
                                  ConfigService.getString('google.client_secret')),
         hasAuth0Config: !!(ConfigService.getString('auth0.domain') && 
                           ConfigService.getString('auth0.client_id')),
-        hasDatabaseConfig: !!ConfigService.getString('database.url'),
       };
     }
 

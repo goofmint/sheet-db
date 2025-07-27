@@ -7,7 +7,10 @@ import { ConfigService } from './services/config';
 import { api } from './api';
 import { setupHandler } from './setup';
 import { playgroundHandler } from './playground';
-import type { Env } from './types';
+import { googleCallbackHandler } from './google/callback/get';
+import { sheetInitializeHandler } from './sheet/initialize/get';
+import { sheetSelectHandler } from './sheet/select/get';
+import type { Env } from './types/env';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -44,6 +47,15 @@ app.get('/', async (c) => {
 
 // API routes
 app.route('/api', api);
+
+// Google OAuth routes
+app.get('/google/callback', googleCallbackHandler);
+
+// Sheet configuration routes
+app.get('/sheet/select', sheetSelectHandler);
+app.post('/sheet/select', sheetSelectHandler);
+app.get('/sheet/initialize', sheetInitializeHandler);
+app.post('/sheet/initialize', sheetInitializeHandler);
 
 // Non-API routes
 app.get('/setup', setupHandler);

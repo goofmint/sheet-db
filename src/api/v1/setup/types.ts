@@ -18,13 +18,9 @@ export interface SetupStatusResponse {
         clientId?: string;
         clientSecret?: string;
       };
-      database?: {
-        url?: string;
-      };
       // セットアップ完了時かつ未認証時はフラグのみ
       hasGoogleCredentials?: boolean;
       hasAuth0Config?: boolean;
-      hasDatabaseConfig?: boolean;
     };
     nextSteps: string[];
     progress: {
@@ -57,9 +53,21 @@ export interface SetupRequest {
   app: {
     configPassword: string;
   };
-  database?: {
-    url?: string;
+  // Optional storage configuration
+  storage?: {
+    type: 'r2' | 'gdrive';
+    r2?: {
+      bucket: string;
+      accessKeyId: string;
+      secretAccessKey: string;
+      endpoint: string;
+    };
+    gdrive?: {
+      folderId: string;
+    };
   };
+  // Optional selected sheet ID
+  sheetId?: string;
 }
 
 export interface SetupSuccessResponse {

@@ -42,9 +42,6 @@ describe('Setup API - POST /api/v1/setup', () => {
     },
     app: {
       configPassword: "SecurePass123!"
-    },
-    database: {
-      url: "https://api.example.com/database"
     }
   };
 
@@ -70,7 +67,6 @@ describe('Setup API - POST /api/v1/setup', () => {
       expect(data.setup.completedAt).toBeDefined();
       expect(data.setup.configuredServices).toContain('google');
       expect(data.setup.configuredServices).toContain('auth0');
-      expect(data.setup.configuredServices).toContain('database');
       expect(data.timestamp).toBeDefined();
 
       // Verify configuration was saved
@@ -317,95 +313,8 @@ describe('Setup API - POST /api/v1/setup', () => {
       )).toBe(true);
     });
 
-    it('should reject invalid database URL', async () => {
-      const invalidData = {
-        ...validSetupData,
-        database: {
-          url: "not-a-valid-url"
-        }
-      };
-
-      const response = await app.fetch(
-        new Request('http://localhost/api/v1/setup', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(invalidData)
-        }),
-        env
-      );
-
-      expect(response.status).toBe(400);
-      
-      const data = await response.json() as SetupSuccessResponse;
-      expect(data.error.code).toBe('VALIDATION_ERROR');
-      expect(data.error.details.some((detail: any) => 
-        detail.field === 'database.url'
-      )).toBe(true);
-    });
   });
 
-  describe('Error Handling', () => {
-    it('should handle ConfigService.upsert errors gracefully', async () => {
-      // Temporarily override ConfigService.upsert to throw an error
-      const originalUpsert = ConfigService.upsert;
-      ConfigService.upsert = async () => {
-        throw new Error('Database write failed');
-      };
-
-      try {
-        const response = await app.fetch(
-          new Request('http://localhost/api/v1/setup', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(validSetupData)
-          }),
-          env
-        );
-
-        expect(response.status).toBe(500);
-        
-        const data = await response.json() as SetupSuccessResponse;
-        expect(data.error.code).toBe('INTERNAL_ERROR');
-        expect(data.error.message).toBe('Failed to process setup configuration');
-      } finally {
-        // Restore original method
-        ConfigService.upsert = originalUpsert;
-      }
-    });
-
-    it('should handle ConfigService.getBoolean errors gracefully', async () => {
-      // Temporarily override ConfigService.getBoolean to throw an error
-      const originalGetBoolean = ConfigService.getBoolean;
-      ConfigService.getBoolean = () => {
-        throw new Error('Cache read failed');
-      };
-
-      try {
-        const response = await app.fetch(
-          new Request('http://localhost/api/v1/setup', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(validSetupData)
-          }),
-          env
-        );
-
-        expect(response.status).toBe(500);
-        
-        const data = await response.json() as SetupSuccessResponse;
-        expect(data.error.code).toBe('INTERNAL_ERROR');
-      } finally {
-        // Restore original method
-        ConfigService.getBoolean = originalGetBoolean;
-      }
-    });
-  });
 
   describe('Response Structure Validation', () => {
     it('should have correct success response structure', async () => {

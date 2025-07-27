@@ -31,6 +31,14 @@ Sheet DB is a Backend-as-a-Service (BaaS) application that uses Google Sheets as
 2. **Write Operations**: Call Google Sheets API directly, after write, call Cloudflare background task to update cache
 3. **File Storage**: Supports both R2 and Google Drive
 
+## Implementation Notes
+
+### Features Not Included
+
+The following features are intentionally not implemented and should not be added:
+
+1. **External Database Configuration** - The `database.url` field has been removed from setup. SheetDB uses Cloudflare D1 as its primary database and Google Sheets for user data. External database connections are not supported.
+
 ## Common Commands
 
 ### Development

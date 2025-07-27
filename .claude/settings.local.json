@@ -63,7 +63,9 @@
       "Bash(npx tsx:*)",
       "Bash(npx c8 npm test:*)",
       "Bash(NODE_V8_COVERAGE=coverage npm test)",
-      "Bash(npx c8 report:*)"
+      "Bash(npx c8 report:*)",
+      "Bash(git rm:*)",
+      "Bash(gh pr view:*)"
     ],
     "deny": []
   }
