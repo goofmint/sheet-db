@@ -18,7 +18,12 @@ export default defineWorkersConfig({
 				singleWorker: true,
 			},
 		},
-		// Coverage disabled due to Cloudflare Workers compatibility issues
-		// Use external c8 for coverage if needed
+		// istanbul coverage configuration  
+		coverage: {
+			provider: 'istanbul',
+			reporter: ['text', 'json', 'html'],
+			include: ['src/**/*.ts', 'src/**/*.tsx'],
+			exclude: ['src/**/*.d.ts', 'src/**/*.test.ts', 'src/**/*.spec.ts'],
+		},
 	},
 });

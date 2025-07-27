@@ -1,11 +1,4 @@
 import { Context } from 'hono';
-import { html } from 'hono/html';
-import PlaygroundTemplate from './templates/playground';
+import { playgroundGetHandler } from './api/v1/playground/get';
 
-export const playgroundHandler = (c: Context) => {
-  return c.html(
-    html`<!DOCTYPE html>
-      ${PlaygroundTemplate()}
-    `
-  );
-};
+export const playgroundHandler = playgroundGetHandler;

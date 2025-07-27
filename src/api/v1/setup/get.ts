@@ -87,9 +87,6 @@ export const setupGetHandler = async (c: Context<{ Bindings: Env }>) => {
           clientId: ConfigService.getString('auth0.client_id') || undefined,
           clientSecret: ConfigService.getString('auth0.client_secret') || undefined,
         },
-        database: {
-          url: ConfigService.getString('database.url') || undefined,
-        }
       };
     } else {
       // セットアップ完了時かつ未認証：フラグのみ
@@ -98,7 +95,6 @@ export const setupGetHandler = async (c: Context<{ Bindings: Env }>) => {
                                  ConfigService.getString('google.client_secret')),
         hasAuth0Config: !!(ConfigService.getString('auth0.domain') && 
                           ConfigService.getString('auth0.client_id')),
-        hasDatabaseConfig: !!ConfigService.getString('database.url'),
       };
     }
 

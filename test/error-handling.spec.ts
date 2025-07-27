@@ -72,6 +72,9 @@ describe('Error Handling Integration', () => {
   });
 
   it('should handle playground route', async () => {
+    // Set setup as completed
+    await ConfigService.upsert('app.setup_completed', 'true', 'boolean');
+    
     const response = await app.fetch(
       new Request('http://localhost/playground'),
       env

@@ -194,6 +194,40 @@ export class ConfigService {
   }
 
   /**
+   * Set multiple config values at once (async - updates both DB and cache)
+   */
+  static async setAll(configs: Record<string, { value: string; type?: ConfigType }>): Promise<void> {
+    this.ensureInitialized();
+    
+    if (!this.db) {
+      throw new Error('ConfigService database connection missing');
+    }
+
+    const descriptions: Record<string, string> = {
+      'google.client_id': 'Google OAuth Client ID',
+      'google.client_secret': 'Google OAuth Client Secret',
+      'google.sheetId': 'Selected Google Sheet ID',
+      'auth0.domain': 'Auth0 Domain',
+      'auth0.client_id': 'Auth0 Client ID',
+      'auth0.client_secret': 'Auth0 Client Secret',
+      'app.config_password': 'Configuration Password',
+      'app.setup_completed': 'Setup completion status',
+      'storage.type': 'File storage type',
+      'storage.r2.bucket': 'R2 bucket name',
+      'storage.r2.accessKeyId': 'R2 access key ID',
+      'storage.r2.secretAccessKey': 'R2 secret access key',
+      'storage.r2.endpoint': 'R2 endpoint URL',
+      'storage.gdrive.folderId': 'Google Drive folder ID'
+    };
+
+    const updates = Object.entries(configs).map(([key, config]) => 
+      this.upsert(key, config.value, config.type || 'string', descriptions[key])
+    );
+
+    await Promise.all(updates);
+  }
+
+  /**
    * Clear all config (async - clears both DB and cache)
    * WARNING: This will delete all configuration data
    */
