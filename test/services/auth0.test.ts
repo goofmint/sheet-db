@@ -31,8 +31,9 @@ describe('Auth0Service', () => {
     
     // Save Auth0 configuration from environment variables
     await db.insert(configTable).values([
-      { key: 'auth0Domain', value: env.AUTH0_DOMAIN, type: 'string' },
-      { key: 'auth0ClientId', value: env.AUTH0_CLIENT_ID, type: 'string' },
+      { key: 'auth0.domain', value: env.AUTH0_DOMAIN, type: 'string' },
+      { key: 'auth0.client_id', value: env.AUTH0_CLIENT_ID, type: 'string' },
+      { key: 'auth0.client_secret', value: env.AUTH0_CLIENT_SECRET, type: 'string' },
       { key: 'allowedRedirectBases', value: JSON.stringify([
         'http://localhost:8787',
         'https://test.example.com'
@@ -47,8 +48,9 @@ describe('Auth0Service', () => {
 
   afterAll(async () => {
     // Clean up test data
-    await db.delete(configTable).where(eq(configTable.key, 'auth0Domain'));
-    await db.delete(configTable).where(eq(configTable.key, 'auth0ClientId'));
+    await db.delete(configTable).where(eq(configTable.key, 'auth0.domain'));
+    await db.delete(configTable).where(eq(configTable.key, 'auth0.client_id'));
+    await db.delete(configTable).where(eq(configTable.key, 'auth0.client_secret'));
     await db.delete(configTable).where(eq(configTable.key, 'allowedRedirectBases'));
   });
 
@@ -69,7 +71,7 @@ describe('Auth0Service', () => {
 
     it('should include audience if configured', async () => {
       await db.insert(configTable).values({
-        key: 'auth0Audience',
+        key: 'auth0.audience',
         value: 'https://api.example.com',
         type: 'string'
       });
@@ -79,7 +81,7 @@ describe('Auth0Service', () => {
       
       expect(url).toContain('audience=https%3A%2F%2Fapi.example.com');
       
-      await db.delete(configTable).where(eq(configTable.key, 'auth0Audience'));
+      await db.delete(configTable).where(eq(configTable.key, 'auth0.audience'));
     });
   });
 
@@ -155,7 +157,7 @@ describe('Auth0Service', () => {
   describe('Configuration validation', () => {
     it('should throw error when Auth0 configuration is missing', async () => {
       // Temporarily remove configuration
-      await db.delete(configTable).where(eq(configTable.key, 'auth0Domain'));
+      await db.delete(configTable).where(eq(configTable.key, 'auth0.domain'));
       await ConfigService.refreshCache();
       
       await expect(
@@ -164,7 +166,7 @@ describe('Auth0Service', () => {
       
       // Restore configuration
       await db.insert(configTable).values({
-        key: 'auth0Domain',
+        key: 'auth0.domain',
         value: env.AUTH0_DOMAIN,
         type: 'string'
       });

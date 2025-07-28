@@ -116,7 +116,7 @@ describe('Setup UI Integration Tests', () => {
       const apiResponse = await app.fetch(apiRequest, env);
       expect(apiResponse.status).toBe(200);
       
-      const data = await apiResponse.json() as any;
+      const data = await apiResponse.json() as { setup: { isCompleted: boolean } };
       expect(data.setup.isCompleted).toBe(false);
     });
 

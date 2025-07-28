@@ -161,7 +161,7 @@ export default function SheetSelectionTemplate({ accessToken, configPassword, is
                   </div>
                 )}
                 
-                <form method="POST">
+                <form method="post">
                   <div className="form-group">
                     <label htmlFor="password">Configuration Password:</label>
                     <input 

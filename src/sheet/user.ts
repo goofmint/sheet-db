@@ -1,5 +1,6 @@
 import { BaseRecord, BaseDataService, ColumnDefinition, SheetConfig } from './data';
-import { SheetService } from '../services/sheet';
+import { UserSheetService } from '../services/sheet/user';
+import { Env } from '../types/env';
 
 /**
  * User record interface
@@ -7,6 +8,8 @@ import { SheetService } from '../services/sheet';
 export interface UserRecord extends BaseRecord {
   email: string;
   name: string;
+  picture?: string;
+  last_login?: string;
 }
 
 /**
@@ -14,7 +17,9 @@ export interface UserRecord extends BaseRecord {
  */
 const USER_COLUMNS: ColumnDefinition[] = [
   { name: 'email', type: 'string', required: true, unique: true },
-  { name: 'name', type: 'string', required: true }
+  { name: 'name', type: 'string', required: true },
+  { name: 'picture', type: 'string', required: false },
+  { name: 'last_login', type: 'timestamp', required: false }
 ];
 
 /**
@@ -26,78 +31,56 @@ const USER_SHEET_CONFIG: SheetConfig = {
 };
 
 /**
- * User data service
+ * User sheet (domain layer)
  */
-export class UserService extends BaseDataService<UserRecord> {
-  private static instance: UserService;
+export class UserSheet {
+  private userSheetService: UserSheetService;
 
-  private constructor() {
-    super(SheetService.getInstance(), USER_SHEET_CONFIG);
+  constructor(env: Env) {
+    this.userSheetService = new UserSheetService();
   }
 
-  static getInstance(): UserService {
-    if (!UserService.instance) {
-      UserService.instance = new UserService();
-    }
-    return UserService.instance;
+  /**
+   * ユーザーをupsert（認証後に使用）
+   */
+  async upsertUser(env: Env, userData: {
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+    created_at: string;
+    last_login: string;
+  }) {
+    const userSheetData = {
+      id: userData.id,
+      email: userData.email,
+      name: userData.name,
+      picture: userData.picture || '',
+      created_at: userData.created_at,
+      last_login: userData.last_login
+    };
+    return await this.userSheetService.upsertUser(env, userSheetData);
+  }
+
+  /**
+   * ユーザーをIDで検索
+   */
+  async findById(env: Env, userId: string) {
+    return await this.userSheetService.findUser(env, userId);
   }
 
   /**
    * Find user by email
    */
-  async findByEmail(email: string): Promise<UserRecord | null> {
-    const users = await this.findAll();
-    return users.find(user => user.email === email) || null;
+  async findByEmail(env: Env, email: string): Promise<UserRecord | null> {
+    // この実装は現在 UserSheetService にはないため、必要に応じて後で追加
+    throw new Error('findByEmail not implemented yet');
   }
 
   /**
-   * Find all users by email (for duplicate detection)
+   * _Userシートを初期化（必要に応じて）
    */
-  async findAllByEmail(email: string): Promise<UserRecord[]> {
-    const users = await this.findAll();
-    return users.filter(user => user.email === email);
-  }
-
-  /**
-   * Create user with validation and race condition protection
-   */
-  async create(data: Partial<UserRecord>): Promise<UserRecord> {
-    if (!data.email) {
-      throw new Error('Email is required');
-    }
-    if (!data.name) {
-      throw new Error('Name is required');
-    }
-
-    try {
-      // The base class will handle unique constraint validation atomically
-      return await super.create(data);
-    } catch (error: any) {
-      // If it's a unique constraint violation for email, provide user-friendly message
-      if (error.status === 409 && error.field === 'email') {
-        throw new Error('User with this email already exists');
-      }
-      
-      // Re-throw original error
-      throw error;
-    }
-  }
-
-  /**
-   * Update user with email validation
-   */
-  async update(id: string, data: Partial<UserRecord>): Promise<UserRecord | null> {
-    try {
-      // The base class will handle unique constraint validation atomically
-      return await super.update(id, data);
-    } catch (error: any) {
-      // If it's a unique constraint violation for email, provide user-friendly message
-      if (error.status === 409 && error.field === 'email') {
-        throw new Error('Email is already used by another user');
-      }
-      
-      // Re-throw original error
-      throw error;
-    }
+  async ensureUserSheet() {
+    return await this.userSheetService.ensureUserSheet();
   }
 }

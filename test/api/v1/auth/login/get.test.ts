@@ -40,24 +40,27 @@ describe('Login API - GET /api/v1/auth/login', () => {
       'https://test.example.com'
     ]);
     
-    // Save Auth0 configuration using ConfigService
-    await ConfigService.upsert('auth0Domain', originalAuth0Domain, 'string');
-    await ConfigService.upsert('auth0ClientId', originalAuth0ClientId, 'string');
+    // Save Auth0 configuration using ConfigService with correct keys
+    await ConfigService.upsert('auth0.domain', originalAuth0Domain, 'string');
+    await ConfigService.upsert('auth0.client_id', originalAuth0ClientId, 'string');
+    await ConfigService.upsert('auth0.client_secret', env.AUTH0_CLIENT_SECRET, 'string');
     await ConfigService.upsert('allowedRedirectBases', originalAllowedRedirectBases, 'json');
   });
 
   // Ensure clean state after each test that might modify config
   afterEach(async () => {
     // Restore original configuration after each test
-    await ConfigService.upsert('auth0Domain', originalAuth0Domain, 'string');
-    await ConfigService.upsert('auth0ClientId', originalAuth0ClientId, 'string');
+    await ConfigService.upsert('auth0.domain', originalAuth0Domain, 'string');
+    await ConfigService.upsert('auth0.client_id', originalAuth0ClientId, 'string');
+    await ConfigService.upsert('auth0.client_secret', env.AUTH0_CLIENT_SECRET, 'string');
     await ConfigService.upsert('allowedRedirectBases', originalAllowedRedirectBases, 'json');
   });
 
   afterAll(async () => {
     // Clean up test data using ConfigService
-    await ConfigService.deleteByKey('auth0Domain');
-    await ConfigService.deleteByKey('auth0ClientId');
+    await ConfigService.deleteByKey('auth0.domain');
+    await ConfigService.deleteByKey('auth0.client_id');
+    await ConfigService.deleteByKey('auth0.client_secret');
     await ConfigService.deleteByKey('allowedRedirectBases');
   });
 
@@ -127,7 +130,7 @@ describe('Login API - GET /api/v1/auth/login', () => {
 
     it('should return 500 when Auth0 is not configured', async () => {
       // Temporarily remove Auth0 configuration using ConfigService
-      await ConfigService.deleteByKey('auth0Domain');
+      await ConfigService.deleteByKey('auth0.domain');
 
       const response = await app.fetch(new Request('http://localhost:8787/api/v1/auth/login', {
         method: 'GET',

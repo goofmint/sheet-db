@@ -51,9 +51,9 @@ export function validateSetupRequest(data: unknown): {
 
       // Only validate missing configurations for partial/update requests
       return validatePartialSetupRequest(req, { 
-        hasGoogleConfig, 
-        hasAuth0Config, 
-        hasAppConfig 
+        hasGoogleConfig: !!hasGoogleConfig, 
+        hasAuth0Config: !!hasAuth0Config, 
+        hasAppConfig: !!hasAppConfig 
       });
     }
   } catch (error) {
@@ -132,7 +132,7 @@ export function validateSetupRequest(data: unknown): {
   return {
     isValid: true,
     errors: [],
-    data: req as SetupRequest
+    data: req as unknown as SetupRequest
   };
 }
 
@@ -232,7 +232,7 @@ function validatePartialSetupRequest(
   return {
     isValid: true,
     errors: [],
-    data: req as SetupRequest
+    data: req as unknown as SetupRequest
   };
 }
 

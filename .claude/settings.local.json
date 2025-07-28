@@ -70,7 +70,9 @@
       "Bash(do echo \"=== $file ===\")",
       "Bash(head:*)",
       "Bash(echo)",
-      "Bash(done)"
+      "Bash(done)",
+      "WebFetch(domain:dev-wpguwz20dkay63vr.us.auth0.com)",
+      "Bash(/dev/null)"
     ],
     "deny": []
   }

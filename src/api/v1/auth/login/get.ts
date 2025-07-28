@@ -2,11 +2,18 @@ import { Hono } from 'hono';
 import { Auth0Service } from '../../../../services/auth0';
 import { ConfigService } from '../../../../services/config';
 import { Env } from '../../../../types/env';
+import { drizzle } from 'drizzle-orm/d1';
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.get('/', async (c) => {
   try {
+    // Initialize ConfigService with database
+    const db = drizzle(c.env.DB);
+    if (!ConfigService.isInitialized()) {
+      await ConfigService.initialize(db);
+    }
+    
     // Get current host and validate redirect URI
     const currentHost = new URL(c.req.url).origin;
     const allowedRedirectBases = JSON.parse(

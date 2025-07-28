@@ -1,6 +1,7 @@
 import { Context } from 'hono';
 import { html, raw } from 'hono/html';
 import { ConfigService } from '../../../services/config';
+import { AuthService } from '../../../services/auth';
 
 export async function playgroundGetHandler(c: Context) {
   // Check if setup is completed
@@ -9,6 +10,10 @@ export async function playgroundGetHandler(c: Context) {
   if (!isSetupCompleted) {
     return c.redirect('/setup');
   }
+
+  // Get authentication status
+  const authService = new AuthService(c.env);
+  const auth = await authService.getAuthFromRequest(c);
 
   // Get the selected Google Sheet ID
   const sheetId = ConfigService.getString('google.sheetId');
@@ -203,6 +208,23 @@ export async function playgroundGetHandler(c: Context) {
 
         <div class="info-grid">
           <div class="info-card">
+            <h3>👤 Authentication Status</h3>
+            ${auth ? raw(`
+              <p>Status: <span style="color: #28a745; font-weight: bold;">✓ Authenticated</span></p>
+              <p>User: ${auth.user.name} (${auth.user.email})</p>
+              <div style="margin-top: 10px;">
+                <button class="test-button secondary" onclick="logout()">Logout</button>
+              </div>
+            `) : raw(`
+              <p>Status: <span style="color: #dc3545; font-weight: bold;">✗ Not authenticated</span></p>
+              <p>Some APIs require authentication.</p>
+              <div style="margin-top: 10px;">
+                <button class="test-button primary" onclick="login()">Login with Auth0</button>
+              </div>
+            `)}
+          </div>
+
+          <div class="info-card">
             <h3>📊 Connected Sheet</h3>
             <p>Google Sheet ID:</p>
             <div class="value">${sheetId || 'Not configured'}</div>
@@ -311,6 +333,28 @@ export async function playgroundGetHandler(c: Context) {
         </div>
 
         <script>
+          // Authentication functions
+          function login() {
+            window.location.href = '/api/v1/auth/login';
+          }
+          
+          async function logout() {
+            try {
+              const response = await fetch('/api/v1/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+              });
+              
+              if (response.ok) {
+                window.location.reload();
+              } else {
+                alert('Logout failed');
+              }
+            } catch (error) {
+              alert('Logout error: ' + error.message);
+            }
+          }
+
           async function testEndpoint(method, url, body, responseId) {
             const responseEl = document.getElementById(responseId);
             responseEl.style.display = 'block';

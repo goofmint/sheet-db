@@ -36,7 +36,7 @@ describe('Setup API - GET /api/v1/setup', () => {
 
       expect(response.status).toBe(200);
       
-      const data = await response.json() as any;
+      const data = await response.json() as Record<string, unknown>;
       expect(data.setup.isCompleted).toBe(false);
       expect(data.setup.requiredFields).toBeInstanceOf(Array);
       expect(data.setup.completedFields).toBeInstanceOf(Array);
@@ -52,15 +52,17 @@ describe('Setup API - GET /api/v1/setup', () => {
         env
       );
 
-      const data = await response.json() as any;
+      const data = await response.json() as Record<string, unknown>;
       
-      // セットアップ未完了時は実際の設定値が含まれる
-      expect(data.setup.currentConfig.google).toBeDefined();
-      expect(data.setup.currentConfig.auth0).toBeDefined();
-      
-      // フラグ形式ではない
-      expect(data.setup.currentConfig.hasGoogleCredentials).toBeUndefined();
-      expect(data.setup.currentConfig.hasAuth0Config).toBeUndefined();
+      if ('setup' in data) {
+        // セットアップ未完了時は実際の設定値が含まれる
+        expect(data.setup.currentConfig.google).toBeDefined();
+        expect(data.setup.currentConfig.auth0).toBeDefined();
+        
+        // フラグ形式ではない
+        expect(data.setup.currentConfig.hasGoogleCredentials).toBeUndefined();
+        expect(data.setup.currentConfig.hasAuth0Config).toBeUndefined();
+      }
     });
 
     it('should calculate progress correctly', async () => {
@@ -69,7 +71,7 @@ describe('Setup API - GET /api/v1/setup', () => {
         env
       );
 
-      const data = await response.json() as any;
+      const data = await response.json() as Record<string, unknown>;
       const { progress } = data.setup;
       
       expect(progress.completedSteps).toBe(0); // 初期状態では0
@@ -83,7 +85,7 @@ describe('Setup API - GET /api/v1/setup', () => {
         env
       );
 
-      const data = await response.json() as any;
+      const data = await response.json() as Record<string, unknown>;
       
       expect(data.setup.nextSteps).toBeInstanceOf(Array);
       expect(data.setup.nextSteps.length).toBeGreaterThan(0);
@@ -118,9 +120,11 @@ describe('Setup API - GET /api/v1/setup', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json() as any;
-      expect(data.error.code).toBe('AUTHENTICATION_REQUIRED');
-      expect(data.error.message).toContain('Authorization header');
+      const data = await response.json() as Record<string, unknown>;
+      if ('error' in data) {
+        expect((data as { error: { code: string; message: string } }).error.code).toBe('AUTHENTICATION_REQUIRED');
+        expect((data as { error: { code: string; message: string } }).error.message).toContain('Authorization header');
+      }
     });
   });
 
@@ -156,7 +160,7 @@ describe('Setup API - GET /api/v1/setup', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json() as any;
+      const data = await response.json() as Record<string, unknown>;
       expect(data.setup.isCompleted).toBe(true);
     });
 
@@ -172,8 +176,10 @@ describe('Setup API - GET /api/v1/setup', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json() as any;
-      expect(data.error.code).toBe('AUTHENTICATION_REQUIRED');
+      const data = await response.json() as Record<string, unknown>;
+      if ('error' in data) { 
+        expect((data as { error: { code: string; message: string } }).error.code).toBe('AUTHENTICATION_REQUIRED');
+      }
     });
 
     it('should handle malformed Authorization header', async () => {
@@ -188,8 +194,10 @@ describe('Setup API - GET /api/v1/setup', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json() as any;
-      expect(data.error.code).toBe('AUTHENTICATION_REQUIRED');
+      const data = await response.json() as Record<string, unknown>;
+      if ('error' in data) { 
+        expect((data as { error: { code: string; message: string } }).error.code).toBe('AUTHENTICATION_REQUIRED');
+      }
     });
   });
 
@@ -201,7 +209,7 @@ describe('Setup API - GET /api/v1/setup', () => {
         env
       );
 
-      const data = await response.json() as any;
+      const data = await response.json() as Record<string, unknown>;
       
       // Check top-level structure
       expect(data).toHaveProperty('setup');

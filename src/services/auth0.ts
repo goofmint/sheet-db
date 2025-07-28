@@ -1,5 +1,6 @@
 import { Env } from '../types/env';
 import { ConfigService } from './config';
+import { drizzle } from 'drizzle-orm/d1';
 import { 
   Auth0Config, 
   Auth0TokenResponse, 
@@ -22,20 +23,27 @@ export class Auth0Service {
    * Get Auth0 configuration from Config table
    */
   private async getConfig(): Promise<Auth0Config> {
-    const auth0Domain = ConfigService.getString('auth0Domain');
-    const auth0ClientId = ConfigService.getString('auth0ClientId');
+    // Ensure ConfigService is initialized
+    const db = drizzle(this.env.DB);
+    if (!ConfigService.isInitialized()) {
+      await ConfigService.initialize(db);
+    }
     
-    if (!auth0Domain || !auth0ClientId) {
+    const auth0Domain = ConfigService.getString('auth0.domain');
+    const auth0ClientId = ConfigService.getString('auth0.client_id');
+    const auth0ClientSecret = ConfigService.getString('auth0.client_secret');
+    
+    if (!auth0Domain || !auth0ClientId || !auth0ClientSecret) {
       throw new Error('Auth0 configuration not found');
     }
 
-    const auth0Audience = ConfigService.getString('auth0Audience');
-    const auth0Scope = ConfigService.getString('auth0Scope');
+    const auth0Audience = ConfigService.getString('auth0.audience');
+    const auth0Scope = ConfigService.getString('auth0.scope');
 
     return {
       domain: auth0Domain,
       clientId: auth0ClientId,
-      clientSecret: this.env.AUTH0_CLIENT_SECRET,
+      clientSecret: auth0ClientSecret,
       audience: auth0Audience || undefined,
       scope: auth0Scope || 'openid profile email'
     };

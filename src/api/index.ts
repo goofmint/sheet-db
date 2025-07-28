@@ -6,8 +6,8 @@ import { setupPostHandler } from './v1/setup/post';
 import { sheetsPostHandler } from './v1/sheets/post';
 import { playgroundGetHandler } from './v1/playground/get';
 import storagesRouter from './v1/storages/route';
-import loginRouter from './v1/auth/login/get';
-import type { Env } from '../types/env';
+import authRouter from './v1/auth';
+import type { Env } from '@/types/env';
 
 /**
  * API Router - Centralized routing for all API endpoints
@@ -47,7 +47,7 @@ v1.route('/storages', storagesRouter);
 v1.get('/playground', playgroundGetHandler);
 
 // Auth routes
-v1.route('/auth/login', loginRouter);
+v1.route('/auth', authRouter);
 
 // Future endpoints for Google Sheets integration
 // v1.route('/sheets', sheetsRouter);

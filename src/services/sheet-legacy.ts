@@ -130,7 +130,7 @@ export class SheetService {
       throw new Error(`Failed to get sheet structure for ${sheetName}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { values?: string[][] };
     const values = data.values || [];
     
     const currentHeaders = values[0] || [];
@@ -257,7 +257,7 @@ export class SheetService {
     
     // Convert record to row values
     const rowValues = headers.map(header => {
-      const value = (record as any)[header];
+      const value = (record as Record<string, unknown>)[header];
       if (Array.isArray(value)) {
         return value.join(',');
       } else if (typeof value === 'boolean') {
@@ -333,7 +333,7 @@ export class SheetService {
 
     // Convert record to row values
     const rowValues = headers.map((header: string) => {
-      const value = (record as any)[header];
+      const value = (record as Record<string, unknown>)[header];
       if (Array.isArray(value)) {
         return value.join(',');
       } else if (typeof value === 'boolean') {
