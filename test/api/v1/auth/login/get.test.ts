@@ -107,7 +107,7 @@ describe('Login API - GET /api/v1/auth/login', () => {
 
       expect(response.status).toBe(400);
       
-      const body = await response.json();
+      const body = await response.json() as { error: string; message: string };
       expect(body.error).toBe('Unauthorized redirect base URL');
       expect(body.message).toContain('unauthorized.com');
     });
@@ -126,7 +126,7 @@ describe('Login API - GET /api/v1/auth/login', () => {
 
       expect(response.status).toBe(500);
       
-      const body = await response.json();
+      const body = await response.json() as { error: string; message: string };
       expect(body.error).toBe('Authentication failed');
       expect(body.message).toBe('Authentication service not configured');
       
