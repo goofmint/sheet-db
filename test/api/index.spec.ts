@@ -29,7 +29,7 @@ describe('API Router', () => {
 
       expect(response.status).toBe(200);
       
-      const data = await response.json() as any;
+      const data = await response.json() as { name: string; version: string; endpoints: string[]; description: string; timestamp: string };
       expect(data.name).toBe('Sheet DB API');
       expect(data.version).toBe('1.0.0');
       expect(data.description).toBeDefined();
@@ -46,7 +46,7 @@ describe('API Router', () => {
 
       expect(response.status).toBe(200);
       
-      const data = await response.json() as any;
+      const data = await response.json() as { status: string; service: string; version: string; timestamp: string };
       expect(data.status).toBe('healthy');
       expect(data.service).toBe('sheetDB');
       expect(data.version).toBe('1.0.0');
@@ -63,7 +63,7 @@ describe('API Router', () => {
 
       expect(response.status).toBe(404);
       
-      const data = await response.json() as any;
+      const data = await response.json() as { error: { code: string; message: string } };
       expect(data.error.code).toBe('NOT_FOUND');
       expect(data.error.message).toContain('not found');
     });
@@ -76,7 +76,7 @@ describe('API Router', () => {
 
       expect(response.status).toBe(404);
       
-      const data = await response.json() as any;
+      const data = await response.json() as { error: { code: string; message: string } };
       expect(data.error.code).toBe('NOT_FOUND');
       expect(data.error.message).toContain('not found');
     });
@@ -124,7 +124,7 @@ describe('API Router', () => {
         env
       );
 
-      const data = await response.json() as any;
+      const data = await response.json() as { name: string; version: string; endpoints: string[] };
       
       // Check required fields
       expect(data).toHaveProperty('name');

@@ -1,4 +1,4 @@
-import { SheetService } from '../services/legacy-sheet';
+import { SheetService } from '../services/sheet-legacy';
 
 /**
  * Base data interface for all sheet records
@@ -174,7 +174,7 @@ export abstract class BaseDataService<T extends BaseRecord> {
     const existingRecords = await this.findAll();
     
     for (const column of uniqueColumns) {
-      const value = (data as any)[column.name];
+      const value = (data as Record<string, unknown>)[column.name];
       if (value === undefined || value === null) {
         continue; // Skip null/undefined values
       }
@@ -184,13 +184,13 @@ export abstract class BaseDataService<T extends BaseRecord> {
         if (excludeId && record.id === excludeId) {
           return false;
         }
-        return (record as any)[column.name] === value;
+        return (record as Record<string, unknown>)[column.name] === value;
       });
       
       if (existing) {
-        const error = new Error(`${column.name} must be unique. Value '${value}' already exists`) as any;
-        error.status = 409;
-        error.field = column.name;
+        const error = new Error(`${column.name} must be unique. Value '${value}' already exists`);
+        (error as Error & { status: number; field: string }).status = 409;
+        (error as Error & { status: number; field: string }).field = column.name;
         throw error;
       }
     }

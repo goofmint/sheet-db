@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { Auth0Service } from '@/services/auth0';
 import { ConfigService } from '@/services/config';
-import { UserSheetService } from '@/services/sheet';
+import { UserSheet } from '@/sheet/user';
 import { drizzle } from 'drizzle-orm/d1';
 import { sessionTable } from '@/db/schema';
 import { Env } from '@/types/env';
@@ -11,6 +11,12 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get('/', async (c) => {
   try {
+    // Initialize ConfigService
+    const db = drizzle(c.env.DB);
+    if (!ConfigService.isInitialized()) {
+      await ConfigService.initialize(db);
+    }
+    
     // クエリパラメータの取得
     const code = c.req.query('code');
     const state = c.req.query('state');
@@ -59,29 +65,30 @@ app.get('/', async (c) => {
     // ユーザー情報取得
     const userInfo = await auth0Service.getUserInfo(tokens.accessToken);
 
-    // データベース接続
-    const db = drizzle(c.env.DB);
-
     // _Userシートの更新/作成
     const now = new Date().toISOString();
-    const userSheetService = new UserSheetService();
-    const userData = await userSheetService.upsertUser(c.env, {
-      auth0_id: userInfo.sub,
-      email: userInfo.email,
-      name: userInfo.name,
-      picture: userInfo.picture,
-      created_at: now, // 新規作成時のみ使用
-      last_login: now
-    });
-
-    if (!userData.success) {
-      console.error('Failed to upsert user data:', userData.error);
-      return c.json({
-        success: false,
-        error: 'user_management_failed',
-        message: 'Failed to manage user data',
-        authenticated: false
-      }, 500);
+    
+    // ドメイン層のUserSheetを使用してユーザーデータを保存
+    try {
+      const userSheet = new UserSheet(c.env);
+      const userData = await userSheet.upsertUser(c.env, {
+        id: userInfo.sub, // auth0_idをidフィールドにマッピング
+        email: userInfo.email,
+        name: userInfo.name || '',
+        picture: userInfo.picture || '',
+        created_at: now,
+        last_login: now
+      });
+      
+      if (!userData.success) {
+        console.error('Failed to upsert user data (continuing anyway):', userData.error);
+        // エラーが発生してもセッション作成は続行
+      } else {
+        console.log('User data successfully saved to _User sheet');
+      }
+    } catch (userError) {
+      console.error('UserSheetService error (continuing anyway):', userError);
+      // エラーが発生してもセッション作成は続行
     }
 
     // セッション作成
@@ -114,13 +121,13 @@ app.get('/', async (c) => {
     // Stateクッキー削除
     deleteCookie(c, 'auth_state');
 
-    // _Userシートから最新のユーザーデータを取得
-    const userResult = await userSheetService.findUser(c.env, userInfo.sub);
-    const finalUserData = userResult.success && userResult.data ? userResult.data : {
+    // TODO: Google Sheets が利用可能になったら _User シートから取得
+    // 現在はAuth0から取得したユーザー情報を直接使用
+    const finalUserData = {
       id: userInfo.sub,
       email: userInfo.email,
-      name: userInfo.name,
-      picture: userInfo.picture,
+      name: userInfo.name || '',
+      picture: userInfo.picture || '',
       created_at: now,
       last_login: now
     };
@@ -146,11 +153,21 @@ app.get('/', async (c) => {
   } catch (error) {
     console.error('Callback error:', error);
     
-    // エラーレスポンス
+    // エラーレスポンス（開発環境では詳細なエラー情報を含める）
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const stack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('Detailed error:', {
+      message: errorMessage,
+      stack,
+      error
+    });
+    
     return c.json({
       success: false,
       error: 'authentication_failed',
       message: 'Authentication process failed',
+      details: errorMessage, // 開発用の詳細情報
       authenticated: false
     }, 500);
   }

@@ -1,16 +1,15 @@
-import { Env } from '@/types/env';
 import { ConfigService } from '@/services/config';
+import { GoogleOAuthService } from '@/services/google-oauth';
 import { SheetCreateOptions, SheetOperationResult, SheetACL } from './types';
 
 /**
  * シートに新しい行を作成する
  */
-export async function createSheetRow(env: Env, options: SheetCreateOptions): Promise<SheetOperationResult> {
+export async function createSheetRow(options: SheetCreateOptions): Promise<SheetOperationResult> {
   try {
     // Google Sheets設定の取得
     const spreadsheetId = ConfigService.getString('google.sheetId');
-    const accessToken = ConfigService.getString('google.access_token');
-
+    
     if (!spreadsheetId) {
       return {
         success: false,
@@ -18,12 +17,9 @@ export async function createSheetRow(env: Env, options: SheetCreateOptions): Pro
       };
     }
 
-    if (!accessToken) {
-      return {
-        success: false,
-        error: 'Google access token not available'
-      };
-    }
+    // 自動リフレッシュ機能付きでアクセストークンを取得
+    const googleOAuth = new GoogleOAuthService();
+    const accessToken = await googleOAuth.getValidAccessToken();
 
     // シートが存在するかチェック
     const sheetExists = await checkSheetExists(spreadsheetId, accessToken, options.sheetName);
@@ -37,6 +33,7 @@ export async function createSheetRow(env: Env, options: SheetCreateOptions): Pro
 
     // ヘッダーを取得
     const headers = await getSheetHeaders(spreadsheetId, accessToken, options.sheetName);
+    console.log(`Sheet ${options.sheetName} actual headers:`, headers);
     
     if (headers.length === 0) {
       return {
@@ -60,13 +57,19 @@ export async function createSheetRow(env: Env, options: SheetCreateOptions): Pro
     // ACL情報を追加（存在する場合）
     if (options.acl) {
       const aclData = serializeACL(options.acl);
+      console.log('ACL data being serialized:', aclData);
+      console.log('Original ACL object:', options.acl);
+      console.log('Headers:', headers);
+      
       // ACLカラムがヘッダーに存在する場合のみ追加
       Object.keys(aclData).forEach(aclKey => {
         const index = headers.indexOf(aclKey);
+        console.log(`ACL field ${aclKey}: index=${index}, value="${aclData[aclKey]}"`);
         if (index !== -1) {
           rowValues[index] = aclData[aclKey];
         }
       });
+      console.log('Final row values:', rowValues);
     }
 
     // 行を追加
@@ -159,8 +162,10 @@ function serializeACL(acl: SheetACL): Record<string, string> {
   return {
     public_read: acl.public_read.toString(),
     public_write: acl.public_write.toString(),
-    read_users: acl.read_users.join(','),
-    write_users: acl.write_users.join(',')
+    user_read: JSON.stringify(acl.user_read),
+    user_write: JSON.stringify(acl.user_write),
+    role_read: JSON.stringify(acl.role_read),
+    role_write: JSON.stringify(acl.role_write)
   };
 }
 

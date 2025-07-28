@@ -56,7 +56,7 @@ export async function timingSafeEquals(a: string, b: string): Promise<boolean> {
     
     // Use crypto.subtle.timingSafeEqual if available (Cloudflare Workers support)
     if (typeof crypto !== 'undefined' && crypto.subtle && 'timingSafeEqual' in crypto.subtle) {
-      return (crypto.subtle as any).timingSafeEqual(aPadded, bPadded);
+      return (crypto.subtle as SubtleCrypto & { timingSafeEqual?: (a: ArrayBuffer, b: ArrayBuffer) => boolean }).timingSafeEqual!(aPadded, bPadded);
     }
   } catch (error) {
     // Fall back to our implementation if crypto API is not available

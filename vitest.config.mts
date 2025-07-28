@@ -1,6 +1,12 @@
 import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
+import path from 'path';
 
 export default defineWorkersConfig({
+	resolve: {
+		alias: {
+			'@': path.resolve(__dirname, './src'),
+		},
+	},
 	test: {
 		// Run tests sequentially to prevent Auth0 rate limiting
 		sequence: {

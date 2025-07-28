@@ -77,7 +77,7 @@ describe('Main Application', () => {
       
       expect(response.status).toBe(200);
       
-      const data = await response.json() as any;
+      const data = await response.json() as { name: string; version: string; endpoints: string[] };
       expect(data.name).toBe('Sheet DB API');
     });
 
@@ -89,7 +89,7 @@ describe('Main Application', () => {
       
       expect(response.status).toBe(200);
       
-      const data = await response.json() as any;
+      const data = await response.json() as { status: string; service: string };
       expect(data.status).toBe('healthy');
       expect(data.service).toBe('sheetDB');
     });

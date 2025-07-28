@@ -1,17 +1,16 @@
-import { Env } from '@/types/env';
 import { ConfigService } from '@/services/config';
+import { GoogleOAuthService } from '@/services/google-oauth';
 import { SheetUpdateOptions, SheetOperationResult, SheetRow } from './types';
 import { findSheetRows } from './find';
 
 /**
  * シートの行を更新する
  */
-export async function updateSheetRow(env: Env, options: SheetUpdateOptions): Promise<SheetOperationResult> {
+export async function updateSheetRow(options: SheetUpdateOptions): Promise<SheetOperationResult> {
   try {
     // Google Sheets設定の取得
     const spreadsheetId = ConfigService.getString('google.sheetId');
-    const accessToken = ConfigService.getString('google.access_token');
-
+    
     if (!spreadsheetId) {
       return {
         success: false,
@@ -19,15 +18,12 @@ export async function updateSheetRow(env: Env, options: SheetUpdateOptions): Pro
       };
     }
 
-    if (!accessToken) {
-      return {
-        success: false,
-        error: 'Google access token not available'
-      };
-    }
+    // 自動リフレッシュ機能付きでアクセストークンを取得
+    const googleOAuth = new GoogleOAuthService();
+    const accessToken = await googleOAuth.getValidAccessToken();
 
     // 更新対象の行を検索
-    const findResult = await findSheetRows(env, {
+    const findResult = await findSheetRows({
       sheetName: options.sheetName,
       filter: options.filter,
       limit: 1

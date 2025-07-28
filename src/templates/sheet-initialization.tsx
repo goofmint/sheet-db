@@ -213,7 +213,7 @@ export default function SheetInitializationTemplate({ accessToken, configPasswor
                   </div>
                 )}
                 
-                <form method="POST">
+                <form method="post">
                   <div className="form-group">
                     <label htmlFor="password">Configuration Password:</label>
                     <input 

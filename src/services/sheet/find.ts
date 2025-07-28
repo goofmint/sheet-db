@@ -1,16 +1,15 @@
-import { Env } from '@/types/env';
 import { ConfigService } from '@/services/config';
-import { SheetFindOptions, SheetOperationResult, SheetRow } from './types';
+import { GoogleOAuthService } from '@/services/google-oauth';
+import { SheetFindOptions, SheetOperationResult, SheetRow, USER_SHEET_HEADERS } from './types';
 
 /**
  * シートから行を検索する
  */
-export async function findSheetRows(env: Env, options: SheetFindOptions): Promise<SheetOperationResult> {
+export async function findSheetRows(options: SheetFindOptions): Promise<SheetOperationResult> {
   try {
     // Google Sheets設定の取得
     const spreadsheetId = ConfigService.getString('google.sheetId');
-    const accessToken = ConfigService.getString('google.access_token');
-
+    
     if (!spreadsheetId) {
       return {
         success: false,
@@ -18,12 +17,9 @@ export async function findSheetRows(env: Env, options: SheetFindOptions): Promis
       };
     }
 
-    if (!accessToken) {
-      return {
-        success: false,
-        error: 'Google access token not available'
-      };
-    }
+    // 自動リフレッシュ機能付きでアクセストークンを取得
+    const googleOAuth = new GoogleOAuthService();
+    const accessToken = await googleOAuth.getValidAccessToken();
 
     // シートのデータを取得
     const escapedSheetName = escapeSheetName(options.sheetName);
@@ -61,6 +57,9 @@ export async function findSheetRows(env: Env, options: SheetFindOptions): Promis
     const headers = values[0];
     const dataRows = values.slice(2); // ヘッダーとスキーマ行をスキップ
 
+    console.log(`Sheet ${options.sheetName} headers:`, headers);
+    console.log(`Expected headers:`, USER_SHEET_HEADERS);
+
     // データを解析してオブジェクト配列に変換
     let parsedRows = dataRows.map((row: string[], index: number) => {
       const record: SheetRow = {};
@@ -72,9 +71,14 @@ export async function findSheetRows(env: Env, options: SheetFindOptions): Promis
           record[header] = value; // 日時は文字列のまま
         } else if (header.includes('public_') && value) {
           record[header] = value.toLowerCase() === 'true';
-        } else if (header.endsWith('_users') && value) {
-          // 配列フィールドの解析
-          record[header] = value.split(',').map((s: string) => s.trim()).filter(Boolean).join(',');
+        } else if ((header.endsWith('_read') || header.endsWith('_write')) && value) {
+          // 配列フィールドの解析（user_read, user_write, role_read, role_write）
+          try {
+            record[header] = JSON.parse(value);
+          } catch {
+            // 古い形式（カンマ区切り）もサポート
+            record[header] = value.split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
         } else {
           record[header] = value;
         }
@@ -122,8 +126,8 @@ export async function findSheetRows(env: Env, options: SheetFindOptions): Promis
 /**
  * 単一行を検索（最初にマッチしたもの）
  */
-export async function findSheetRow(env: Env, options: SheetFindOptions): Promise<SheetOperationResult> {
-  const result = await findSheetRows(env, { ...options, limit: 1 });
+export async function findSheetRow(options: SheetFindOptions): Promise<SheetOperationResult> {
+  const result = await findSheetRows({ ...options, limit: 1 });
   
   if (result.success && Array.isArray(result.data) && result.data.length > 0) {
     return {

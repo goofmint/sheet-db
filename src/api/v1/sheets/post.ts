@@ -1,5 +1,5 @@
 import { Context } from 'hono';
-import { UserService } from '../../../sheet/user';
+import { UserSheet } from '../../../sheet/user';
 import { RoleService } from '../../../sheet/role';
 
 export async function sheetsPostHandler(c: Context) {
@@ -14,14 +14,15 @@ export async function sheetsPostHandler(c: Context) {
       }, 400);
     }
     
-    let service;
-    let message;
+    let message: string;
     
     if (name === '_User') {
-      service = UserService.getInstance();
+      const userSheet = new UserSheet(c.env);
+      await userSheet.ensureUserSheet();
       message = 'User sheet initialized successfully';
     } else if (name === '_Role') {
-      service = RoleService.getInstance();
+      const roleService = RoleService.getInstance();
+      await roleService.initializeSheet();
       message = 'Role sheet initialized successfully';
     } else {
       return c.json({
@@ -29,8 +30,6 @@ export async function sheetsPostHandler(c: Context) {
         message: 'Only _User and _Role sheets are supported for initialization'
       }, 400);
     }
-    
-    await service.initializeSheet();
     
     return c.json({ 
       success: true,
