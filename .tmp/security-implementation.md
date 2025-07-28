@@ -186,7 +186,7 @@ constructor() {
 ```typescript
 async authenticate() {
   const passwordField = document.getElementById('config-password-auth');
-  const password = passwordField.value;
+  let password = passwordField.value;
   
   // パスワードフィールドを即座にクリア
   passwordField.value = '';

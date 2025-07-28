@@ -14,7 +14,7 @@ describe('Storage API - /api/v1/storages', () => {
 
       // Should fail due to DB initialization error, but that's expected in test environment
       expect([400, 500]).toContain(response.status);
-      const data = await response.json();
+      const data = await response.json() as { error?: string };
       expect(data.error).toBeDefined();
     });
 
@@ -30,7 +30,7 @@ describe('Storage API - /api/v1/storages', () => {
 
       // Should return an error due to missing configuration
       expect([400, 500, 503]).toContain(response.status);
-      const data = await response.json();
+      const data = await response.json() as { error?: string };
       expect(data.error).toBeDefined();
     });
   });
@@ -52,7 +52,7 @@ describe('Storage API - /api/v1/storages', () => {
 
       // Should return an error due to missing configuration
       expect([400, 500]).toContain(response.status);
-      const data = await response.json();
+      const data = await response.json() as { error?: string };
       expect(data.error).toBeDefined();
     });
   });
