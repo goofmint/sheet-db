@@ -9,8 +9,6 @@ import { setupConfigDatabase } from '../utils/database-setup';
 
 describe('Auth0Service', () => {
   let auth0Service: Auth0Service;
-  const testEmail = process.env.AUTH0_TEST_EMAIL!;
-  const testPassword = process.env.AUTH0_TEST_PASSWORD!;
   const db = drizzle(env.DB);
   
   beforeAll(async () => {
@@ -143,33 +141,23 @@ describe('Auth0Service', () => {
     });
   });
 
-  describe('Integration test with real Auth0', () => {
-    it.skip('should complete full authentication flow', async () => {
-      // This test requires manual interaction with Auth0 login page
-      // It's marked as skip but demonstrates the expected flow
+  describe('Configuration validation', () => {
+    it('should throw error when Auth0 configuration is missing', async () => {
+      // Temporarily remove configuration
+      await db.delete(configTable).where(eq(configTable.key, 'auth0Domain'));
+      await ConfigService.refreshCache();
       
-      // 1. Get authorization URL
-      const state = 'test-state';
-      const redirectUri = 'http://localhost:8787/api/auth/callback';
-      const authUrl = await auth0Service.getAuthorizationUrl(state, redirectUri);
+      await expect(
+        auth0Service.getAuthorizationUrl('state', 'http://localhost:8787/callback')
+      ).rejects.toThrow('Auth0 configuration not found');
       
-      console.log('Visit this URL to authenticate:', authUrl);
-      
-      // 2. After manual authentication, Auth0 redirects with code
-      // const code = 'AUTHORIZATION_CODE_FROM_CALLBACK';
-      
-      // 3. Exchange code for tokens
-      // const tokens = await auth0Service.exchangeCodeForToken(code, redirectUri);
-      // expect(tokens.accessToken).toBeDefined();
-      // expect(tokens.tokenType).toBe('Bearer');
-      
-      // 4. Get user info
-      // const userInfo = await auth0Service.getUserInfo(tokens.accessToken);
-      // expect(userInfo.email).toBe(testEmail);
-      
-      // 5. Verify token
-      // const payload = await auth0Service.verifyToken(tokens.accessToken);
-      // expect(payload.sub).toBeDefined();
+      // Restore configuration
+      await db.insert(configTable).values({
+        key: 'auth0Domain',
+        value: 'dev-wpguwz20dkay63vr.us.auth0.com',
+        type: 'string'
+      });
+      await ConfigService.refreshCache();
     });
   });
 });
