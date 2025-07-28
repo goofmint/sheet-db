@@ -190,6 +190,20 @@ const redirectUri = `${request.headers.get('origin')}/api/auth/callback`;
 - テスト用の認証情報をConfigテーブルに設定
 - **モックモードは実装しません** - 常に実際のAuth0サービスを使用
 
+### テスト用認証情報
+テスト実行時は以下の環境変数に設定されたテストユーザーを使用します：
+- **AUTH0_TEST_EMAIL**: テスト用メールアドレス（.dev.vars / .test.vars / .env に記述済み）
+- **AUTH0_TEST_PASSWORD**: テスト用パスワード（.dev.vars / .test.vars / .env に記述済み）
+
+```typescript
+// テストでの使用例
+const testEmail = process.env.AUTH0_TEST_EMAIL;
+const testPassword = process.env.AUTH0_TEST_PASSWORD;
+
+// 実際のAuth0ログインフローをテスト
+await authenticateWithAuth0(testEmail, testPassword);
+```
+
 ## 今後の拡張
 
 ### Phase 5以降の検討事項
