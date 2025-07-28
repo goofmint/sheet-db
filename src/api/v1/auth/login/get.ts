@@ -34,15 +34,17 @@ app.get('/', async (c) => {
     const auth0Service = new Auth0Service(c.env);
     const authUrl = await auth0Service.getAuthorizationUrl(state, redirectUri);
     
-    // Set state in cookie for callback validation
-    const cookieValue = `auth_state=${state}; HttpOnly; SameSite=Lax; Max-Age=600${currentHost.startsWith('https') ? '; Secure' : ''}; Path=/`;
+    // Set state in cookie for callback validation with explicit security attributes
+    const isSecure = currentHost.startsWith('https');
+    const hostUrl = new URL(currentHost);
+    const authCookie = `auth_state=${state}; HttpOnly; SameSite=Lax; Max-Age=600; Path=/; Domain=${hostUrl.hostname}${isSecure ? '; Secure' : ''}`;
     
     // Set cookie header directly for better test compatibility
     const response = new Response(null, {
       status: 302,
       headers: {
         'Location': authUrl,
-        'Set-Cookie': cookieValue
+        'Set-Cookie': authCookie
       }
     });
     

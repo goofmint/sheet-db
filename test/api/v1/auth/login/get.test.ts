@@ -1,14 +1,18 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { ConfigService } from '../../../../../src/services/config';
 import { env } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
 import { configTable } from '../../../../../src/db/schema';
-import { eq } from 'drizzle-orm';
 import { setupConfigDatabase } from '../../../../utils/database-setup';
 import app from '../../../../../src';
 
 describe('Login API - GET /api/v1/auth/login', () => {
   const db = drizzle(env.DB);
+  
+  // Store original config values for restoration
+  let originalAuth0Domain: string;
+  let originalAuth0ClientId: string;
+  let originalAllowedRedirectBases: string;
 
   beforeAll(async () => {
     // Ensure required environment variables are set
@@ -28,25 +32,33 @@ describe('Login API - GET /api/v1/auth/login', () => {
     // Initialize ConfigService
     await ConfigService.initialize(db);
     
-    // Save Auth0 configuration
-    await db.insert(configTable).values([
-      { key: 'auth0Domain', value: env.AUTH0_DOMAIN, type: 'string' },
-      { key: 'auth0ClientId', value: env.AUTH0_CLIENT_ID, type: 'string' },
-      { key: 'allowedRedirectBases', value: JSON.stringify([
-        'http://localhost:8787',
-        'https://test.example.com'
-      ]), type: 'json' }
+    // Store original values for restoration
+    originalAuth0Domain = env.AUTH0_DOMAIN;
+    originalAuth0ClientId = env.AUTH0_CLIENT_ID;
+    originalAllowedRedirectBases = JSON.stringify([
+      'http://localhost:8787',
+      'https://test.example.com'
     ]);
     
-    // Refresh cache after inserting data
-    await ConfigService.refreshCache();
+    // Save Auth0 configuration using ConfigService
+    await ConfigService.upsert('auth0Domain', originalAuth0Domain, 'string');
+    await ConfigService.upsert('auth0ClientId', originalAuth0ClientId, 'string');
+    await ConfigService.upsert('allowedRedirectBases', originalAllowedRedirectBases, 'json');
+  });
+
+  // Ensure clean state after each test that might modify config
+  afterEach(async () => {
+    // Restore original configuration after each test
+    await ConfigService.upsert('auth0Domain', originalAuth0Domain, 'string');
+    await ConfigService.upsert('auth0ClientId', originalAuth0ClientId, 'string');
+    await ConfigService.upsert('allowedRedirectBases', originalAllowedRedirectBases, 'json');
   });
 
   afterAll(async () => {
-    // Clean up test data
-    await db.delete(configTable).where(eq(configTable.key, 'auth0Domain'));
-    await db.delete(configTable).where(eq(configTable.key, 'auth0ClientId'));
-    await db.delete(configTable).where(eq(configTable.key, 'allowedRedirectBases'));
+    // Clean up test data using ConfigService
+    await ConfigService.deleteByKey('auth0Domain');
+    await ConfigService.deleteByKey('auth0ClientId');
+    await ConfigService.deleteByKey('allowedRedirectBases');
   });
 
   describe('Successful login redirect', () => {
@@ -93,6 +105,7 @@ describe('Login API - GET /api/v1/auth/login', () => {
       // Check Secure flag is set for https
       const setCookie = response.headers.get('Set-Cookie');
       expect(setCookie).toContain('Secure');
+      expect(setCookie).toContain('Domain=test.example.com');
     });
   });
 
@@ -113,9 +126,8 @@ describe('Login API - GET /api/v1/auth/login', () => {
     });
 
     it('should return 500 when Auth0 is not configured', async () => {
-      // Temporarily remove Auth0 configuration
-      await db.delete(configTable).where(eq(configTable.key, 'auth0Domain'));
-      await ConfigService.refreshCache();
+      // Temporarily remove Auth0 configuration using ConfigService
+      await ConfigService.deleteByKey('auth0Domain');
 
       const response = await app.fetch(new Request('http://localhost:8787/api/v1/auth/login', {
         method: 'GET',
@@ -130,13 +142,7 @@ describe('Login API - GET /api/v1/auth/login', () => {
       expect(body.error).toBe('Authentication failed');
       expect(body.message).toBe('Authentication service not configured');
       
-      // Restore configuration
-      await db.insert(configTable).values({
-        key: 'auth0Domain',
-        value: env.AUTH0_DOMAIN,
-        type: 'string'
-      });
-      await ConfigService.refreshCache();
+      // Configuration will be restored by afterEach hook
     });
   });
 
@@ -179,6 +185,8 @@ describe('Login API - GET /api/v1/auth/login', () => {
       const setCookie = response.headers.get('Set-Cookie')!;
       expect(setCookie).toContain('HttpOnly');
       expect(setCookie).toContain('SameSite=Lax');
+      expect(setCookie).toContain('Path=/');
+      expect(setCookie).toContain('Domain=localhost');
       expect(setCookie).not.toContain('Secure'); // Not secure for http
     });
   });
