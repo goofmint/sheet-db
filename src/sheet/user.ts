@@ -35,15 +35,17 @@ const USER_SHEET_CONFIG: SheetConfig = {
  */
 export class UserSheet {
   private userSheetService: UserSheetService;
+  private env: Env;
 
   constructor(env: Env) {
+    this.env = env;
     this.userSheetService = new UserSheetService();
   }
 
   /**
    * ユーザーをupsert（認証後に使用）
    */
-  async upsertUser(env: Env, userData: {
+  async upsertUser(userData: {
     id: string;
     email: string;
     name: string;
@@ -59,20 +61,20 @@ export class UserSheet {
       created_at: userData.created_at,
       last_login: userData.last_login
     };
-    return await this.userSheetService.upsertUser(env, userSheetData);
+    return await this.userSheetService.upsertUser(this.env, userSheetData);
   }
 
   /**
    * ユーザーをIDで検索
    */
-  async findById(env: Env, userId: string) {
-    return await this.userSheetService.findUser(env, userId);
+  async findById(userId: string) {
+    return await this.userSheetService.findUser(this.env, userId);
   }
 
   /**
    * Find user by email
    */
-  async findByEmail(env: Env, email: string): Promise<UserRecord | null> {
+  async findByEmail(email: string): Promise<UserRecord | null> {
     // この実装は現在 UserSheetService にはないため、必要に応じて後で追加
     throw new Error('findByEmail not implemented yet');
   }
