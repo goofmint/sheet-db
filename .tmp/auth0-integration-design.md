@@ -116,19 +116,47 @@ Auth0の設定はD1データベースのConfigテーブルに保存され、Conf
 {
   auth0Domain: "your-tenant.auth0.com",
   auth0ClientId: "your-client-id",
-  auth0ClientSecret: "your-client-secret",
-  // リダイレクトURIは環境に応じて動的に生成
+  // auth0ClientSecret は Cloudflare Workers Secrets に保存
   // auth0Audience: "https://your-api-identifier" (オプション)
+  allowedRedirectBase: "https://your-app.com" // 許可されたリダイレクトベースURL
 }
 ```
+
+### シークレット管理
+**重要: Auth0クライアントシークレットは平文でConfigテーブルに保存しません**
+
+```typescript
+// Cloudflare Workers Secrets を使用
+interface Env {
+  AUTH0_CLIENT_SECRET: string; // Workers Secrets に設定
+  DB: D1Database;
+}
+
+// シークレットの取得
+const auth0ClientSecret = env.AUTH0_CLIENT_SECRET;
+```
+
+セットアップ時：
+1. Auth0クライアントシークレットは `wrangler secret put AUTH0_CLIENT_SECRET` で設定
+2. 開発環境では `.dev.vars` に記載（Gitには含めない）
+3. 本番環境では Cloudflare ダッシュボードから設定
 
 ### 設定取得方法
 ```typescript
 const configService = new ConfigService(env.DB);
 const auth0Config = await configService.getAuth0Config();
 
-// リダイレクトURIは実行環境から動的に生成
-const redirectUri = `${request.headers.get('origin')}/api/auth/callback`;
+// リダイレクトURIは設定から取得（オープンリダイレクト対策）
+// 許可されたベースURLのみを使用
+const allowedRedirectBase = await configService.get('allowedRedirectBase');
+const redirectUri = `${allowedRedirectBase}/api/auth/callback`;
+
+// 複数環境対応の場合
+const allowedRedirectBases = [
+  'https://your-app.com',
+  'http://localhost:8787' // 開発環境
+];
+// 現在の環境に応じて適切なベースURLを選択
 ```
 
 ### 設定の保存方法
