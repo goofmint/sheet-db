@@ -118,7 +118,10 @@ Auth0の設定はD1データベースのConfigテーブルに保存され、Conf
   auth0ClientId: "your-client-id",
   // auth0ClientSecret は Cloudflare Workers Secrets に保存
   // auth0Audience: "https://your-api-identifier" (オプション)
-  allowedRedirectBase: "https://your-app.com" // 許可されたリダイレクトベースURL
+  allowedRedirectBases: [
+    "https://your-app.com",
+    "http://localhost:8787" // 開発環境
+  ] // 許可されたリダイレクトベースURLの配列
 }
 ```
 
@@ -147,16 +150,18 @@ const configService = new ConfigService(env.DB);
 const auth0Config = await configService.getAuth0Config();
 
 // リダイレクトURIは設定から取得（オープンリダイレクト対策）
-// 許可されたベースURLのみを使用
-const allowedRedirectBase = await configService.get('allowedRedirectBase');
-const redirectUri = `${allowedRedirectBase}/api/auth/callback`;
+// 許可されたベースURLの配列から現在の環境に応じて選択
+const allowedRedirectBases = await configService.get('allowedRedirectBases') as string[];
 
-// 複数環境対応の場合
-const allowedRedirectBases = [
-  'https://your-app.com',
-  'http://localhost:8787' // 開発環境
-];
-// 現在の環境に応じて適切なベースURLを選択
+// 現在のホストに基づいて適切なベースURLを選択
+const currentHost = new URL(request.url).origin;
+const allowedBase = allowedRedirectBases.find(base => base === currentHost);
+
+if (!allowedBase) {
+  throw new Error('Unauthorized redirect base URL');
+}
+
+const redirectUri = `${allowedBase}/api/auth/callback`;
 ```
 
 ### 設定の保存方法
