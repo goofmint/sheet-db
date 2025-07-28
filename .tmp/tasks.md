@@ -1,29 +1,61 @@
 # タスクリスト - GoogleシートバックエンドAPIサービス「sheetDB」
 
-## Phase 1: 基盤構築
+最終更新: 2025-07-28  
+管理ドキュメント: [task-management.md](./task-management.md)
 
-### 1.1 プロジェクト構造のセットアップ
-- [x] src/index.tsの作成（メインエントリーポイント）
-- [x] src/types/index.tsの作成（型定義）
-- [x] src/config/index.tsの作成（設定管理）
-- [x] src/utils/logger.tsの作成（ログユーティリティ）
-- [x] src/middleware/error-handler.tsの作成（エラーハンドリング）
+## タスクファイル形式
 
-### 1.2 D1データベーススキーマの実装
-- [x] schema.sqlの更新（Config、Cache、Sessionテーブル）
+個別タスクファイル（.tmp/tasks/以下）は以下の形式を推奨：
+
+```markdown
+# [タスク番号] タスク名
+
+## ステータス
+- [x] 完了 / [ ] 未完了  
+- 開始日: YYYY-MM-DD
+- 完了日: YYYY-MM-DD
+
+## 概要
+[タスクの概要]
+
+## 実装内容
+[実装内容の詳細]
+
+## 関連ファイル
+- 作成/変更されたファイル一覧
+
+## 依存関係
+- 前提となるタスク
+- このタスクに依存するタスク
+
+## メモ
+実装時の注意点や学習内容
+```
+
+## Phase 1: 基盤構築 ✅ **完了**
+
+### 1.1 プロジェクト構造のセットアップ ✅
+- [x] src/index.tsの作成（メインエントリーポイント） - [詳細](./tasks/1.1.1-project-setup.md)
+- [x] src/types/index.tsの作成（型定義） - [詳細](./tasks/1.1.2-types-definition.md)
+- [x] src/config/index.tsの作成（設定管理） - [詳細](./tasks/1.1.3-config-management.md)
+- [x] src/utils/logger.tsの作成（ログユーティリティ） - [詳細](./tasks/1.1.4-logger-utility.md)
+- [x] src/middleware/error-handler.tsの作成（エラーハンドリング） - [詳細](./tasks/1.1.5-error-handler.md)
+
+### 1.2 D1データベーススキーマの実装 ✅
+- [x] schema.sqlの更新（Config、Cache、Sessionテーブル） - [詳細](./tasks/1.2-database-schema.md)
 - [x] src/db/schema.tsの更新（Drizzle ORM定義）
 - [x] src/repositories/config.tsの作成
 - [x] src/repositories/cache.tsの作成
 - [x] src/repositories/session.tsの作成
 - [x] マイグレーションスクリプトの作成と実行
 
-### 1.3 基本的なAPIルーティング
-- [x] src/api/index.tsの作成（ルートルーティング）
+### 1.3 基本的なAPIルーティング ✅
+- [x] src/api/index.tsの作成（ルートルーティング） - [詳細](./tasks/1.3.1-api-routing.md)
 - [x] src/api/v1/health/get.tsの作成（ヘルスチェック）
-- [x] src/api/v1/setup/get.tsの作成（セットアップ画面）
+- [x] src/api/v1/setup/get.tsの作成（セットアップ画面） - [詳細](./tasks/setup-api-endpoint.md)
 - [x] src/api/v1/setup/post.tsの作成（セットアップ処理）
-- [x] src/api/v1/playground/get.tsの作成（Playground画面）
-- [x] HTMLテンプレートの作成（setup.html、playground.html）
+- [x] src/api/v1/playground/get.tsの作成（Playground画面） - [詳細](./tasks/playground-api-design.md)
+- [x] HTMLテンプレートの作成（setup.html、playground.html） - [詳細](./tasks/setup-ui-design.md)
 
 ## Phase 2: 認証・認可
 
@@ -104,7 +136,7 @@
 
 ## Phase 5: 拡張機能
 
-### 5.1 ファイルアップロード（R2/Google Drive）
+### 5.1 ファイルアップロード（R2/Google Drive） 🔄 **部分完了**
 - [x] src/api/v1/storages/route.tsの作成（アップロード）
 - [ ] ファイルアップロード設定のConfig化（サイズ制限、許可タイプ）
 - [ ] src/api/files/$fileId/get.tsの作成（ダウンロード）
@@ -113,7 +145,7 @@
 - [x] src/services/storage/google-drive.tsの作成（Driveストレージ）
 - [ ] _Fileシートのメタデータ管理
 
-### 5.2 セキュリティ強化 ✅ 完了
+### 5.2 セキュリティ強化 ✅ **完了**
 - [x] タイミング攻撃対策（定数時間比較関数の実装）
 - [x] XSS脆弱性修正（インラインスクリプト削除、データ属性使用）
 - [x] 入力検証とサニタイゼーション強化
@@ -127,7 +159,7 @@
 - [ ] 各APIエンドポイントのスキーマ定義
 - [ ] Swagger UIの統合
 
-### 5.3 Playground UI
+### 5.4 Playground UI
 - [ ] templates/playground.htmlの改善
 - [ ] APIテストインターフェースの実装
 - [ ] リアルタイムレスポンス表示
@@ -161,3 +193,31 @@
 - [ ] Cloudflare設定の最適化
 - [ ] モニタリングの設定
 - [ ] バックアップ戦略の実装
+
+## 個別タスクファイル一覧
+
+### 作成済みタスクファイル
+- `1.1.1-project-setup.md` - メインエントリーポイント
+- `1.1.2-types-definition.md` - 型定義
+- `1.1.3-config-management.md` - 設定管理
+- `1.1.4-logger-utility.md` - ログユーティリティ
+- `1.1.5-error-handler.md` - エラーハンドリング
+- `1.2-database-schema.md` - D1データベーススキーマ
+- `1.3.1-api-routing.md` - APIルーティング
+- `setup-api-endpoint.md` - セットアップGET API
+- `setup-ui-design.md` - セットアップUI設計
+- `playground-api-design.md` - Playground設計
+
+### 未作成タスクファイル（推奨）
+#### Phase 1.3系
+- `1.3.2-health-endpoint.md` - ヘルスチェックAPI
+- `1.3.3-setup-post-endpoint.md` - セットアップPOST API
+- `1.3.4-html-templates.md` - HTMLテンプレート
+
+#### Phase 5.1系
+- `5.1.1-storage-api.md` - ストレージAPI実装
+- `5.1.2-r2-integration.md` - R2統合詳細
+- `5.1.3-google-drive-integration.md` - Google Drive統合詳細
+
+#### Phase 5.2系
+- `5.2-security-implementation.md` - セキュリティ実装総括
