@@ -65,7 +65,12 @@
       "Bash(NODE_V8_COVERAGE=coverage npm test)",
       "Bash(npx c8 report:*)",
       "Bash(git rm:*)",
-      "Bash(gh pr view:*)"
+      "Bash(gh pr view:*)",
+      "Bash(for file in *.md)",
+      "Bash(do echo \"=== $file ===\")",
+      "Bash(head:*)",
+      "Bash(echo)",
+      "Bash(done)"
     ],
     "deny": []
   }

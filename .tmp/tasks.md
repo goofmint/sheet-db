@@ -3,6 +3,35 @@
 最終更新: 2025-07-28  
 管理ドキュメント: [task-management.md](./task-management.md)
 
+## タスクファイル形式
+
+個別タスクファイル（.tmp/tasks/以下）は以下の形式を推奨：
+
+```markdown
+# [タスク番号] タスク名
+
+## ステータス
+- [x] 完了 / [ ] 未完了  
+- 開始日: YYYY-MM-DD
+- 完了日: YYYY-MM-DD
+
+## 概要
+[タスクの概要]
+
+## 実装内容
+[実装内容の詳細]
+
+## 関連ファイル
+- 作成/変更されたファイル一覧
+
+## 依存関係
+- 前提となるタスク
+- このタスクに依存するタスク
+
+## メモ
+実装時の注意点や学習内容
+```
+
 ## Phase 1: 基盤構築 ✅ **完了**
 
 ### 1.1 プロジェクト構造のセットアップ ✅
@@ -164,3 +193,31 @@
 - [ ] Cloudflare設定の最適化
 - [ ] モニタリングの設定
 - [ ] バックアップ戦略の実装
+
+## 個別タスクファイル一覧
+
+### 作成済みタスクファイル
+- `1.1.1-project-setup.md` - メインエントリーポイント
+- `1.1.2-types-definition.md` - 型定義
+- `1.1.3-config-management.md` - 設定管理
+- `1.1.4-logger-utility.md` - ログユーティリティ
+- `1.1.5-error-handler.md` - エラーハンドリング
+- `1.2-database-schema.md` - D1データベーススキーマ
+- `1.3.1-api-routing.md` - APIルーティング
+- `setup-api-endpoint.md` - セットアップGET API
+- `setup-ui-design.md` - セットアップUI設計
+- `playground-api-design.md` - Playground設計
+
+### 未作成タスクファイル（推奨）
+#### Phase 1.3系
+- `1.3.2-health-endpoint.md` - ヘルスチェックAPI
+- `1.3.3-setup-post-endpoint.md` - セットアップPOST API
+- `1.3.4-html-templates.md` - HTMLテンプレート
+
+#### Phase 5.1系
+- `5.1.1-storage-api.md` - ストレージAPI実装
+- `5.1.2-r2-integration.md` - R2統合詳細
+- `5.1.3-google-drive-integration.md` - Google Drive統合詳細
+
+#### Phase 5.2系
+- `5.2-security-implementation.md` - セキュリティ実装総括
