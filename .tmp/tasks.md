@@ -23,13 +23,7 @@
 - [x] src/api/v1/setup/get.tsの作成（セットアップ画面）
 - [x] src/api/v1/setup/post.tsの作成（セットアップ処理）
 - [x] src/api/v1/playground/get.tsの作成（Playground画面）
-- [ ] HTMLテンプレートの作成（setup.html、playground.html）
-
-### 1.4 エラーハンドリング基盤
-- [ ] src/utils/errors.tsの作成（カスタムエラークラス）
-- [ ] src/middleware/request-id.tsの作成（リクエストID生成）
-- [ ] src/middleware/logging.tsの作成（リクエストログ）
-- [ ] 統一エラーレスポンス形式の実装
+- [x] HTMLテンプレートの作成（setup.html、playground.html）
 
 ## Phase 2: 認証・認可
 
@@ -111,14 +105,23 @@
 ## Phase 5: 拡張機能
 
 ### 5.1 ファイルアップロード（R2/Google Drive）
-- [ ] src/api/files/upload/post.tsの作成（アップロード）
+- [x] src/api/v1/storages/route.tsの作成（アップロード）
+- [ ] ファイルアップロード設定のConfig化（サイズ制限、許可タイプ）
 - [ ] src/api/files/$fileId/get.tsの作成（ダウンロード）
 - [ ] src/api/files/$fileId/delete.tsの作成（削除）
-- [ ] src/services/storage/r2.tsの作成（R2ストレージ）
-- [ ] src/services/storage/google-drive.tsの作成（Driveストレージ）
+- [x] src/services/storage/r2.tsの作成（R2ストレージ）
+- [x] src/services/storage/google-drive.tsの作成（Driveストレージ）
 - [ ] _Fileシートのメタデータ管理
 
-### 5.2 OpenAPI仕様書生成
+### 5.2 セキュリティ強化 ✅ 完了
+- [x] タイミング攻撃対策（定数時間比較関数の実装）
+- [x] XSS脆弱性修正（インラインスクリプト削除、データ属性使用）
+- [x] 入力検証とサニタイゼーション強化
+- [x] D1データベースでのトランザクション対応（ConfigServiceのみ）
+- [x] 型安全性向上（TypeScriptインターフェース追加）
+- [x] ファイルアップロード検証（サイズ・タイプ制限）
+
+### 5.3 OpenAPI仕様書生成
 - [ ] src/api/docs/get.tsの作成（OpenAPIドキュメント）
 - [ ] src/utils/openapi-generator.tsの作成
 - [ ] 各APIエンドポイントのスキーマ定義
