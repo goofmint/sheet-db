@@ -1,4 +1,4 @@
-import { Env } from '../../types/env';
+import { Env } from '@/types/env';
 import { createSheetRow } from './create';
 import { findSheetRows, findSheetRow } from './find';
 import { updateSheetRow } from './update';

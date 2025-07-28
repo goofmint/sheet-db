@@ -1,5 +1,5 @@
-import { Env } from '../../types/env';
-import { ConfigService } from '../config';
+import { Env } from '@/types/env';
+import { ConfigService } from '@/services/config';
 import { SheetUpdateOptions, SheetOperationResult, SheetRow } from './types';
 import { findSheetRows } from './find';
 

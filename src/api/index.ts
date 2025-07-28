@@ -8,7 +8,7 @@ import { playgroundGetHandler } from './v1/playground/get';
 import storagesRouter from './v1/storages/route';
 import loginRouter from './v1/auth/login/get';
 import callbackRouter from './v1/auth/callback/get';
-import type { Env } from '../types/env';
+import type { Env } from '@/types/env';
 
 /**
  * API Router - Centralized routing for all API endpoints

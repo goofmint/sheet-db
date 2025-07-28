@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
-import { Auth0Service } from '../../../../services/auth0';
-import { ConfigService } from '../../../../services/config';
-import { UserSheetService } from '../../../../services/sheet';
+import { Auth0Service } from '@/services/auth0';
+import { ConfigService } from '@/services/config';
+import { UserSheetService } from '@/services/sheet';
 import { drizzle } from 'drizzle-orm/d1';
-import { sessionTable } from '../../../../db/schema';
-import { Env } from '../../../../types/env';
+import { sessionTable } from '@/db/schema';
+import { Env } from '@/types/env';
 
 const app = new Hono<{ Bindings: Env }>();
 

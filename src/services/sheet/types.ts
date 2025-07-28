@@ -1,4 +1,4 @@
-import { Env } from '../../types/env';
+import { Env } from '@/types/env';
 
 /**
  * Google Sheets操作のための汎用インターフェース
