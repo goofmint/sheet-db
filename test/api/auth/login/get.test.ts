@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 import { setupConfigDatabase } from '../../../utils/database-setup';
 import app from '../../../../src';
 
-describe('Login API - GET /api/auth/login', () => {
+describe('Login API - GET /api/v1/auth/login', () => {
   const db = drizzle(env.DB);
 
   beforeAll(async () => {
@@ -51,7 +51,7 @@ describe('Login API - GET /api/auth/login', () => {
 
   describe('Successful login redirect', () => {
     it('should redirect to Auth0 with proper parameters', async () => {
-      const response = await app.fetch(new Request('http://localhost:8787/api/auth/login', {
+      const response = await app.fetch(new Request('http://localhost:8787/api/v1/auth/login', {
         method: 'GET',
         headers: {
           'Host': 'localhost:8787'
@@ -65,7 +65,7 @@ describe('Login API - GET /api/auth/login', () => {
       expect(location).toContain(`https://${env.AUTH0_DOMAIN}/authorize`);
       expect(location).toContain(`client_id=${env.AUTH0_CLIENT_ID}`);
       expect(location).toContain('response_type=code');
-      expect(location).toContain('redirect_uri=http%3A%2F%2Flocalhost%3A8787%2Fapi%2Fauth%2Fcallback');
+      expect(location).toContain('redirect_uri=http%3A%2F%2Flocalhost%3A8787%2Fapi%2Fv1%2Fauth%2Fcallback');
       expect(location).toContain('state=');
       expect(location).toContain('scope=openid+profile+email');
       
@@ -78,7 +78,7 @@ describe('Login API - GET /api/auth/login', () => {
     });
 
     it('should use https redirect URI for https origin', async () => {
-      const response = await app.fetch(new Request('https://test.example.com/api/auth/login', {
+      const response = await app.fetch(new Request('https://test.example.com/api/v1/auth/login', {
         method: 'GET',
         headers: {
           'Host': 'test.example.com'
@@ -88,7 +88,7 @@ describe('Login API - GET /api/auth/login', () => {
       expect(response.status).toBe(302);
       
       const location = response.headers.get('Location');
-      expect(location).toContain('redirect_uri=https%3A%2F%2Ftest.example.com%2Fapi%2Fauth%2Fcallback');
+      expect(location).toContain('redirect_uri=https%3A%2F%2Ftest.example.com%2Fapi%2Fv1%2Fauth%2Fcallback');
       
       // Check Secure flag is set for https
       const setCookie = response.headers.get('Set-Cookie');
@@ -98,7 +98,7 @@ describe('Login API - GET /api/auth/login', () => {
 
   describe('Error handling', () => {
     it('should return 400 for unauthorized redirect base URL', async () => {
-      const response = await app.fetch(new Request('http://unauthorized.com/api/auth/login', {
+      const response = await app.fetch(new Request('http://unauthorized.com/api/v1/auth/login', {
         method: 'GET',
         headers: {
           'Host': 'unauthorized.com'
@@ -117,7 +117,7 @@ describe('Login API - GET /api/auth/login', () => {
       await db.delete(configTable).where(eq(configTable.key, 'auth0Domain'));
       await ConfigService.refreshCache();
 
-      const response = await app.fetch(new Request('http://localhost:8787/api/auth/login', {
+      const response = await app.fetch(new Request('http://localhost:8787/api/v1/auth/login', {
         method: 'GET',
         headers: {
           'Host': 'localhost:8787'
@@ -142,14 +142,14 @@ describe('Login API - GET /api/auth/login', () => {
 
   describe('Security', () => {
     it('should generate unique state for each request', async () => {
-      const response1 = await app.fetch(new Request('http://localhost:8787/api/auth/login', {
+      const response1 = await app.fetch(new Request('http://localhost:8787/api/v1/auth/login', {
         method: 'GET',
         headers: {
           'Host': 'localhost:8787'
         }
       }), env);
 
-      const response2 = await app.fetch(new Request('http://localhost:8787/api/auth/login', {
+      const response2 = await app.fetch(new Request('http://localhost:8787/api/v1/auth/login', {
         method: 'GET',
         headers: {
           'Host': 'localhost:8787'
@@ -169,7 +169,7 @@ describe('Login API - GET /api/auth/login', () => {
     });
 
     it('should use httpOnly cookies with proper settings', async () => {
-      const response = await app.fetch(new Request('http://localhost:8787/api/auth/login', {
+      const response = await app.fetch(new Request('http://localhost:8787/api/v1/auth/login', {
         method: 'GET',
         headers: {
           'Host': 'localhost:8787'

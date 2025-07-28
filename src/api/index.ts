@@ -46,14 +46,14 @@ v1.route('/storages', storagesRouter);
 // Playground endpoint
 v1.get('/playground', playgroundGetHandler);
 
+// Auth routes
+v1.route('/auth/login', loginRouter);
+
 // Future endpoints for Google Sheets integration
 // v1.route('/sheets', sheetsRouter);
 
 // Mount v1 API routes
 api.route('/v1', v1);
-
-// Auth routes (not versioned)
-api.route('/auth/login', loginRouter);
 
 // API root endpoint - provides API information
 api.get('/', async (c) => {

@@ -21,7 +21,7 @@ app.get('/', async (c) => {
       }, 400);
     }
     
-    const redirectUri = `${allowedBase}/api/auth/callback`;
+    const redirectUri = `${allowedBase}/api/v1/auth/callback`;
     
     // Generate state parameter for CSRF protection
     const state = crypto.randomUUID();
