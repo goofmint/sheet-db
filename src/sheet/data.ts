@@ -1,4 +1,4 @@
-import { SheetService } from '../services/sheet';
+import { SheetService } from '../services/legacy-sheet';
 
 /**
  * Base data interface for all sheet records

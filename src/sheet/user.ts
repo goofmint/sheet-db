@@ -1,5 +1,5 @@
 import { BaseRecord, BaseDataService, ColumnDefinition, SheetConfig } from './data';
-import { SheetService } from '../services/sheet';
+import { SheetService } from '../services/legacy-sheet';
 
 /**
  * User record interface
