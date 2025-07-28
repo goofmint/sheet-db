@@ -7,6 +7,7 @@ import { sheetsPostHandler } from './v1/sheets/post';
 import { playgroundGetHandler } from './v1/playground/get';
 import storagesRouter from './v1/storages/route';
 import loginRouter from './v1/auth/login/get';
+import callbackRouter from './v1/auth/callback/get';
 import type { Env } from '../types/env';
 
 /**
@@ -48,6 +49,7 @@ v1.get('/playground', playgroundGetHandler);
 
 // Auth routes
 v1.route('/auth/login', loginRouter);
+v1.route('/auth/callback', callbackRouter);
 
 // Future endpoints for Google Sheets integration
 // v1.route('/sheets', sheetsRouter);
