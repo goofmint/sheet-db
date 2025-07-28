@@ -18,10 +18,13 @@ describe('Auth0Service', () => {
     // Initialize ConfigService
     await ConfigService.initialize(db);
     
-    // Save Auth0 configuration
+    // Save Auth0 configuration from environment variables
+    const auth0Domain = env.AUTH0_DOMAIN || 'dev-wpguwz20dkay63vr.us.auth0.com';
+    const auth0ClientId = env.AUTH0_CLIENT_ID || 'ZfpCzSrEg1gEsmhbT4Bi2ocZXociVEWi';
+    
     await db.insert(configTable).values([
-      { key: 'auth0Domain', value: 'dev-wpguwz20dkay63vr.us.auth0.com', type: 'string' },
-      { key: 'auth0ClientId', value: 'ZfpCzSrEg1gEsmhbT4Bi2ocZXociVEWi', type: 'string' },
+      { key: 'auth0Domain', value: auth0Domain, type: 'string' },
+      { key: 'auth0ClientId', value: auth0ClientId, type: 'string' },
       { key: 'allowedRedirectBases', value: JSON.stringify([
         'http://localhost:8787',
         'https://test.example.com'
@@ -48,8 +51,11 @@ describe('Auth0Service', () => {
       
       const url = await auth0Service.getAuthorizationUrl(state, redirectUri);
       
-      expect(url).toContain(`https://dev-wpguwz20dkay63vr.us.auth0.com/authorize`);
-      expect(url).toContain(`client_id=ZfpCzSrEg1gEsmhbT4Bi2ocZXociVEWi`);
+      const auth0Domain = env.AUTH0_DOMAIN || 'dev-wpguwz20dkay63vr.us.auth0.com';
+      const auth0ClientId = env.AUTH0_CLIENT_ID || 'ZfpCzSrEg1gEsmhbT4Bi2ocZXociVEWi';
+      
+      expect(url).toContain(`https://${auth0Domain}/authorize`);
+      expect(url).toContain(`client_id=${auth0ClientId}`);
       expect(url).toContain(`redirect_uri=${encodeURIComponent(redirectUri)}`);
       expect(url).toContain(`state=${state}`);
       expect(url).toContain('response_type=code');
@@ -117,10 +123,11 @@ describe('Auth0Service', () => {
     it('should reject expired token', async () => {
       // Create an expired token
       const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'test-kid' }));
+      const auth0Domain = env.AUTH0_DOMAIN || 'dev-wpguwz20dkay63vr.us.auth0.com';
       const payload = btoa(JSON.stringify({ 
         sub: '123',
         exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
-        iss: `https://dev-wpguwz20dkay63vr.us.auth0.com/`
+        iss: `https://${auth0Domain}/`
       }));
       const signature = 'fake-signature';
       const token = `${header}.${payload}.${signature}`;
@@ -152,9 +159,10 @@ describe('Auth0Service', () => {
       ).rejects.toThrow('Auth0 configuration not found');
       
       // Restore configuration
+      const auth0Domain = env.AUTH0_DOMAIN || 'dev-wpguwz20dkay63vr.us.auth0.com';
       await db.insert(configTable).values({
         key: 'auth0Domain',
-        value: 'dev-wpguwz20dkay63vr.us.auth0.com',
+        value: auth0Domain,
         type: 'string'
       });
       await ConfigService.refreshCache();
