@@ -71,7 +71,7 @@ app.get('/', async (c) => {
     // ドメイン層のUserSheetを使用してユーザーデータを保存
     try {
       const userSheet = new UserSheet(c.env);
-      const userData = await userSheet.upsertUser(c.env, {
+      const userData = await userSheet.upsertUser({
         id: userInfo.sub, // auth0_idをidフィールドにマッピング
         email: userInfo.email,
         name: userInfo.name || '',

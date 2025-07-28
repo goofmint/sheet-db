@@ -130,7 +130,15 @@ export class GoogleOAuthService {
    */
   async validateToken(accessToken: string): Promise<boolean> {
     try {
-      const response = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${accessToken}`);
+      const response = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          access_token: accessToken
+        })
+      });
       return response.ok;
     } catch {
       return false;
