@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { ConfigService } from '../../../../src/services/config';
+import { ConfigService } from '../../../../../src/services/config';
 import { env } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
-import { configTable } from '../../../../src/db/schema';
+import { configTable } from '../../../../../src/db/schema';
 import { eq } from 'drizzle-orm';
-import { setupConfigDatabase } from '../../../utils/database-setup';
-import app from '../../../../src';
+import { setupConfigDatabase } from '../../../../utils/database-setup';
+import app from '../../../../../src';
 
 describe('Login API - GET /api/v1/auth/login', () => {
   const db = drizzle(env.DB);

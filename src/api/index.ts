@@ -6,7 +6,7 @@ import { setupPostHandler } from './v1/setup/post';
 import { sheetsPostHandler } from './v1/sheets/post';
 import { playgroundGetHandler } from './v1/playground/get';
 import storagesRouter from './v1/storages/route';
-import loginRouter from './auth/login/get';
+import loginRouter from './v1/auth/login/get';
 import type { Env } from '../types/env';
 
 /**

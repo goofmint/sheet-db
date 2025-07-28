@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { Auth0Service } from '../../../services/auth0';
-import { ConfigService } from '../../../services/config';
-import { Env } from '../../../types/env';
+import { Auth0Service } from '../../../../services/auth0';
+import { ConfigService } from '../../../../services/config';
+import { Env } from '../../../../types/env';
 
 const app = new Hono<{ Bindings: Env }>();
 
