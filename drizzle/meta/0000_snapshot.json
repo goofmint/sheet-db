@@ -224,6 +224,13 @@
             "session_id"
           ],
           "isUnique": true
+        },
+        "Session_user_id_index": {
+          "name": "Session_user_id_index",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
