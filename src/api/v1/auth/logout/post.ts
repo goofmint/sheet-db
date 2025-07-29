@@ -20,10 +20,22 @@ app.post('/', async (c) => {
     }
 
     // Origin/Refererヘッダーの検証
-    const origin = c.req.header('Origin') || c.req.header('Referer');
+    const origin = c.req.header('Origin');
+    const referer = c.req.header('Referer');
     const currentOrigin = new URL(c.req.url).origin;
     
-    if (origin && !origin.startsWith(currentOrigin)) {
+    // OriginまたはRefererヘッダーが必須
+    if (!origin && !referer) {
+      return c.json({
+        success: false,
+        error: 'missing_origin_headers',
+        message: 'Origin or Referer header is required'
+      }, 400);
+    }
+    
+    // 存在するヘッダーを検証
+    const headerToValidate = origin || referer;
+    if (headerToValidate && !headerToValidate.startsWith(currentOrigin)) {
       return c.json({
         success: false,
         error: 'invalid_origin',

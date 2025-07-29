@@ -86,6 +86,40 @@ describe('Logout API - POST /api/v1/auth/logout', () => {
       });
     });
 
+    it('should reject requests without Origin or Referer headers', async () => {
+      // 有効なセッションを作成
+      const sessionId = 'sess_no_headers_test';
+      await db.insert(sessionTable).values({
+        session_id: sessionId,
+        user_id: 'test-user-no-headers',
+        user_data: JSON.stringify({ sub: 'test-user-no-headers', email: 'no-headers@example.com' }),
+        access_token: 'test-access-token-no-headers',
+        refresh_token: null,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      });
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': `session_id=${sessionId}`,
+            'X-Requested-With': 'XMLHttpRequest'
+            // OriginもRefererも含めない
+          }
+        }),
+        env
+      );
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data).toEqual({
+        success: false,
+        error: 'missing_origin_headers',
+        message: 'Origin or Referer header is required'
+      });
+    });
+
     it('should accept requests with valid CSRF headers', async () => {
       // 有効なセッションを作成
       const sessionId = 'sess_test_session_789';
@@ -106,6 +140,39 @@ describe('Logout API - POST /api/v1/auth/logout', () => {
             'Cookie': `session_id=${sessionId}`,
             'X-Requested-With': 'XMLHttpRequest',
             'Origin': 'http://localhost'
+          }
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data).toEqual({
+        success: true,
+        message: 'Successfully logged out'
+      });
+    });
+
+    it('should accept requests with valid Referer header', async () => {
+      // 有効なセッションを作成
+      const sessionId = 'sess_test_referer_456';
+      await db.insert(sessionTable).values({
+        session_id: sessionId,
+        user_id: 'test-user-referer',
+        user_data: JSON.stringify({ sub: 'test-user-referer', email: 'referer@example.com' }),
+        access_token: 'test-access-token-referer',
+        refresh_token: null,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      });
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': `session_id=${sessionId}`,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': 'http://localhost/some-page'
           }
         }),
         env
@@ -141,7 +208,8 @@ describe('Logout API - POST /api/v1/auth/logout', () => {
           headers: {
             'Content-Type': 'application/json',
             'Cookie': `session_id=${sessionId}`,
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Origin': 'http://localhost'
           }
         }),
         env
@@ -173,7 +241,8 @@ describe('Logout API - POST /api/v1/auth/logout', () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Origin': 'http://localhost'
           }
         }),
         env
@@ -197,7 +266,8 @@ describe('Logout API - POST /api/v1/auth/logout', () => {
           headers: {
             'Content-Type': 'application/json',
             'Cookie': `session_id=${nonExistentSessionId}`,
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Origin': 'http://localhost'
           }
         }),
         env
@@ -231,7 +301,8 @@ describe('Logout API - POST /api/v1/auth/logout', () => {
           headers: {
             'Content-Type': 'application/json',
             'Cookie': `session_id=${sessionId}`,
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Origin': 'http://localhost'
           }
         }),
         env
@@ -263,7 +334,8 @@ describe('Logout API - POST /api/v1/auth/logout', () => {
           headers: {
             'Content-Type': 'application/json',
             'Cookie': `session_id=${sessionId}`,
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Origin': 'http://localhost'
           }
         }),
         env
@@ -292,7 +364,8 @@ describe('Logout API - POST /api/v1/auth/logout', () => {
           headers: {
             'Content-Type': 'application/json',
             'Cookie': 'session_id=test-session',
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'Origin': 'http://localhost'
           }
         }),
         invalidEnv
