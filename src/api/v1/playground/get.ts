@@ -295,6 +295,16 @@ export async function playgroundGetHandler(c: Context) {
 
           <div class="endpoint">
             <div>
+              <span class="method get">GET</span>
+              <span class="endpoint-url">/api/v1/auth/me</span>
+            </div>
+            <p class="endpoint-description">Get current authenticated user information (requires login)</p>
+            <button class="test-button primary" onclick="testEndpoint('GET', '/api/v1/auth/me', null, 'auth-me-response')">Get User Info</button>
+            <div id="auth-me-response" class="response-area"></div>
+          </div>
+
+          <div class="endpoint">
+            <div>
               <span class="method delete">DELETE</span>
               <span class="endpoint-url">/api/v1/storages/:id</span>
             </div>
@@ -366,6 +376,7 @@ export async function playgroundGetHandler(c: Context) {
             try {
               const options = {
                 method: method,
+                credentials: 'include',
                 headers: {
                   'Content-Type': 'application/json'
                 }

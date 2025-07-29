@@ -64,7 +64,7 @@
 - [x] src/api/v1/auth/login/get.tsの作成（ログインリダイレクト） - [詳細](./tasks/2.1.2-login-api.md)
 - [x] src/api/v1/auth/callback/get.tsの作成（Auth0コールバック） - [詳細](./tasks/2.1.3-auth-callback.md)
 - [x] src/api/v1/auth/logout/post.tsの作成（ログアウト） - [詳細](./tasks/2.1.4-logout-api.md)
-- [ ] src/api/v1/auth/me/get.tsの作成（現在のユーザー情報） - [詳細](./tasks/2.1.5-auth-me-api.md)
+- [x] src/api/v1/auth/me/get.tsの作成（現在のユーザー情報） - [詳細](./tasks/2.1.5-auth-me-api.md)
 - [ ] Auth0設定の環境変数対応
 
 ### 2.2 セッション管理
