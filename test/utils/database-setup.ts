@@ -64,28 +64,18 @@ export async function createSessionTable(db: DrizzleD1Database): Promise<void> {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id TEXT NOT NULL UNIQUE,
         user_id TEXT NOT NULL,
-        email TEXT NOT NULL,
-        name TEXT,
-        picture TEXT,
-        provider TEXT NOT NULL,
-        provider_user_id TEXT NOT NULL,
-        access_token TEXT NOT NULL,
+        user_data TEXT NOT NULL,
+        access_token TEXT,
         refresh_token TEXT,
-        id_token TEXT,
-        metadata TEXT,
-        ip_address TEXT,
-        user_agent TEXT,
-        ttl INTEGER NOT NULL,
+        expires_at TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        expires_at TEXT NOT NULL
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
   // Create indexes
   await db.run(sql`CREATE INDEX idx_session_session_id ON Session(session_id)`);
   await db.run(sql`CREATE INDEX idx_session_user_id ON Session(user_id)`);
-  await db.run(sql`CREATE INDEX idx_session_email ON Session(email)`);
   await db.run(sql`CREATE INDEX idx_session_expires_at ON Session(expires_at)`);
 }
 
