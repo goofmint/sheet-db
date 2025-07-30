@@ -2,6 +2,9 @@
  * Security utilities for safe operations
  */
 
+import { Context } from 'hono';
+import { getCookie, setCookie } from 'hono/cookie';
+
 /**
  * Constant-time string comparison to prevent timing attacks
  * 
@@ -126,4 +129,179 @@ export function sanitizeInput(input: string | null | undefined, maxLength: numbe
   sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   
   return sanitized;
+}
+
+// Session token configuration
+const SESSION_COOKIE_NAME = 'config_session';
+const CSRF_COOKIE_NAME = 'csrf_token';
+const SESSION_DURATION = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+
+/**
+ * Generate a cryptographically secure random token
+ */
+export function generateSecureToken(length: number = 32): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  
+  // Use crypto.getRandomValues if available (Cloudflare Workers)
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint8Array(length);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < length; i++) {
+      result += chars[array[i] % chars.length];
+    }
+  } else {
+    // Fallback for environments without crypto.getRandomValues
+    for (let i = 0; i < length; i++) {
+      result += chars[Math.floor(Math.random() * chars.length)];
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Create a session token with HMAC signature
+ */
+export async function createSessionToken(secret: string): Promise<string> {
+  const sessionId = generateSecureToken(32);
+  const timestamp = Date.now().toString();
+  const payload = `${sessionId}:${timestamp}`;
+  
+  // Create HMAC signature
+  const signature = await createHMAC(payload, secret);
+  return `${payload}:${signature}`;
+}
+
+/**
+ * Verify a session token
+ */
+export async function verifySessionToken(token: string, secret: string): Promise<boolean> {
+  try {
+    const parts = token.split(':');
+    if (parts.length !== 3) return false;
+    
+    const [sessionId, timestampStr, signature] = parts;
+    const timestamp = parseInt(timestampStr, 10);
+    
+    // Check if token is expired
+    if (Date.now() - timestamp > SESSION_DURATION) {
+      return false;
+    }
+    
+    // Verify HMAC signature
+    const payload = `${sessionId}:${timestampStr}`;
+    const expectedSignature = await createHMAC(payload, secret);
+    
+    return await timingSafeEquals(signature, expectedSignature);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create HMAC signature using Web Crypto API
+ */
+async function createHMAC(data: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const messageData = encoder.encode(data);
+  
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signature = await crypto.subtle.sign('HMAC', key, messageData);
+  const hashArray = Array.from(new Uint8Array(signature));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Generate CSRF token
+ */
+export function generateCSRFToken(): string {
+  return generateSecureToken(32);
+}
+
+/**
+ * Verify CSRF token
+ */
+export function verifyCSRFToken(submittedToken: string, storedToken: string): boolean {
+  if (!submittedToken || !storedToken) return false;
+  return constantTimeEquals(submittedToken, storedToken);
+}
+
+/**
+ * Set secure session cookie
+ */
+export function setSessionCookie(c: Context, token: string): void {
+  setCookie(c, SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: new URL(c.req.url).protocol === 'https:',
+    sameSite: 'Strict',
+    maxAge: SESSION_DURATION / 1000, // Convert to seconds
+    path: '/'
+  });
+}
+
+/**
+ * Set CSRF token cookie
+ */
+export function setCSRFCookie(c: Context, token: string): void {
+  setCookie(c, CSRF_COOKIE_NAME, token, {
+    httpOnly: false, // Needs to be accessible to JavaScript for form submission
+    secure: new URL(c.req.url).protocol === 'https:',
+    sameSite: 'Strict',
+    maxAge: SESSION_DURATION / 1000,
+    path: '/'
+  });
+}
+
+/**
+ * Get session token from cookie
+ */
+export function getSessionToken(c: Context): string | undefined {
+  return getCookie(c, SESSION_COOKIE_NAME);
+}
+
+/**
+ * Get CSRF token from cookie
+ */
+export function getCSRFToken(c: Context): string | undefined {
+  return getCookie(c, CSRF_COOKIE_NAME);
+}
+
+/**
+ * Clear session and CSRF cookies
+ */
+export function clearAuthCookies(c: Context): void {
+  setCookie(c, SESSION_COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: new URL(c.req.url).protocol === 'https:',
+    sameSite: 'Strict',
+    maxAge: 0,
+    path: '/'
+  });
+  
+  setCookie(c, CSRF_COOKIE_NAME, '', {
+    httpOnly: false,
+    secure: new URL(c.req.url).protocol === 'https:',
+    sameSite: 'Strict',
+    maxAge: 0,
+    path: '/'
+  });
+}
+
+/**
+ * Check if user is authenticated
+ */
+export async function isAuthenticated(c: Context, secret: string): Promise<boolean> {
+  const sessionToken = getSessionToken(c);
+  if (!sessionToken) return false;
+  
+  return await verifySessionToken(sessionToken, secret);
 }

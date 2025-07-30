@@ -1,8 +1,14 @@
 import { Hono } from 'hono';
-import { setCookie } from 'hono/cookie';
 import { drizzle } from 'drizzle-orm/d1';
 import { ConfigService } from '@/services/config';
 import { Env } from '@/types/env';
+import {
+  createSessionToken,
+  setSessionCookie,
+  verifyCSRFToken,
+  getCSRFToken,
+  timingSafeEquals
+} from '@/utils/security';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -15,14 +21,24 @@ app.post('/', async (c) => {
       await ConfigService.initialize(db);
     }
 
-    // Try both formData and parseBody for better compatibility
+    // Extract form data
     let password: string;
+    let csrfToken: string;
+    
     try {
       const body = await c.req.parseBody();
       password = body.password as string;
+      csrfToken = body.csrf_token as string;
     } catch {
       const formData = await c.req.formData();
       password = formData.get('password') as string;
+      csrfToken = formData.get('csrf_token') as string;
+    }
+
+    // Validate CSRF token first
+    const storedCSRFToken = getCSRFToken(c);
+    if (!csrfToken || !storedCSRFToken || !verifyCSRFToken(csrfToken, storedCSRFToken)) {
+      return c.redirect('/config?error=csrf_invalid');
     }
 
     if (!password) {
@@ -37,7 +53,7 @@ app.post('/', async (c) => {
     }
 
     // Password verification (constant-time comparison)
-    const isValid = await comparePasswords(password, configPassword);
+    const isValid = await timingSafeEquals(password, configPassword);
     
     if (!isValid) {
       // Timing attack protection: wait for a fixed duration
@@ -45,14 +61,9 @@ app.post('/', async (c) => {
       return c.redirect('/config?error=invalid_password');
     }
 
-    // Authentication successful: set cookie
-    setCookie(c, 'config_auth', 'authenticated', {
-      httpOnly: true,
-      secure: new URL(c.req.url).protocol === 'https:',
-      sameSite: 'Strict',
-      maxAge: 60 * 60 * 2, // 2 hours
-      path: '/'
-    });
+    // Authentication successful: create secure session token
+    const sessionToken = await createSessionToken(configPassword);
+    setSessionCookie(c, sessionToken);
 
     return c.redirect('/config');
 
@@ -62,19 +73,5 @@ app.post('/', async (c) => {
   }
 });
 
-// Constant-time password comparison
-async function comparePasswords(input: string, stored: string): Promise<boolean> {
-  // Simple string comparison (should ideally compare with hashed passwords)
-  if (input.length !== stored.length) {
-    return false;
-  }
-  
-  let result = 0;
-  for (let i = 0; i < input.length; i++) {
-    result |= input.charCodeAt(i) ^ stored.charCodeAt(i);
-  }
-  
-  return result === 0;
-}
 
 export default app;

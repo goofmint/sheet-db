@@ -1,32 +1,44 @@
 import { Hono } from 'hono';
-import { getCookie, setCookie } from 'hono/cookie';
 import { html } from 'hono/html';
 import { drizzle } from 'drizzle-orm/d1';
 import { ConfigService } from '@/services/config';
 import { Env } from '@/types/env';
+import {
+  isAuthenticated,
+  generateCSRFToken,
+  setCSRFCookie,
+  getCSRFToken
+} from '@/utils/security';
 
 const app = new Hono<{ Bindings: Env }>();
 
 // Sensitive data keys
 const sensitiveKeys = [
   'google.client_secret',
+  'google.access_token',
+  'google.refresh_token',
   'auth0.client_secret',
-  'app.config_password'
+  'app.config_password',
+  'storage.r2.secretAccessKey'
 ];
 
 app.get('/', async (c) => {
   try {
-    // Check authentication
-    const authCookie = getCookie(c, 'config_auth');
-    const isAuthenticated = authCookie === 'authenticated';
-
     // Initialize ConfigService
     const db = drizzle(c.env.DB);
     if (!ConfigService.isInitialized()) {
       await ConfigService.initialize(db);
     }
 
-    if (!isAuthenticated) {
+    // Check authentication using secure session token
+    const configPassword = ConfigService.getString('app.config_password');
+    const authenticated = await isAuthenticated(c, configPassword);
+
+    if (!authenticated) {
+      // Generate CSRF token for the login form
+      const csrfToken = generateCSRFToken();
+      setCSRFCookie(c, csrfToken);
+
       // Unauthenticated: password input form
       return c.html(html`
         <!DOCTYPE html>
@@ -85,6 +97,7 @@ app.get('/', async (c) => {
             <h1>⚙️ Configuration Management</h1>
             <p>A password is required to access the configuration screen.</p>
             <form method="post" action="/config/auth">
+              <input type="hidden" name="csrf_token" value="${csrfToken}">
               <input type="password" name="password" placeholder="Configuration Password" required>
               <button type="submit">Login</button>
             </form>
