@@ -66,13 +66,15 @@
       "Bash(npx c8 report:*)",
       "Bash(git rm:*)",
       "Bash(gh pr view:*)",
+      "Bash(gh pr create:*)",
       "Bash(for file in *.md)",
       "Bash(do echo \"=== $file ===\")",
       "Bash(head:*)",
       "Bash(echo)",
       "Bash(done)",
       "WebFetch(domain:dev-wpguwz20dkay63vr.us.auth0.com)",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "Bash(timeout 15s npm run dev)"
     ],
     "deny": []
   }

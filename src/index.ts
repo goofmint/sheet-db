@@ -8,6 +8,7 @@ import { api } from './api';
 import { setupHandler } from './setup';
 import { playgroundHandler } from './playground';
 import { googleCallbackHandler } from './google/callback/get';
+import configRouter from './api/v1/config';
 import { sheetInitializeHandler } from './sheet/initialize/get';
 import { sheetSelectHandler } from './sheet/select/get';
 import type { Env } from './types/env';
@@ -60,6 +61,9 @@ app.post('/sheet/initialize', sheetInitializeHandler);
 // Non-API routes
 app.get('/setup', setupHandler);
 app.get('/playground', playgroundHandler);
+
+// Config management routes
+app.route('/config', configRouter);
 
 
 // Export for Cloudflare Workers

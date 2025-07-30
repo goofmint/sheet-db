@@ -123,6 +123,26 @@ export class ConfigService {
   }
 
   /**
+   * Get all config entries as key-value pairs (synchronous)
+   */
+  static getAll(): Record<string, string> {
+    this.ensureInitialized();
+    const result: Record<string, string> = {};
+    for (const [key, config] of this.configCache) {
+      result[key] = config.value;
+    }
+    return result;
+  }
+
+  /**
+   * Get config type (synchronous)
+   */
+  static getType(key: string): string {
+    const config = this.findByKey(key);
+    return config?.type || 'string';
+  }
+
+  /**
    * Get config cache size (synchronous)
    */
   static size(): number {

@@ -65,9 +65,15 @@
 - [x] src/api/v1/auth/callback/get.tsの作成（Auth0コールバック） - [詳細](./tasks/2.1.3-auth-callback.md)
 - [x] src/api/v1/auth/logout/post.tsの作成（ログアウト） - [詳細](./tasks/2.1.4-logout-api.md)
 - [x] src/api/v1/auth/me/get.tsの作成（現在のユーザー情報） - [詳細](./tasks/2.1.5-auth-me-api.md)
-- [ ] Auth0設定の環境変数対応
 
-### 2.2 セッション管理
+### 2.2 設定管理UI
+- [ ] GET /config の実装（設定管理画面） - [詳細](./tasks/2.2-config-management-ui.md)
+- [ ] POST /api/v1/setup の拡張（部分更新対応）
+- [ ] 設定値バリデーション機能
+- [ ] 設定項目の追加
+- [ ] 設定項目の削除
+
+### 2.3 セッション管理
 - [ ] src/services/session.tsの作成（セッション管理）
 - [ ] src/middleware/auth.tsの作成（認証ミドルウェア）
 - [ ] JWTトークン検証の実装
