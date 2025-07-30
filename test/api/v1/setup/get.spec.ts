@@ -7,6 +7,8 @@ import { configTable } from '../../../../src/db/schema';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import { setupTestDatabase } from '../../../utils/database-setup';
 
+import type { SetupStatusResponse } from '../../../../src/api/v1/setup/types';
+
 describe('Setup API - GET /api/v1/setup', () => {
   let db: DrizzleD1Database;
 
@@ -36,7 +38,7 @@ describe('Setup API - GET /api/v1/setup', () => {
 
       expect(response.status).toBe(200);
       
-      const data = await response.json() as Record<string, unknown>;
+      const data = await response.json() as SetupStatusResponse;
       expect(data.setup.isCompleted).toBe(false);
       expect(data.setup.requiredFields).toBeInstanceOf(Array);
       expect(data.setup.completedFields).toBeInstanceOf(Array);
@@ -52,7 +54,7 @@ describe('Setup API - GET /api/v1/setup', () => {
         env
       );
 
-      const data = await response.json() as Record<string, unknown>;
+      const data = await response.json() as SetupStatusResponse;
       
       if ('setup' in data) {
         // セットアップ未完了時は実際の設定値が含まれる
@@ -71,7 +73,7 @@ describe('Setup API - GET /api/v1/setup', () => {
         env
       );
 
-      const data = await response.json() as Record<string, unknown>;
+      const data = await response.json() as SetupStatusResponse;
       const { progress } = data.setup;
       
       expect(progress.completedSteps).toBe(0); // 初期状態では0
@@ -85,7 +87,7 @@ describe('Setup API - GET /api/v1/setup', () => {
         env
       );
 
-      const data = await response.json() as Record<string, unknown>;
+      const data = await response.json() as SetupStatusResponse;
       
       expect(data.setup.nextSteps).toBeInstanceOf(Array);
       expect(data.setup.nextSteps.length).toBeGreaterThan(0);
@@ -120,7 +122,7 @@ describe('Setup API - GET /api/v1/setup', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json() as Record<string, unknown>;
+      const data = await response.json() as SetupStatusResponse;
       if ('error' in data) {
         expect((data as { error: { code: string; message: string } }).error.code).toBe('AUTHENTICATION_REQUIRED');
         expect((data as { error: { code: string; message: string } }).error.message).toContain('Authorization header');
@@ -160,7 +162,7 @@ describe('Setup API - GET /api/v1/setup', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json() as Record<string, unknown>;
+      const data = await response.json() as SetupStatusResponse;
       expect(data.setup.isCompleted).toBe(true);
     });
 
@@ -176,7 +178,7 @@ describe('Setup API - GET /api/v1/setup', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json() as Record<string, unknown>;
+      const data = await response.json() as SetupStatusResponse;
       if ('error' in data) { 
         expect((data as { error: { code: string; message: string } }).error.code).toBe('AUTHENTICATION_REQUIRED');
       }
@@ -194,7 +196,7 @@ describe('Setup API - GET /api/v1/setup', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json() as Record<string, unknown>;
+      const data = await response.json() as SetupStatusResponse;
       if ('error' in data) { 
         expect((data as { error: { code: string; message: string } }).error.code).toBe('AUTHENTICATION_REQUIRED');
       }
@@ -209,7 +211,7 @@ describe('Setup API - GET /api/v1/setup', () => {
         env
       );
 
-      const data = await response.json() as Record<string, unknown>;
+      const data = await response.json() as SetupStatusResponse;
       
       // Check top-level structure
       expect(data).toHaveProperty('setup');

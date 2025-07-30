@@ -44,8 +44,8 @@ describe('Setup UI Integration Tests', () => {
       const response = await app.fetch(request, env);
       const html = await response.text();
       
-      expect(html).toContain('<link rel="stylesheet" href="/styles/setup.css"');
-      expect(html).toContain('<script src="/scripts/setup.js">');
+      expect(html).toContain('<link rel="stylesheet" href="/statics/setup/style.css"');
+      expect(html).toContain('<script src="/statics/setup/app.js">');
     });
 
     it('should have proper form structure', async () => {
@@ -81,7 +81,7 @@ describe('Setup UI Integration Tests', () => {
 
   describe('Static Assets', () => {
     it('should serve CSS file correctly', async () => {
-      const response = await env.ASSETS.fetch(new Request('http://localhost/styles/setup.css'));
+      const response = await env.ASSETS.fetch(new Request('http://localhost/statics/setup/style.css'));
       
       expect(response.status).toBe(200);
       expect(response.headers.get('content-type')).toContain('text/css');
@@ -92,7 +92,7 @@ describe('Setup UI Integration Tests', () => {
     });
 
     it('should serve JavaScript file correctly', async () => {
-      const response = await env.ASSETS.fetch(new Request('http://localhost/scripts/setup.js'));
+      const response = await env.ASSETS.fetch(new Request('http://localhost/statics/setup/app.js'));
       
       expect(response.status).toBe(200);
       expect(response.headers.get('content-type')).toContain('application/javascript');

@@ -14,7 +14,7 @@ export function validateSetupRequest(data: unknown): {
   if (!data || typeof data !== 'object') {
     return {
       isValid: false,
-      errors: [{ field: 'root', message: 'リクエストボディが必要です' }]
+      errors: [{ field: 'root', message: 'Request body is required' }]
     };
   }
 
@@ -64,54 +64,54 @@ export function validateSetupRequest(data: unknown): {
   // Full setup validation
   // Google OAuth validation
   if (!req.google || typeof req.google !== 'object') {
-    errors.push({ field: 'google', message: 'Google設定が必要です' });
+    errors.push({ field: 'google', message: 'Google configuration is required' });
   } else {
     const google = req.google as Record<string, unknown>;
     
     if (!google.clientId || typeof google.clientId !== 'string' || !google.clientId.trim()) {
-      errors.push({ field: 'google.clientId', message: 'Google Client IDが必要です' });
+      errors.push({ field: 'google.clientId', message: 'Google Client ID is required' });
     } else if (!google.clientId.endsWith('.googleusercontent.com')) {
-      errors.push({ field: 'google.clientId', message: 'Google Client IDの形式が正しくありません（*.googleusercontent.com で終わる必要があります）' });
+      errors.push({ field: 'google.clientId', message: 'Invalid Google Client ID format (must end with *.googleusercontent.com)' });
     }
 
     if (!google.clientSecret || typeof google.clientSecret !== 'string' || !google.clientSecret.trim()) {
-      errors.push({ field: 'google.clientSecret', message: 'Google Client Secretが必要です' });
+      errors.push({ field: 'google.clientSecret', message: 'Google Client Secret is required' });
     }
   }
 
   // Auth0 validation
   if (!req.auth0 || typeof req.auth0 !== 'object') {
-    errors.push({ field: 'auth0', message: 'Auth0設定が必要です' });
+    errors.push({ field: 'auth0', message: 'Auth0 configuration is required' });
   } else {
     const auth0 = req.auth0 as Record<string, unknown>;
     
     if (!auth0.domain || typeof auth0.domain !== 'string' || !auth0.domain.trim()) {
-      errors.push({ field: 'auth0.domain', message: 'Auth0ドメインが必要です' });
+      errors.push({ field: 'auth0.domain', message: 'Auth0 domain is required' });
     } else if (!isValidAuth0Domain(auth0.domain)) {
-      errors.push({ field: 'auth0.domain', message: 'Auth0ドメインの形式が正しくありません（例: your-domain.auth0.com）' });
+      errors.push({ field: 'auth0.domain', message: 'Invalid Auth0 domain format (e.g., your-domain.auth0.com)' });
     }
 
     if (!auth0.clientId || typeof auth0.clientId !== 'string' || !auth0.clientId.trim()) {
-      errors.push({ field: 'auth0.clientId', message: 'Auth0 Client IDが必要です' });
+      errors.push({ field: 'auth0.clientId', message: 'Auth0 Client ID is required' });
     } else if (auth0.clientId.length !== 32) {
-      errors.push({ field: 'auth0.clientId', message: 'Auth0 Client IDは32文字である必要があります' });
+      errors.push({ field: 'auth0.clientId', message: 'Auth0 Client ID must be 32 characters' });
     }
 
     if (!auth0.clientSecret || typeof auth0.clientSecret !== 'string' || !auth0.clientSecret.trim()) {
-      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secretが必要です' });
+      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secret is required' });
     } else if (auth0.clientSecret.length < 48) {
-      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secretは最低48文字必要です' });
+      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secret must be at least 48 characters' });
     }
   }
 
   // App configuration validation
   if (!req.app || typeof req.app !== 'object') {
-    errors.push({ field: 'app', message: 'アプリケーション設定が必要です' });
+    errors.push({ field: 'app', message: 'Application configuration is required' });
   } else {
     const app = req.app as Record<string, unknown>;
     
     if (!app.configPassword || typeof app.configPassword !== 'string') {
-      errors.push({ field: 'app.configPassword', message: '設定パスワードが必要です' });
+      errors.push({ field: 'app.configPassword', message: 'Configuration password is required' });
     } else {
       const passwordValidation = validateConfigPassword(app.configPassword);
       if (!passwordValidation.isValid) {
@@ -154,13 +154,13 @@ function validatePartialSetupRequest(
     const google = req.google as Record<string, unknown>;
     
     if (!google.clientId || typeof google.clientId !== 'string' || !google.clientId.trim()) {
-      errors.push({ field: 'google.clientId', message: 'Google Client IDが必要です' });
+      errors.push({ field: 'google.clientId', message: 'Google Client ID is required' });
     } else if (!google.clientId.endsWith('.googleusercontent.com')) {
-      errors.push({ field: 'google.clientId', message: 'Google Client IDの形式が正しくありません（*.googleusercontent.com で終わる必要があります）' });
+      errors.push({ field: 'google.clientId', message: 'Invalid Google Client ID format (must end with *.googleusercontent.com)' });
     }
 
     if (!google.clientSecret || typeof google.clientSecret !== 'string' || !google.clientSecret.trim()) {
-      errors.push({ field: 'google.clientSecret', message: 'Google Client Secretが必要です' });
+      errors.push({ field: 'google.clientSecret', message: 'Google Client Secret is required' });
     }
   }
 
@@ -168,21 +168,21 @@ function validatePartialSetupRequest(
     const auth0 = req.auth0 as Record<string, unknown>;
     
     if (!auth0.domain || typeof auth0.domain !== 'string' || !auth0.domain.trim()) {
-      errors.push({ field: 'auth0.domain', message: 'Auth0ドメインが必要です' });
+      errors.push({ field: 'auth0.domain', message: 'Auth0 domain is required' });
     } else if (!isValidAuth0Domain(auth0.domain)) {
-      errors.push({ field: 'auth0.domain', message: 'Auth0ドメインの形式が正しくありません（例: your-domain.auth0.com）' });
+      errors.push({ field: 'auth0.domain', message: 'Invalid Auth0 domain format (e.g., your-domain.auth0.com)' });
     }
 
     if (!auth0.clientId || typeof auth0.clientId !== 'string' || !auth0.clientId.trim()) {
-      errors.push({ field: 'auth0.clientId', message: 'Auth0 Client IDが必要です' });
+      errors.push({ field: 'auth0.clientId', message: 'Auth0 Client ID is required' });
     } else if (auth0.clientId.length !== 32) {
-      errors.push({ field: 'auth0.clientId', message: 'Auth0 Client IDは32文字である必要があります' });
+      errors.push({ field: 'auth0.clientId', message: 'Auth0 Client ID must be 32 characters' });
     }
 
     if (!auth0.clientSecret || typeof auth0.clientSecret !== 'string' || !auth0.clientSecret.trim()) {
-      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secretが必要です' });
+      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secret is required' });
     } else if (auth0.clientSecret.length < 48) {
-      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secretは最低48文字必要です' });
+      errors.push({ field: 'auth0.clientSecret', message: 'Auth0 Client Secret must be at least 48 characters' });
     }
   }
 
@@ -190,7 +190,7 @@ function validatePartialSetupRequest(
     const app = req.app as Record<string, unknown>;
     
     if (!app.configPassword || typeof app.configPassword !== 'string') {
-      errors.push({ field: 'app.configPassword', message: '設定パスワードが必要です' });
+      errors.push({ field: 'app.configPassword', message: 'Configuration password is required' });
     } else {
       const passwordValidation = validateConfigPassword(app.configPassword);
       if (!passwordValidation.isValid) {
@@ -246,19 +246,19 @@ export function validateConfigPassword(password: string): {
   const errors: string[] = [];
 
   if (password.length < 8) {
-    errors.push('パスワードは8文字以上である必要があります');
+    errors.push('Password must be at least 8 characters long');
   }
 
   if (!/[A-Z]/.test(password)) {
-    errors.push('パスワードには大文字を含む必要があります');
+    errors.push('Password must contain at least one uppercase letter');
   }
 
   if (!/[a-z]/.test(password)) {
-    errors.push('パスワードには小文字を含む必要があります');
+    errors.push('Password must contain at least one lowercase letter');
   }
 
   if (!/[0-9]/.test(password)) {
-    errors.push('パスワードには数字を含む必要があります');
+    errors.push('Password must contain at least one number');
   }
 
   return {

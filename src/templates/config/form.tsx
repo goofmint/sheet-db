@@ -21,7 +21,7 @@ export function ConfigForm({ configList, csrfToken }: ConfigFormProps) {
     <head>
       <meta charset="utf-8">
       <title>Configuration Management - SheetDB</title>
-      <link rel="stylesheet" href="/config/styles.css">
+      <link rel="stylesheet" href="/statics/config/style.css">
     </head>
     <body>
       <a href="/playground" class="back-link">← Back to Playground</a>
@@ -91,7 +91,7 @@ export function ConfigForm({ configList, csrfToken }: ConfigFormProps) {
         </div>
       </form>
 
-      <script src="/config/client.js"></script>
+      <script src="/statics/config/client.js"></script>
     </body>
     </html>
   `;

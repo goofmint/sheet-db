@@ -5,6 +5,19 @@ import app from '@/index';
 import { ConfigService } from '@/services/config';
 import { setupConfigDatabase } from '../../utils/database-setup';
 
+// Type definitions for API responses
+interface SetupResponse {
+  success: boolean;
+  message?: string;
+}
+
+interface SetupErrorResponse {
+  error: {
+    code: string;
+    message: string;
+  };
+}
+
 describe('Setup API', () => {
   const db = drizzle(env.DB);
 
@@ -44,7 +57,7 @@ describe('Setup API', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = await response.json() as SetupResponse;
       expect(result.success).toBe(true);
       
       // Verify configurations were updated
@@ -76,7 +89,7 @@ describe('Setup API', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = await response.json() as SetupResponse;
       expect(result.success).toBe(true);
       expect(ConfigService.getBoolean('app.setup_completed')).toBe(true);
     });
@@ -97,7 +110,7 @@ describe('Setup API', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(401);
-      const result = await response.json();
+      const result = await response.json() as SetupErrorResponse;
       expect(result.error.code).toBe('AUTHENTICATION_REQUIRED');
       
       // Verify configurations were not updated
@@ -121,7 +134,7 @@ describe('Setup API', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(401);
-      const result = await response.json();
+      const result = await response.json() as SetupErrorResponse;
       expect(result.error.code).toBe('AUTHENTICATION_REQUIRED');
       
       // Verify configurations were not updated
@@ -143,7 +156,7 @@ describe('Setup API', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = await response.json() as SetupResponse;
       expect(result.success).toBe(true);
       
       // Original values should remain unchanged
@@ -174,7 +187,7 @@ describe('Setup API', () => {
     const response = await app.fetch(request, env);
     
     expect(response.status).toBe(200);
-    const result = await response.json();
+    const result = await response.json() as SetupResponse;
     expect(result.success).toBe(true);
     
     // Verify values were updated but types preserved

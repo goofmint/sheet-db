@@ -384,7 +384,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(200);
       
-      const data = await response.json();
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.success).toBe(true);
       expect(data.message).toContain('Configuration updated successfully');
 
@@ -435,7 +435,7 @@ describe('Setup API - POST /api/v1/setup', () => {
 
       expect(response.status).toBe(200);
       
-      const data = await response.json();
+      const data = await response.json() as SetupSuccessResponse;
       expect(data.success).toBe(true);
 
       // Verify R2 configuration was saved

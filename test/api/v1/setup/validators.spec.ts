@@ -182,7 +182,7 @@ describe('Setup Validators', () => {
         expect(result.isValid).toBe(false);
         expect(result.errors.some(error => 
           error.field === 'auth0.clientId' && 
-          error.message.includes('32文字')
+          error.message.includes('32 characters')
         )).toBe(true);
       });
 
@@ -200,7 +200,7 @@ describe('Setup Validators', () => {
         expect(result.isValid).toBe(false);
         expect(result.errors.some(error => 
           error.field === 'auth0.clientSecret' && 
-          error.message.includes('48文字')
+          error.message.includes('must be at least 48 characters')
         )).toBe(true);
       });
     });
@@ -253,28 +253,28 @@ describe('Setup Validators', () => {
       const result = validateConfigPassword("Short1!");
       
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(error => error.includes('8文字以上'))).toBe(true);
+      expect(result.errors.some(error => error.includes('at least 8 characters'))).toBe(true);
     });
 
     it('should reject passwords without uppercase', () => {
       const result = validateConfigPassword("lowercase123!");
       
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(error => error.includes('大文字'))).toBe(true);
+      expect(result.errors.some(error => error.includes('uppercase'))).toBe(true);
     });
 
     it('should reject passwords without lowercase', () => {
       const result = validateConfigPassword("UPPERCASE123!");
       
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(error => error.includes('小文字'))).toBe(true);
+      expect(result.errors.some(error => error.includes('lowercase'))).toBe(true);
     });
 
     it('should reject passwords without numbers', () => {
       const result = validateConfigPassword("NoNumbers!");
       
       expect(result.isValid).toBe(false);
-      expect(result.errors.some(error => error.includes('数字'))).toBe(true);
+      expect(result.errors.some(error => error.includes('number'))).toBe(true);
     });
 
     it('should accumulate multiple validation errors', () => {
@@ -282,9 +282,9 @@ describe('Setup Validators', () => {
       
       expect(result.isValid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(1);
-      expect(result.errors.some(error => error.includes('8文字以上'))).toBe(true);
-      expect(result.errors.some(error => error.includes('大文字'))).toBe(true);
-      expect(result.errors.some(error => error.includes('数字'))).toBe(true);
+      expect(result.errors.some(error => error.includes('at least 8 characters'))).toBe(true);
+      expect(result.errors.some(error => error.includes('uppercase'))).toBe(true);
+      expect(result.errors.some(error => error.includes('number'))).toBe(true);
     });
 
     it('should handle edge cases', () => {

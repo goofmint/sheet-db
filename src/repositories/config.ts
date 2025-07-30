@@ -67,16 +67,10 @@ export class ConfigRepository extends AbstractBaseRepository<Config, ConfigInser
   }
 
   /**
-   * Update config by ID (direct DB operation)
+   * Update config by ID (direct DB operation) - alias for inherited update method
    */
   async updateDirect(id: number, data: ConfigUpdate): Promise<Config | null> {
-    const result = await this.db
-      .update(configTable)
-      .set(data)
-      .where(eq(configTable.id, id))
-      .returning();
-    
-    return result.length > 0 ? (result[0] as Config) : null;
+    return await this.update(id, data);
   }
 
   /**
@@ -98,15 +92,10 @@ export class ConfigRepository extends AbstractBaseRepository<Config, ConfigInser
   }
 
   /**
-   * Delete config by ID (direct DB operation)
+   * Delete config by ID (direct DB operation) - alias for inherited delete method
    */
   async deleteDirect(id: number): Promise<boolean> {
-    const result = await this.db
-      .delete(configTable)
-      .where(eq(configTable.id, id))
-      .returning();
-    
-    return result.length > 0;
+    return await this.delete(id);
   }
 
   /**
