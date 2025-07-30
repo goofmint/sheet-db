@@ -3,6 +3,9 @@ import type { DrizzleD1Database } from 'drizzle-orm/d1';
 
 export type ConfigServiceDatabase = DrizzleD1Database;
 
+// Extract transaction type from the database's transaction method
+export type DatabaseTransaction = Parameters<ConfigServiceDatabase['transaction']>[0] extends (tx: infer T) => any ? T : never;
+
 export interface ConfigEntry {
   value: string;
   type?: ConfigType;

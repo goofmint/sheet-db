@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { configTable, type Config, type ConfigInsert, type ConfigType } from '../../db/schema';
-import type { ConfigServiceDatabase, ConfigUpdatePayload } from './types';
+import type { ConfigServiceDatabase, ConfigUpdatePayload, DatabaseTransaction } from './types';
 import { ConfigDescriptions } from './descriptions';
 
 /**
@@ -119,7 +119,7 @@ export class ConfigDatabase {
    * Perform bulk upsert within a transaction
    */
   private static async performBulkUpsert(
-    tx: any, // Transaction type is not exported by drizzle
+    tx: DatabaseTransaction,
     configEntries: Array<[string, { value: string; type?: ConfigType }]>
   ): Promise<void> {
     const now = new Date().toISOString();

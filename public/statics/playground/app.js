@@ -106,7 +106,8 @@ async function testFileDelete(responseId) {
   
   try {
     const response = await fetch(`/api/v1/storages/${fileId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      credentials: 'include'
     });
     
     const data = await response.json();
