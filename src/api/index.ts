@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { swaggerUI } from '@hono/swagger-ui';
 import healthRouter from './v1/health/route';
 import setupRouter from './v1/setup/route';
 import sheetsRouter from './v1/sheets/route';
 import playgroundRouter from './v1/playground/route';
 import storagesRouter from './v1/storages/route';
 import authRouter from './v1/auth';
-import { openapi } from './openapi';
 import type { Env } from '@/types/env';
 
 /**
@@ -52,7 +52,28 @@ v1.route('/auth', authRouter);
 api.route('/v1', v1);
 
 // OpenAPI documentation routes
-api.route('/v1', openapi);
+api.get('/v1/doc', async (c) => {
+  return c.json({
+    openapi: '3.0.0',
+    info: {
+      version: '1.0.0',
+      title: 'Sheet DB API',
+      description: 'Backend-as-a-Service using Google Sheets as database',
+    },
+    servers: [
+      {
+        url: '/api/v1',
+        description: 'API v1',
+      },
+    ],
+    paths: {},
+    components: {
+      schemas: {},
+    },
+  });
+});
+
+api.get('/v1/ui', swaggerUI({ url: '/api/v1/doc' }));
 
 // API root endpoint - provides API information
 api.get('/', async (c) => {
