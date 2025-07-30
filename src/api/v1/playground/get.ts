@@ -339,6 +339,11 @@ export async function playgroundGetHandler(c: Context) {
               <strong>⚙️ Setup</strong>
               Modify configuration
             </a>
+            
+            <a href="/config" class="external-link">
+              <strong>🛠️ Config Management</strong>
+              View and manage system settings
+            </a>
           </div>
         </div>
 

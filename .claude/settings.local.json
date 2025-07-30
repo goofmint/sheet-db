@@ -73,7 +73,8 @@
       "Bash(echo)",
       "Bash(done)",
       "WebFetch(domain:dev-wpguwz20dkay63vr.us.auth0.com)",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "Bash(timeout 15s npm run dev)"
     ],
     "deny": []
   }
