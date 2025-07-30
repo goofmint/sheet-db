@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
 import { swaggerUI } from '@hono/swagger-ui';
-import { healthRoute } from './v1/health/openapi';
+import { healthRoute } from './v1/health/route';
 import { healthHandler } from './v1/health/get';
 import setupRouter from './v1/setup/route';
 import sheetsRouter from './v1/sheets/route';
