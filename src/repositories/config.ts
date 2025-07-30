@@ -193,3 +193,24 @@ export class ConfigRepository extends AbstractBaseRepository<Config, ConfigInser
     return ConfigService.size();
   }
 }
+
+/**
+ * Get configuration item descriptions
+ */
+export function getConfigDescription(key: string): string {
+  const descriptions: Record<string, string> = {
+    'google.client_id': 'Google OAuth2 Client ID',
+    'google.client_secret': 'Google OAuth2 Client Secret',
+    'google.sheetId': 'Main Google Spreadsheet ID',
+    'auth0.domain': 'Auth0 Domain',
+    'auth0.client_id': 'Auth0 Application Client ID',
+    'auth0.client_secret': 'Auth0 Application Client Secret',
+    'auth0.audience': 'Auth0 API Audience (optional)',
+    'auth0.scope': 'OAuth2 Scope',
+    'app.config_password': 'Configuration screen access password',
+    'app.setup_completed': 'Initial setup completion flag',
+    'storage.type': 'File storage type (r2 | google_drive)'
+  };
+  
+  return descriptions[key] || 'Configuration item';
+}
