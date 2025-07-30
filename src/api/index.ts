@@ -4,7 +4,9 @@ import { cors } from 'hono/cors';
 import { swaggerUI } from '@hono/swagger-ui';
 import { healthRoute } from './v1/health/route';
 import { healthHandler } from './v1/health/get';
-import setupRouter from './v1/setup/route';
+import { setupStatusRoute, setupConfigRoute } from './v1/setup/openapi';
+import { setupGetHandler } from './v1/setup/get';
+import { setupPostHandler } from './v1/setup/post';
 import sheetsRouter from './v1/sheets/route';
 import playgroundRouter from './v1/playground/route';
 import storagesRouter from './v1/storages/route';
@@ -35,8 +37,11 @@ const v1 = new Hono<{ Bindings: Env }>();
 // Health routes - direct OpenAPI mount
 api.openapi(healthRoute, healthHandler);
 
-// Setup routes
-v1.route('/setup', setupRouter);
+// Setup routes - direct OpenAPI mount
+api.openapi(setupStatusRoute, setupGetHandler);
+api.openapi(setupConfigRoute, setupPostHandler);
+
+// Setup routes now handled by direct OpenAPI mount above
 
 // Sheets routes
 v1.route('/sheets', sheetsRouter);

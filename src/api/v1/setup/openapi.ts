@@ -59,15 +59,13 @@ const SetupConfigRequestSchema = z.object({
 const SetupConfigResponseSchema = z.object({
   success: z.boolean().openapi({ example: true }),
   message: z.string().openapi({ example: 'Configuration saved successfully' }),
-  completedFields: z.array(z.string()).optional().openapi({
-    example: ['google.client_id', 'google.client_secret']
-  }),
+  timestamp: z.string().openapi({ example: '2024-01-01T00:00:00.000Z' }),
 });
 
-// Setup Status Route
+// Setup Status Route (GET)
 export const setupStatusRoute = createRoute({
   method: 'get',
-  path: '/setup',
+  path: '/v1/setup',
   tags: ['Setup'],
   summary: 'Get Setup Status',
   description: 'Check if the application setup is completed and get current configuration status',
@@ -99,10 +97,10 @@ export const setupStatusRoute = createRoute({
   },
 });
 
-// Setup Configuration Route
+// Setup Configuration Route (POST)
 export const setupConfigRoute = createRoute({
   method: 'post',
-  path: '/setup',
+  path: '/v1/setup',
   tags: ['Setup'],
   summary: 'Submit Setup Configuration',
   description: 'Submit configuration settings for initial application setup or update existing configuration',
