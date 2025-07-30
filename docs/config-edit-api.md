@@ -119,11 +119,18 @@ Cookie: config_session=<session_token>
   "updates": [
     {
       "key": "google.client_id",
+      "type": "string",
       "value": "123456789-newvalue.apps.googleusercontent.com"
     },
     {
-      "key": "storage.type",
-      "value": "r2"
+      "key": "app.setup_completed", 
+      "type": "boolean",
+      "value": true
+    },
+    {
+      "key": "cache.default_ttl",
+      "type": "number", 
+      "value": 600
     }
   ],
   "csrf_token": "csrf_token_value"
@@ -137,10 +144,35 @@ interface ConfigUpdateRequest {
   csrf_token: string;
 }
 
-interface ConfigUpdateItem {
+// Discriminated union for type safety
+type ConfigUpdateItem = 
+  | ConfigStringUpdate 
+  | ConfigNumberUpdate 
+  | ConfigBooleanUpdate 
+  | ConfigJsonUpdate;
+
+interface ConfigStringUpdate {
   key: string;
+  type: 'string';
   value: string;
-  type?: 'string' | 'number' | 'boolean' | 'json';
+}
+
+interface ConfigNumberUpdate {
+  key: string;
+  type: 'number';
+  value: number;
+}
+
+interface ConfigBooleanUpdate {
+  key: string;
+  type: 'boolean';
+  value: boolean;
+}
+
+interface ConfigJsonUpdate {
+  key: string;
+  type: 'json';
+  value: object; // Will be serialized to JSON string
 }
 ```
 
@@ -319,7 +351,13 @@ interface ConfigResetResponse {
   success: boolean;
   reset: string[];
   errors: ConfigUpdateError[];
-  defaults: Record<string, string>;
+  defaults: Record<string, ConfigDefaultValue>;
+}
+
+interface ConfigDefaultValue {
+  value: string;
+  masked: boolean; // true if value is masked for security
+  requiresGeneration?: boolean; // true if value needs to be generated (e.g., tokens)
 }
 ```
 
@@ -331,16 +369,93 @@ interface ConfigResetResponse {
 
 ---
 
+### 5. POST /config/defaults/secure
+
+Retrieves plaintext default values for sensitive configuration fields. This endpoint requires additional authentication and is rate-limited more strictly.
+
+#### Request
+```http
+POST /config/defaults/secure HTTP/1.1
+Host: your-domain.com
+Content-Type: application/json
+Cookie: config_session=<session_token>
+
+{
+  "keys": ["google.client_secret", "auth0.client_secret"],
+  "csrf_token": "csrf_token_value",
+  "confirmation": "I understand the security implications"
+}
+```
+
+#### Request Schema
+```typescript
+interface SecureDefaultsRequest {
+  keys: string[];
+  csrf_token: string;
+  confirmation: string; // Must be exact string for security confirmation
+}
+```
+
+#### Response
+```typescript
+interface SecureDefaultsResponse {
+  success: boolean;
+  values: Record<string, string>;
+  errors: ConfigUpdateError[];
+  accessed_at: string; // ISO timestamp for audit
+}
+```
+
+#### Example Response
+```json
+{
+  "success": true,
+  "values": {
+    "google.client_secret": "GOCSPX-default_generated_secret",
+    "auth0.client_secret": "auth0_default_secret_value"
+  },
+  "errors": [],
+  "accessed_at": "2024-01-15T10:30:00.000Z"
+}
+```
+
+#### Status Codes
+- `200 OK`: Secure defaults retrieved
+- `400 Bad Request`: Invalid request or missing confirmation
+- `401 Unauthorized`: Invalid or missing session
+- `403 Forbidden`: Insufficient permissions for secure access
+- `429 Too Many Requests`: Rate limit exceeded (stricter than other endpoints)
+- `500 Internal Server Error`: Server error
+
+#### Security Features
+- **Enhanced Rate Limiting**: 3 requests per hour per session
+- **Audit Logging**: All access logged with session information
+- **Confirmation Required**: Explicit confirmation string required
+- **Time-Limited**: Responses expire and cannot be cached
+- **IP Tracking**: IP address logged for security monitoring
+
+---
+
 ## Rate Limiting
 
-All modification endpoints (`PUT /config/update`, `POST /config/reset`) are rate-limited:
+Endpoints are rate-limited with different restrictions based on security requirements:
 
+### Standard Modification Endpoints
+`PUT /config/update`, `POST /config/reset`:
 - **Limit**: 10 requests per minute per session
 - **Window**: 60 seconds sliding window
-- **Headers**: 
-  - `X-RateLimit-Limit`: Maximum requests per window
-  - `X-RateLimit-Remaining`: Remaining requests in current window
-  - `X-RateLimit-Reset`: Timestamp when window resets
+
+### Sensitive Data Endpoints
+`POST /config/defaults/secure`:
+- **Limit**: 3 requests per hour per session
+- **Window**: 3600 seconds sliding window
+- **Additional**: IP-based tracking and anomaly detection
+
+### All Endpoints Headers
+- `X-RateLimit-Limit`: Maximum requests per window
+- `X-RateLimit-Remaining`: Remaining requests in current window
+- `X-RateLimit-Reset`: Timestamp when window resets
+- `X-RateLimit-Type`: Standard, sensitive, or validation
 
 #### Rate Limit Response
 ```json
@@ -353,12 +468,50 @@ All modification endpoints (`PUT /config/update`, `POST /config/reset`) are rate
 
 ## CSRF Protection
 
-All endpoints that modify data require CSRF tokens:
+All endpoints that modify data use a double-submit-cookie pattern for enhanced security:
 
-1. **Token Generation**: CSRF tokens are generated when accessing GET /config
-2. **Token Validation**: Must be included in request body as `csrf_token`
-3. **Token Lifetime**: Same as session (2 hours)
-4. **Token Rotation**: New token generated after successful updates
+### Double-Submit-Cookie Pattern
+1. **Token Generation**: Server generates a cryptographically secure CSRF token
+2. **Cookie Setting**: Token set as HttpOnly, Secure, SameSite=Strict cookie (`csrf_token`)
+3. **Form Field**: Same token embedded as hidden form field or request header
+4. **Validation**: Server validates that cookie token matches submitted token
+5. **Benefits**: Not accessible to JavaScript, immune to XSS token theft
+
+### Implementation Details
+- **Cookie Name**: `csrf_token`
+- **Cookie Attributes**: `HttpOnly; Secure; SameSite=Strict`
+- **Header Name**: `X-CSRF-Token` (alternative to form field)
+- **Token Lifetime**: Same as session (2 hours)
+- **Token Rotation**: New token generated after successful updates
+- **Validation**: Constant-time comparison to prevent timing attacks
+
+### Request Patterns
+
+#### Form-based Requests
+```html
+<form method="post" action="/config/update">
+  <input type="hidden" name="csrf_token" value="server_generated_token">
+  <!-- Other form fields -->
+</form>
+```
+
+#### AJAX Requests
+```javascript
+// Token automatically included in cookie, no JavaScript access needed
+fetch('/config/update', {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': 'server_provided_token' // From server-rendered page
+  },
+  body: JSON.stringify(data)
+});
+```
+
+### Fallback for JavaScript-Disabled Environments
+- Hidden form fields with server-rendered tokens
+- Form submission validation without client-side JavaScript
+- Graceful degradation maintains full security
 
 ## Validation Rules
 

@@ -244,10 +244,11 @@ This document provides detailed UI/UX specifications for the configuration editi
     <div class="value-input-group sensitive-input">
       <input type="password" 
              class="form-input sensitive-field" 
-             value="GOCSPX-secretvalue"
-             data-original="GOCSPX-secretvalue"
+             value=""
+             data-has-value="true"
+             data-field-type="sensitive"
              id="input-google.client_secret"
-             placeholder="Enter new value or leave unchanged">
+             placeholder="Enter new value to change current secret">
       <button class="btn-icon toggle-visibility" 
               title="Show/Hide value"
               data-key="google.client_secret">
@@ -390,6 +391,86 @@ This document provides detailed UI/UX specifications for the configuration editi
 </div>
 ```
 
+## Secure Sensitive Value Management
+
+### Sensitive Field Security
+Sensitive configuration values (passwords, tokens, secrets) are handled with enhanced security:
+
+#### Value Masking
+- **Empty Input Fields**: Sensitive inputs start empty, never showing actual values
+- **Placeholder Indication**: "Enter new value to change current secret"
+- **Change Detection**: `data-has-value="true"` indicates existing value without exposing it
+- **No DOM Exposure**: Original values never stored in DOM attributes
+
+#### Server-Side Management
+```typescript
+interface SensitiveValueState {
+  hasValue: boolean;
+  lastModified: string;
+  requiresConfirmation: boolean;
+}
+
+// Server only sends metadata, not actual values
+const sensitiveFieldInfo = {
+  'google.client_secret': {
+    hasValue: true,
+    lastModified: '2024-01-15T10:30:00Z',
+    requiresConfirmation: true
+  }
+};
+```
+
+#### Client-Side Handling
+```javascript
+function handleSensitiveField(fieldKey) {
+  const input = document.getElementById(`input-${fieldKey}`);
+  
+  // Never populate with actual secret value
+  if (input.dataset.fieldType === 'sensitive') {
+    input.value = ''; // Always start empty
+    input.placeholder = 'Enter new value to change current secret';
+    
+    // Track changes without exposing original
+    input.addEventListener('input', function() {
+      if (this.value.length > 0) {
+        this.closest('.config-row').classList.add('changed');
+        showSensitiveChangeWarning(fieldKey);
+      } else {
+        this.closest('.config-row').classList.remove('changed');
+      }
+    });
+  }
+}
+
+function showSensitiveChangeWarning(fieldKey) {
+  const warning = document.createElement('div');
+  warning.className = 'sensitive-change-warning';
+  warning.innerHTML = `
+    <i class="icon-warning">⚠️</i>
+    <span>Changing this sensitive value will require confirmation</span>
+  `;
+  
+  const container = document.getElementById(`input-${fieldKey}`).parentNode;
+  container.appendChild(warning);
+}
+```
+
+#### Reset Functionality for Sensitive Fields
+```javascript
+function resetSensitiveField(fieldKey) {
+  const input = document.getElementById(`input-${fieldKey}`);
+  
+  // For sensitive fields, reset means clearing the input
+  // Original value remains on server, never exposed to client
+  input.value = '';
+  input.closest('.config-row').classList.remove('changed');
+  
+  // Remove any change warnings
+  const warnings = input.parentNode.querySelectorAll('.sensitive-change-warning');
+  warnings.forEach(warning => warning.remove());
+}
+```
+
 ## Interactive Behaviors
 
 ### 1. Edit Mode Toggle
@@ -412,6 +493,11 @@ function enterEditMode() {
     if (input) {
       input.removeAttribute('readonly');
       input.disabled = false;
+      
+      // Initialize sensitive fields properly
+      if (input.dataset.fieldType === 'sensitive') {
+        initializeSensitiveField(input);
+      }
     }
   });
   
@@ -445,13 +531,18 @@ function exitEditMode() {
   // Reset all changes
   resetAllChanges();
   
-  // Convert inputs back to readonly
+  // Convert inputs back to readonly and disable them
   document.querySelectorAll('.config-row').forEach(row => {
     row.classList.remove('edit-mode', 'changed');
     const input = row.querySelector('input, select');
     if (input) {
       input.setAttribute('readonly', true);
-      input.disabled = false;
+      input.disabled = true; // Fully disable to prevent dev-tools editing
+      
+      // For sensitive fields, ensure values are cleared
+      if (input.dataset.fieldType === 'sensitive') {
+        input.value = '';
+      }
     }
   });
 }

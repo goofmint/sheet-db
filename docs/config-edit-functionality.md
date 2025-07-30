@@ -9,8 +9,8 @@ The current configuration management interface (`/config`) is read-only, display
 ## Security Requirements
 
 ### Authentication & Authorization
-- **Current Security**: Uses HMAC-signed session tokens with CSRF protection
-- **Requirement**: All edit operations must require valid authentication and CSRF tokens
+- **Current Security**: Uses HMAC-signed session tokens with double-submit-cookie CSRF protection
+- **CSRF Strategy**: HttpOnly cookies with server-side token validation, not accessible to JavaScript
 - **Session Management**: 2-hour session timeout remains unchanged
 - **Access Control**: Only users with valid config password can access edit functionality
 
@@ -196,11 +196,53 @@ interface ConfigValidateResponse {
 CREATE TABLE config_history (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   config_key TEXT NOT NULL,
-  old_value TEXT,
-  new_value TEXT NOT NULL,
+  value_hash TEXT, -- SHA-256 hash for sensitive values
+  value_encrypted TEXT, -- AES-256 encrypted value for sensitive data
+  value_plaintext TEXT, -- Plaintext for non-sensitive values only
+  is_sensitive BOOLEAN NOT NULL DEFAULT FALSE,
+  change_type TEXT NOT NULL, -- 'create', 'update', 'delete', 'reset'
   changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  session_id TEXT
+  session_id TEXT NOT NULL,
+  user_ip TEXT, -- For audit purposes
+  INDEX idx_config_key (config_key),
+  INDEX idx_changed_at (changed_at)
 );
+```
+
+#### Encryption Strategy
+- **Sensitive Values**: Encrypted using AES-256-GCM with server-managed key
+- **Hash Storage**: SHA-256 hash stored for integrity verification
+- **Non-sensitive Values**: Stored in plaintext for easy querying
+- **Key Management**: Encryption keys rotated periodically and stored securely
+- **Access Control**: History access requires additional authentication
+
+#### Implementation Details
+```typescript
+interface HistoryEntry {
+  configKey: string;
+  isSensitive: boolean;
+  valueHash?: string; // For sensitive values
+  valueEncrypted?: string; // For sensitive values
+  valuePlaintext?: string; // For non-sensitive values only
+  changeType: 'create' | 'update' | 'delete' | 'reset';
+  sessionId: string;
+  userIp: string;
+}
+
+// Encryption utility
+class ConfigHistoryEncryption {
+  static async encryptSensitiveValue(value: string, key: string): Promise<string> {
+    // Implementation using Web Crypto API or Node.js crypto
+  }
+  
+  static async decryptSensitiveValue(encrypted: string, key: string): Promise<string> {
+    // Implementation with proper error handling
+  }
+  
+  static hashValue(value: string): string {
+    // SHA-256 hash for integrity verification
+  }
+}
 ```
 
 ## Implementation Phases
