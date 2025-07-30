@@ -2,17 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { ConfigService } from '@/services/config';
 
 describe('Config Management', () => {
-  // Note: These are basic tests without database setup.
-  // Full integration tests require database initialization.
-  
-  it.skip('requires database setup for full testing', () => {
-    // Config management endpoints require:
-    // 1. ConfigService to be initialized with a database
-    // 2. Config table with test data
-    // 3. Proper test environment setup
-    expect(true).toBe(true);
-  });
-  
   describe('ConfigService extensions', () => {
     it('should have getAll method', () => {
       expect(typeof ConfigService.getAll).toBe('function');
@@ -20,6 +9,23 @@ describe('Config Management', () => {
     
     it('should have getType method', () => {
       expect(typeof ConfigService.getType).toBe('function');
+    });
+  });
+
+  describe('Config route modules', () => {
+    it('should export config get handler', async () => {
+      const configGet = await import('@/api/v1/config/get');
+      expect(configGet.default).toBeDefined();
+    });
+
+    it('should export config auth handler', async () => {
+      const configAuth = await import('@/api/v1/config/auth');
+      expect(configAuth.default).toBeDefined();
+    });
+
+    it('should export config logout handler', async () => {
+      const configLogout = await import('@/api/v1/config/logout');
+      expect(configLogout.default).toBeDefined();
     });
   });
 });
