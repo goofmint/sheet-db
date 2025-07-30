@@ -357,4 +357,92 @@ describe('Setup API - POST /api/v1/setup', () => {
       expect(response.headers.get('Access-Control-Allow-Origin')).toBeDefined();
     });
   });
+
+  describe('Flat Config Structure (New Format)', () => {
+    it('should handle flat config data from config form', async () => {
+      const flatConfigData = {
+        'google.client_id': "123456789-abcdefghijklmnop.apps.googleusercontent.com",
+        'google.client_secret': "GOCSPX-abcdefghijklmnopqrstuvwxyz",
+        'auth0.domain': "test-domain.auth0.com",
+        'auth0.client_id': "abcdefghijklmnopqrstuvwxyz123456",
+        'auth0.client_secret': "abcdefghijklmnopqrstuvwxyz123456789abcdefghijklmn",
+        'app.config_password': "SecurePass123!",
+        'storage.type': "gdrive",
+        'storage.gdrive.folderId': "test-folder-id"
+      };
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/setup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(flatConfigData)
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.message).toContain('Configuration updated successfully');
+
+      // Verify configuration was saved correctly
+      expect(ConfigService.getString('google.client_id')).toBe(flatConfigData['google.client_id']);
+      expect(ConfigService.getString('auth0.domain')).toBe(flatConfigData['auth0.domain']);
+      expect(ConfigService.getString('storage.type')).toBe('gdrive');
+      expect(ConfigService.getString('storage.gdrive.folderId')).toBe('test-folder-id');
+    });
+
+    it('should handle flat config update with authentication', async () => {
+      // Setup existing configuration
+      await db.insert(configTable).values([
+        {
+          key: 'app.setup_completed',
+          value: 'true',
+          type: 'boolean',
+          description: 'Setup completion status'
+        },
+        {
+          key: 'app.config_password',
+          value: 'existing-password',
+          type: 'string',
+          description: 'Config password'
+        }
+      ]);
+      await ConfigService.refreshCache();
+
+      const flatUpdateData = {
+        'storage.type': "r2",
+        'storage.r2.bucket': "test-bucket",
+        'storage.r2.accessKeyId': "test-key",
+        'storage.r2.secretAccessKey': "test-secret",
+        'storage.r2.endpoint': "https://test.r2.dev"
+      };
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/setup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer existing-password'
+          },
+          body: JSON.stringify(flatUpdateData)
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      
+      const data = await response.json();
+      expect(data.success).toBe(true);
+
+      // Verify R2 configuration was saved
+      expect(ConfigService.getString('storage.type')).toBe('r2');
+      expect(ConfigService.getString('storage.r2.bucket')).toBe('test-bucket');
+      expect(ConfigService.getString('storage.r2.accessKeyId')).toBe('test-key');
+    });
+  });
+
 });

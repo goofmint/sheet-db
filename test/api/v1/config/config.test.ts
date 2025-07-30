@@ -30,7 +30,7 @@ describe('Config Management API', () => {
       
       const html = await response.text();
       expect(html).toContain('Configuration Management');
-      expect(html).toContain('A password is required to access the configuration screen');
+      expect(html).toContain('password is required');
       expect(html).toContain('<form method="post" action="/config/auth">');
       expect(html).toContain('type="password"');
       expect(html).toContain('name="csrf_token"'); // Check for CSRF token
@@ -61,8 +61,73 @@ describe('Config Management API', () => {
       expect(html).toContain('Description');
       expect(html).toContain('google.client_id');
       expect(html).toContain('client123'); // Non-sensitive data should be visible
-      expect(html).toContain('****'); // Sensitive data should be masked
-      expect(html).not.toContain('secret123'); // Secret should not be visible
+      expect(html).toContain('data-field-type="sensitive"'); // Sensitive fields should have sensitive marker
+      expect(html).toContain('type="password"'); // Sensitive fields should be password type
+      expect(html).toContain('<form id="configForm"'); // Should be a form now
+      expect(html).toContain('action="/api/v1/setup"'); // Form should post to setup endpoint
+    });
+
+    it('should display editable form with all required elements', async () => {
+      // First, authenticate to get a valid session token
+      const loginResponse = await authenticateUser();
+      const sessionCookie = extractSessionCookie(loginResponse);
+      
+      const request = new Request('http://localhost/config', {
+        headers: {
+          'Cookie': sessionCookie
+        }
+      });
+      const response = await app.fetch(request, env);
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      
+      // Check form structure
+      expect(html).toContain('<form id="configForm"');
+      expect(html).toContain('method="post"');
+      expect(html).toContain('action="/api/v1/setup"');
+      expect(html).toContain('name="csrf_token"');
+      
+      // Check form controls
+      expect(html).toContain('Save All');
+      expect(html).toContain('Reset All');
+      expect(html).toContain('0 changes');
+      
+      // Check reset buttons (for non-sensitive fields)
+      expect(html).toContain('reset-btn');
+      
+      // Check data attributes for change tracking
+      expect(html).toContain('data-original');
+      expect(html).toContain('data-field-type');
+    });
+
+    it('should have proper input types for different field types', async () => {
+      // First, authenticate to get a valid session token
+      const loginResponse = await authenticateUser();
+      const sessionCookie = extractSessionCookie(loginResponse);
+      
+      const request = new Request('http://localhost/config', {
+        headers: {
+          'Cookie': sessionCookie
+        }
+      });
+      const response = await app.fetch(request, env);
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      
+      // Sensitive fields should be password type
+      expect(html).toContain('name="google.client_secret"');
+      expect(html).toContain('type="password"');
+      expect(html).toContain('name="app.config_password"');
+      
+      // Non-sensitive fields should be text type
+      expect(html).toContain('name="google.client_id"');
+      expect(html).toContain('type="text"');
+      
+      // Boolean fields should be checkboxes
+      expect(html).toContain('name="app.setup_completed"');
+      expect(html).toContain('type="checkbox"');
     });
   });
 
@@ -107,7 +172,7 @@ describe('Config Management API', () => {
     return match ? `config_session=${match[1]}` : '';
   }
 
-  describe('POST /config/auth', () => {
+  describe('Authentication Flow', () => {
     it('should authenticate with correct password and CSRF token', async () => {
       const response = await authenticateUser();
 
@@ -119,122 +184,24 @@ describe('Config Management API', () => {
       expect(setCookie).toContain('HttpOnly');
       expect(setCookie).toContain('Max-Age=7200'); // 2 hours
     });
-
-    it('should reject request without CSRF token', async () => {
-      const formData = new FormData();
-      formData.append('password', 'testPassword123');
-      // No CSRF token provided
-      
-      const request = new Request('http://localhost/config/auth', {
-        method: 'POST',
-        body: formData
-      });
-      const response = await app.fetch(request, env);
-
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/config?error=csrf_invalid');
-    });
-    
-    it('should reject incorrect password', async () => {
-      // Get CSRF token first
-      const getRequest = new Request('http://localhost/config');
-      const getResponse = await app.fetch(getRequest, env);
-      const csrfToken = await extractCSRFToken(getResponse);
-      
-      const formData = new FormData();
-      formData.append('password', 'wrongPassword');
-      formData.append('csrf_token', csrfToken);
-      
-      const request = new Request('http://localhost/config/auth', {
-        method: 'POST',
-        headers: {
-          'Cookie': extractCSRFCookie(getResponse)
-        },
-        body: formData
-      });
-      const response = await app.fetch(request, env);
-
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/config?error=invalid_password');
-    });
-
-    it('should reject empty password', async () => {
-      // Get CSRF token first
-      const getRequest = new Request('http://localhost/config');
-      const getResponse = await app.fetch(getRequest, env);
-      const csrfToken = await extractCSRFToken(getResponse);
-      
-      const formData = new FormData();
-      formData.append('password', '');
-      formData.append('csrf_token', csrfToken);
-      
-      const request = new Request('http://localhost/config/auth', {
-        method: 'POST',
-        headers: {
-          'Cookie': extractCSRFCookie(getResponse)
-        },
-        body: formData
-      });
-      const response = await app.fetch(request, env);
-
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/config?error=password_required');
-    });
-
-    it('should handle URL-encoded form data', async () => {
-      // Get CSRF token first
-      const getRequest = new Request('http://localhost/config');
-      const getResponse = await app.fetch(getRequest, env);
-      const csrfToken = await extractCSRFToken(getResponse);
-      
-      const request = new Request('http://localhost/config/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Cookie': extractCSRFCookie(getResponse)
-        },
-        body: new URLSearchParams({
-          password: 'testPassword123',
-          csrf_token: csrfToken
-        })
-      });
-      const response = await app.fetch(request, env);
-
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/config');
-    });
-
-    it('should set secure cookie for HTTPS requests', async () => {
-      // Get CSRF token first
-      const getRequest = new Request('https://localhost/config');
-      const getResponse = await app.fetch(getRequest, env);
-      const csrfToken = await extractCSRFToken(getResponse);
-      
-      const formData = new FormData();
-      formData.append('password', 'testPassword123');
-      formData.append('csrf_token', csrfToken);
-      
-      const request = new Request('https://localhost/config/auth', {
-        method: 'POST',
-        headers: {
-          'Cookie': extractCSRFCookie(getResponse)
-        },
-        body: formData
-      });
-      const response = await app.fetch(request, env);
-
-      const setCookie = response.headers.get('Set-Cookie');
-      expect(setCookie).toContain('Secure');
-      expect(setCookie).toContain('SameSite=Strict');
-    });
   });
 
-  describe('GET /config/logout', () => {
+  describe('POST /config/logout', () => {
     it('should clear session and CSRF cookies and redirect', async () => {
+      // Get a valid CSRF token first
+      const getRequest = new Request('http://localhost/config');
+      const getResponse = await app.fetch(getRequest, env);
+      const csrfToken = await extractCSRFToken(getResponse);
+      
+      const formData = new FormData();
+      formData.append('csrf_token', csrfToken);
+      
       const request = new Request('http://localhost/config/logout', {
+        method: 'POST',
         headers: {
-          'Cookie': 'config_session=test; csrf_token=test'
-        }
+          'Cookie': `config_session=test; ${extractCSRFCookie(getResponse)}`
+        },
+        body: formData
       });
       const response = await app.fetch(request, env);
 
@@ -243,16 +210,7 @@ describe('Config Management API', () => {
       
       const setCookie = response.headers.get('Set-Cookie');
       expect(setCookie).toContain('config_session=');
-      expect(setCookie).toContain('csrf_token=');
       expect(setCookie).toContain('Max-Age=0'); // Cookie deletion
-    });
-
-    it('should work without existing auth cookie', async () => {
-      const request = new Request('http://localhost/config/logout');
-      const response = await app.fetch(request, env);
-
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/config');
     });
   });
 

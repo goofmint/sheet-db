@@ -356,7 +356,6 @@ export class ConfigService {
           });
         } catch (transactionError) {
           // If transaction fails, fall back to individual operations
-          console.warn('Transaction not supported, falling back to individual operations');
           await this.setAllWithoutTransaction(configEntries);
         }
       } else {

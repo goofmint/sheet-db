@@ -276,6 +276,19 @@ export function getCSRFToken(c: Context): string | undefined {
 }
 
 /**
+ * Clear session cookie
+ */
+export function clearSessionCookie(c: Context): void {
+  setCookie(c, SESSION_COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: new URL(c.req.url).protocol === 'https:',
+    sameSite: 'Strict',
+    maxAge: 0,
+    path: '/'
+  });
+}
+
+/**
  * Clear session and CSRF cookies
  */
 export function clearAuthCookies(c: Context): void {

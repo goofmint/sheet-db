@@ -112,7 +112,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as any;
       expect(data.success).toBe(true);
       expect(data.user.id).toBe(userId);
       expect(data.user.email).toBe('minimal@example.com');

@@ -59,7 +59,58 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
       }, 400);
     }
 
-    // Validate request data
+    // Check if this is flat config data (key/value pairs from config form)
+    if (requestData && typeof requestData === 'object') {
+      const data = requestData as Record<string, any>;
+      const hasDotNotation = Object.keys(data).some(key => key.includes('.'));
+      
+      if (hasDotNotation) {
+        // This is flat config data - process directly as key/value pairs
+        const configs: Record<string, { value: string; type?: ConfigType }> = {};
+        
+        for (const [key, value] of Object.entries(data)) {
+          if (key === 'csrf_token') continue;
+          
+          // Get existing config to preserve the original type
+          const existingType = ConfigService.getType(key);
+          
+          // Convert boolean values to string for storage
+          let stringValue: string;
+          if (typeof value === 'boolean') {
+            stringValue = value ? 'true' : 'false';
+          } else {
+            stringValue = String(value);
+          }
+          
+          configs[key] = { 
+            value: stringValue,
+            // Preserve existing type, only set new type for new configs
+            type: existingType || (typeof value === 'boolean' ? 'boolean' : undefined)
+          };
+        }
+        
+        // Save all configurations
+        try {
+          await ConfigService.setAll(configs);
+        } catch (error) {
+          try {
+            await ConfigService.refreshCache();
+          } catch (rollbackError) {
+            console.error('Failed to rollback configuration cache:', rollbackError);
+          }
+          throw error;
+        }
+        
+        // Return success response
+        return c.json({
+          success: true,
+          message: 'Configuration updated successfully',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    // Legacy validation for nested structure (keep for backward compatibility)
     const validation = validateSetupRequest(requestData);
     if (!validation.isValid) {
       return c.json({
@@ -187,3 +238,80 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
     }, 500);
   }
 };
+
+/**
+ * Transform flat config data (dot notation) to nested structure
+ */
+function transformFlatConfigData(data: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {
+    google: {},
+    auth0: {},
+    app: {}
+  };
+
+  // Copy CSRF token
+  if (data.csrf_token) {
+    result.csrf_token = data.csrf_token;
+  }
+
+  // First pass: determine storage type
+  let storageType = 'r2'; // default
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'storage.type') {
+      storageType = value;
+      break;
+    }
+  }
+
+  // Initialize storage object based on type
+  if (storageType === 'gdrive') {
+    result.storage = { type: 'gdrive', gdrive: {} };
+  } else {
+    result.storage = { type: 'r2', r2: {} };
+  }
+
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'csrf_token') continue;
+    
+    const parts = key.split('.');
+    if (parts.length === 2) {
+      const [section, field] = parts;
+      if (section === 'google') {
+        result.google[field === 'client_id' ? 'clientId' : field === 'client_secret' ? 'clientSecret' : field] = value;
+      } else if (section === 'auth0') {
+        result.auth0[field === 'client_id' ? 'clientId' : field === 'client_secret' ? 'clientSecret' : field] = value;
+      } else if (section === 'app') {
+        if (field === 'config_password') {
+          result.app.configPassword = value;
+        } else if (field === 'setup_completed') {
+          result.app.setupCompleted = value === 'true' || value === true;
+        }
+      } else if (section === 'storage' && field === 'type') {
+        result.storage.type = value;
+      }
+    } else if (parts.length === 3 && parts[0] === 'storage') {
+      const [, subSection, field] = parts;
+      if (subSection === 'r2' && result.storage.r2) {
+        result.storage.r2[field] = value;
+      } else if (subSection === 'gdrive' && result.storage.gdrive) {
+        result.storage.gdrive[field] = value;
+      }
+    }
+  }
+
+  // Remove empty sections
+  if (Object.keys(result.google).length === 0) delete result.google;
+  if (Object.keys(result.auth0).length === 0) delete result.auth0;
+  if (Object.keys(result.app).length === 0) delete result.app;
+  
+  // Remove storage if no specific storage config provided
+  const hasStorageConfig = 
+    (result.storage.r2 && Object.keys(result.storage.r2).length > 0) ||
+    (result.storage.gdrive && Object.keys(result.storage.gdrive).length > 0);
+  
+  if (!hasStorageConfig) {
+    delete result.storage;
+  }
+
+  return result;
+}

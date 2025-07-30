@@ -8,7 +8,7 @@ import { api } from './api';
 import { setupHandler } from './setup';
 import { playgroundHandler } from './playground';
 import { googleCallbackHandler } from './google/callback/get';
-import configRouter from './api/v1/config';
+import configRouter from './config';
 import { sheetInitializeHandler } from './sheet/initialize/get';
 import { sheetSelectHandler } from './sheet/select/get';
 import type { Env } from './types/env';
@@ -33,6 +33,7 @@ app.notFound(createNotFoundHandler());
 // Middleware
 app.use(cors());
 app.use(logger());
+
 
 // Root path handler
 app.get('/', async (c) => {
