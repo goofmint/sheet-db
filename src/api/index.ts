@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
 import { swaggerUI } from '@hono/swagger-ui';
 import healthRouter from './v1/health/route';
@@ -27,8 +28,8 @@ api.use('*', cors({
   credentials: true,
 }));
 
-// API versioning prefix
-const v1 = new Hono<{ Bindings: Env }>();
+// API versioning prefix - using OpenAPIHono for v1 to support OpenAPI endpoints
+const v1 = new OpenAPIHono<{ Bindings: Env }>();
 
 // Health routes
 v1.route('/health', healthRouter);
@@ -53,7 +54,8 @@ api.route('/v1', v1);
 
 // OpenAPI documentation routes
 api.get('/v1/doc', async (c) => {
-  return c.json({
+  // Manual OpenAPI documentation for now
+  const openAPIDoc = {
     openapi: '3.0.0',
     info: {
       version: '1.0.0',
@@ -66,11 +68,73 @@ api.get('/v1/doc', async (c) => {
         description: 'API v1',
       },
     ],
-    paths: {},
-    components: {
-      schemas: {},
+    paths: {
+      '/health': {
+        get: {
+          tags: ['Health'],
+          summary: 'Health Check',
+          description: 'Check the health status of the API',
+          responses: {
+            200: {
+              description: 'API is healthy',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      status: {
+                        type: 'string',
+                        example: 'healthy'
+                      },
+                      timestamp: {
+                        type: 'string',
+                        example: '2024-01-01T00:00:00.000Z'
+                      },
+                      service: {
+                        type: 'string',
+                        example: 'sheetDB'
+                      },
+                      version: {
+                        type: 'string',
+                        example: '1.0.0'
+                      }
+                    },
+                    required: ['status', 'timestamp', 'service', 'version']
+                  }
+                }
+              }
+            },
+            500: {
+              description: 'Server error',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      error: {
+                        type: 'string',
+                        example: 'Internal Server Error'
+                      },
+                      message: {
+                        type: 'string',
+                        example: 'An unexpected error occurred'
+                      }
+                    },
+                    required: ['error', 'message']
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
-  });
+    components: {
+      schemas: {}
+    }
+  };
+
+  return c.json(openAPIDoc);
 });
 
 api.get('/v1/ui', swaggerUI({ url: '/api/v1/doc' }));

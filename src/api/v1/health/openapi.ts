@@ -1,10 +1,10 @@
 import { createRoute, z } from '@hono/zod-openapi';
 
-// Health Check Schemas
+// Health Check Schemas - matching actual handler response
 const HealthResponseSchema = z.object({
-  status: z.string().openapi({ example: 'ok' }),
+  status: z.string().openapi({ example: 'healthy' }),
   timestamp: z.string().openapi({ example: '2024-01-01T00:00:00.000Z' }),
-  service: z.string().openapi({ example: 'sheet-db' }),
+  service: z.string().openapi({ example: 'sheetDB' }),
   version: z.string().openapi({ example: '1.0.0' }),
 });
 
