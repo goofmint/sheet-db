@@ -4,40 +4,89 @@
 
 ### API Routes (/api/v1/*)
 
+#### Standard Error Schema
+```json
+{
+  "error": "string",
+  "message": "string", 
+  "code": "string (optional)",
+  "details": "array (optional)"
+}
+```
+
 #### Health
 - `GET /api/v1/health` - Check API health status
-  - レスポンス: { status: 'ok', timestamp: string, version: string }
+  - **200** (application/json): { status: 'ok', timestamp: string, version: string }
+  - **500** (application/json): Standard error schema
 
 #### Setup
 - `GET /api/v1/setup` - Get setup status
-  - レスポンス: { isSetupCompleted: boolean, requiredFields: string[] }
+  - **200** (application/json): { isSetupCompleted: boolean, requiredFields: string[] }
+  - **500** (application/json): Standard error schema
+
 - `POST /api/v1/setup` - Submit setup configuration
-  - リクエスト: 設定項目のkey-valueペア + csrf_token
-  - レスポンス: { success: boolean, message: string }
+  - **Request** (application/json): 設定項目のkey-valueペア + csrf_token
+  - **200** (application/json): { success: boolean, message: string }
+  - **400** (application/json): Standard error schema (validation errors)
+  - **403** (application/json): Standard error schema (CSRF token invalid)
+  - **500** (application/json): Standard error schema
 
 #### Sheets
 - `POST /api/v1/sheets` - Create or initialize sheets
-  - リクエスト: { name: string, headers?: string[] }
-  - レスポンス: { id: string, name: string, url: string }
+  - **Request** (application/json): { name: string, headers?: string[] }
+  - **201** (application/json): { id: string, name: string, url: string }
+  - **400** (application/json): Standard error schema (validation errors)
+  - **401** (application/json): Standard error schema (authentication required)
+  - **500** (application/json): Standard error schema
 
 #### Storage
 - `POST /api/v1/storages` - Create/upload file
-  - リクエスト: multipart/form-data (file + path)
-  - レスポンス: { id: string, url: string, path: string, size: number }
-- `DELETE /api/v1/storages/:id` - Delete file
-  - パラメータ: id (string)
-  - レスポンス: { success: boolean, message: string }
+  - **Request** (multipart/form-data): file + path (optional)
+  - **201** (application/json): { id: string, url: string, path: string, size: number }
+  - **400** (application/json): Standard error schema (no file or validation errors)
+  - **401** (application/json): Standard error schema (authentication required)
+  - **413** (application/json): Standard error schema (file too large)
+  - **500** (application/json): Standard error schema
+
+- `DELETE /api/v1/storages/{id}` - Delete file
+  - **Path Parameters**: id (string)
+  - **200** (application/json): { success: boolean, message: string }
+  - **401** (application/json): Standard error schema (authentication required)
+  - **404** (application/json): Standard error schema (file not found)
+  - **500** (application/json): Standard error schema
 
 #### Playground
 - `GET /api/v1/playground` - Show API playground
-  - レスポンス: HTMLページ
+  - **200** (text/html): HTMLページ
+  - **500** (application/json): Standard error schema
 
 #### Auth
-- `GET /api/v1/auth/login` - Initiate login (Auth0)
-- `GET /api/v1/auth/callback` - OAuth callback
+**Security Scheme**: OAuth2 Authorization Code Flow with Auth0
+- **Flow**: authorizationCode
+- **Authorization URL**: https://{domain}.auth0.com/authorize
+- **Token URL**: https://{domain}.auth0.com/oauth/token
+- **Scopes**: openid, profile, email
+- **Cookies**: Used for session management after successful authentication
+
+- `GET /api/v1/auth/login` - Initiate Auth0 login
+  - **302** (text/html): Redirect to Auth0 authorization endpoint
+  - **500** (application/json): Standard error schema
+
+- `GET /api/v1/auth/callback` - OAuth callback from Auth0
+  - **Query Parameters**: code, state
+  - **302** (text/html): Redirect to application after successful login
+  - **400** (application/json): Standard error schema (invalid code/state)
+  - **500** (application/json): Standard error schema
+
 - `POST /api/v1/auth/logout` - Logout user
-- `GET /api/v1/auth/me` - Get current user
-  - レスポンス: { id: string, email: string, name: string, picture?: string }
+  - **200** (application/json): { success: boolean, message: string }
+  - **302** (text/html): Redirect to logout page (alternative response)
+  - **500** (application/json): Standard error schema
+
+- `GET /api/v1/auth/me` - Get current user information
+  - **200** (application/json): { id: string, email: string, name: string, picture?: string }
+  - **401** (application/json): Standard error schema (not authenticated)
+  - **500** (application/json): Standard error schema
 
 ## OpenAPI実装方針
 
@@ -47,7 +96,7 @@
 
 ### ルーティング構造案
 ```typescript
-import { describeRoute } from 'hono-openapi';
+import { createRoute } from '@hono/zod-openapi';
 ```
 
 ### 対象エンドポイント
@@ -69,4 +118,4 @@ import { describeRoute } from 'hono-openapi';
 2. 各エンドポイントのスキーマ定義
 3. 既存ルーターとの統合
 4. Swagger UIの設定
-5. テストとドキュメント確認
+5. テスト（npm test とTypeScriptチェック）とドキュメント確認
