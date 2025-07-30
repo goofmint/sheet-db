@@ -52,7 +52,23 @@ app.post('/', async (c) => {
         };
       } else {
         // Regular text/password fields
-        configs[key] = { value: value.toString() };
+        const stringValue = value.toString();
+        
+        // Skip empty sensitive fields (they keep current value)
+        const sensitiveKeys = [
+          'google.client_secret',
+          'google.access_token', 
+          'google.refresh_token',
+          'auth0.client_secret',
+          'app.config_password',
+          'storage.r2.secretAccessKey'
+        ];
+        
+        if (sensitiveKeys.includes(key) && stringValue === '') {
+          continue; // Skip empty sensitive fields
+        }
+        
+        configs[key] = { value: stringValue };
       }
     }
 

@@ -302,6 +302,101 @@ app.get('/', async (c) => {
           .changed {
             background-color: #fff3cd;
           }
+          
+          /* Inline notification styles */
+          .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            max-width: 400px;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+          }
+          .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          .notification.error {
+            background-color: #dc3545;
+          }
+          .notification.warning {
+            background-color: #ffc107;
+            color: #212529;
+          }
+          .notification.success {
+            background-color: #28a745;
+          }
+          .notification .close-btn {
+            float: right;
+            margin-left: 10px;
+            cursor: pointer;
+            font-weight: bold;
+          }
+          .notification .close-btn:hover {
+            opacity: 0.7;
+          }
+          
+          /* Modal styles */
+          .modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+          }
+          .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+          }
+          .modal-content h3 {
+            margin-top: 0;
+            color: #dc3545;
+          }
+          .modal-content .sensitive-changes {
+            background-color: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+          }
+          .modal-buttons {
+            margin-top: 20px;
+          }
+          .modal-buttons button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+          }
+          .modal-buttons .btn-danger {
+            background-color: #dc3545;
+            color: white;
+          }
+          .modal-buttons .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+          }
         </style>
       </head>
       <body>
@@ -342,11 +437,12 @@ app.get('/', async (c) => {
                         <input 
                           type="${config.isSensitive ? 'password' : 'text'}" 
                           name="${config.key}"
-                          value="${config.value}" 
-                          data-original="${config.value}"
+                          value="${config.isSensitive ? '' : config.value}" 
+                          ${config.isSensitive ? '' : `data-original="${config.value}"`}
                           data-field-type="${config.isSensitive ? 'sensitive' : 'normal'}"
+                          ${config.isSensitive ? 'placeholder="Leave empty to keep current value"' : ''}
                         >
-                        <button type="button" class="reset-btn" title="Reset to original value" data-key="${config.key}">↺</button>
+                        ${config.isSensitive ? '' : html`<button type="button" class="reset-btn" title="Reset to original value" data-key="${config.key}">↺</button>`}
                       `}
                       <div class="validation-status" id="validation-${config.key}"></div>
                       ${config.isSensitive ? html`
@@ -370,12 +466,96 @@ app.get('/', async (c) => {
           </div>
         </form>
 
+        <!-- Confirmation Modal -->
+        <div id="confirmationModal" class="modal">
+          <div class="modal-content">
+            <h3>⚠️ Confirm Sensitive Changes</h3>
+            <p>You are about to modify sensitive configuration values:</p>
+            <div id="sensitiveChangesList" class="sensitive-changes"></div>
+            <p><strong>This action cannot be undone.</strong> Are you sure you want to proceed?</p>
+            <div class="modal-buttons">
+              <button type="button" class="btn-danger" id="confirmSubmit">Yes, Save Changes</button>
+              <button type="button" class="btn-secondary" id="cancelSubmit">Cancel</button>
+            </div>
+          </div>
+        </div>
+
         <script>
+          // Notification system
+          function showNotification(message, type = 'error', duration = 5000) {
+            const notification = document.createElement('div');
+            notification.className = \`notification \${type}\`;
+            notification.innerHTML = \`
+              \${message}
+              <span class="close-btn" onclick="this.parentElement.remove()">×</span>
+            \`;
+            
+            document.body.appendChild(notification);
+            
+            // Trigger animation
+            setTimeout(() => notification.classList.add('show'), 100);
+            
+            // Auto-remove after duration
+            setTimeout(() => {
+              notification.classList.remove('show');
+              setTimeout(() => notification.remove(), 300);
+            }, duration);
+          }
+          
+          // Check for sensitive changes
+          function getSensitiveChanges() {
+            const sensitiveChanges = [];
+            const sensitiveInputs = document.querySelectorAll('input[data-field-type="sensitive"]');
+            
+            sensitiveInputs.forEach(input => {
+              if (!input.dataset.original && input.value !== '') {
+                const key = input.name;
+                const description = input.closest('tr').querySelector('.description-column').textContent;
+                sensitiveChanges.push({ key, description });
+              }
+            });
+            
+            return sensitiveChanges;
+          }
+          
+          // Show confirmation modal
+          function showConfirmationModal(sensitiveChanges, callback) {
+            const modal = document.getElementById('confirmationModal');
+            const changesList = document.getElementById('sensitiveChangesList');
+            
+            changesList.innerHTML = sensitiveChanges.map(change => 
+              \`<div>• \${change.description} (\${change.key})</div>\`
+            ).join('');
+            
+            modal.classList.add('show');
+            
+            // Handle confirmation
+            document.getElementById('confirmSubmit').onclick = () => {
+              modal.classList.remove('show');
+              callback(true);
+            };
+            
+            document.getElementById('cancelSubmit').onclick = () => {
+              modal.classList.remove('show');
+              callback(false);
+            };
+            
+            // Close on background click
+            modal.onclick = (e) => {
+              if (e.target === modal) {
+                modal.classList.remove('show');
+                callback(false);
+              }
+            };
+          }
+
           // Track changes and update UI
           function updateChangesCount() {
             const changedInputs = document.querySelectorAll('input[data-original]');
+            const sensitiveInputs = document.querySelectorAll('input[data-field-type="sensitive"]');
             let changesCount = 0;
             
+            // Check non-sensitive fields with data-original
             changedInputs.forEach(input => {
               const original = input.dataset.original;
               const current = input.type === 'checkbox' ? input.checked.toString() : input.value;
@@ -388,13 +568,26 @@ app.get('/', async (c) => {
               }
             });
             
+            // Check sensitive fields (any non-empty value means changed)
+            sensitiveInputs.forEach(input => {
+              if (!input.dataset.original) { // Only sensitive fields without data-original
+                const current = input.value;
+                if (current !== '') {
+                  changesCount++;
+                  input.closest('tr').classList.add('changed');
+                } else {
+                  input.closest('tr').classList.remove('changed');
+                }
+              }
+            });
+            
             document.getElementById('changesCount').textContent = changesCount + ' changes';
           }
 
           // Reset individual field
           function resetField(key) {
             const input = document.querySelector(\`input[name="\${key}"]\`);
-            if (input) {
+            if (input && input.dataset.original) { // Only reset non-sensitive fields with data-original
               const original = input.dataset.original;
               if (input.type === 'checkbox') {
                 input.checked = original === 'true';
@@ -408,6 +601,9 @@ app.get('/', async (c) => {
           // Reset all fields
           function resetAllFields() {
             const inputs = document.querySelectorAll('input[data-original]');
+            const sensitiveInputs = document.querySelectorAll('input[data-field-type="sensitive"]:not([data-original])');
+            
+            // Reset non-sensitive fields
             inputs.forEach(input => {
               const original = input.dataset.original;
               if (input.type === 'checkbox') {
@@ -416,10 +612,16 @@ app.get('/', async (c) => {
                 input.value = original;
               }
             });
+            
+            // Clear sensitive fields
+            sensitiveInputs.forEach(input => {
+              input.value = '';
+            });
+            
             updateChangesCount();
           }
 
-          // Basic client-side validation
+          // Enhanced client-side validation with robust patterns
           function validateField(key) {
             const input = document.querySelector(\`input[name="\${key}"]\`);
             const statusElement = document.getElementById(\`validation-\${key}\`);
@@ -428,19 +630,57 @@ app.get('/', async (c) => {
             
             const value = input.type === 'checkbox' ? input.checked.toString() : input.value;
             
-            // Basic validation rules
+            // Enhanced validation rules with regular expressions
             let isValid = true;
             let message = '';
             
-            if (key.includes('client_id') && value && !value.includes('.')) {
-              isValid = false;
-              message = 'Invalid client ID format';
-            } else if (key.includes('domain') && value && !value.includes('.')) {
-              isValid = false;
-              message = 'Invalid domain format';
-            } else if (key.includes('password') && value && value.length < 8) {
-              isValid = false;
-              message = 'Password must be at least 8 characters';
+            // Skip validation for empty sensitive fields (they keep current value)
+            if (input.dataset.fieldType === 'sensitive' && value === '') {
+              statusElement.className = 'validation-status success';
+              statusElement.textContent = '✓ Will keep current value';
+              return;
+            }
+            
+            if (key.includes('client_id') && value) {
+              // Google OAuth client ID pattern: typically ends with .googleusercontent.com or .apps.googleusercontent.com
+              const clientIdPattern = /^[0-9]+-[a-zA-Z0-9_]{32}\.apps\.googleusercontent\.com$|^[a-zA-Z0-9_-]{72}\.apps\.googleusercontent\.com$/;
+              if (!clientIdPattern.test(value)) {
+                isValid = false;
+                message = 'Invalid client ID format (should be Google OAuth format)';
+              }
+            } else if (key.includes('domain') && value) {
+              // Domain validation: proper FQDN format
+              const domainPattern = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+              if (!domainPattern.test(value) || value.length > 253) {
+                isValid = false;
+                message = 'Invalid domain format';
+              }
+            } else if (key.includes('password') && value) {
+              // Strong password requirements: min 8 chars, uppercase, lowercase, digit, special char
+              const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+              if (value.length < 8) {
+                isValid = false;
+                message = 'Password must be at least 8 characters';
+              } else if (!passwordPattern.test(value)) {
+                isValid = false;
+                message = 'Password must include uppercase, lowercase, digit, and special character';
+              }
+            } else if (key.includes('client_secret') && value) {
+              // Client secret validation: should be a long random string
+              if (value.length < 24) {
+                isValid = false;
+                message = 'Client secret appears too short';
+              } else if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+                isValid = false;
+                message = 'Client secret should contain only alphanumeric characters, hyphens, and underscores';
+              }
+            } else if (key.includes('sheetId') && value) {
+              // Google Sheets ID validation
+              const sheetIdPattern = /^[a-zA-Z0-9-_]{44}$/;
+              if (!sheetIdPattern.test(value)) {
+                isValid = false;
+                message = 'Invalid Google Sheets ID format';
+              }
             }
             
             statusElement.className = \`validation-status \${isValid ? 'success' : 'error'}\`;
@@ -449,9 +689,9 @@ app.get('/', async (c) => {
 
           // Event listeners
           document.addEventListener('DOMContentLoaded', function() {
-            // Track changes on all inputs
-            const inputs = document.querySelectorAll('input[data-original]');
-            inputs.forEach(input => {
+            // Track changes on all inputs (both with and without data-original)
+            const allInputs = document.querySelectorAll('input[name]');
+            allInputs.forEach(input => {
               input.addEventListener('input', updateChangesCount);
               input.addEventListener('change', updateChangesCount);
             });
@@ -481,18 +721,39 @@ app.get('/', async (c) => {
 
             // Form submission
             document.getElementById('configForm').addEventListener('submit', function(e) {
+              e.preventDefault(); // Always prevent default submission
+              
               // Check if there are any validation errors
               const errorElements = document.querySelectorAll('.validation-status.error');
               if (errorElements.length > 0) {
-                e.preventDefault();
-                alert('Please fix validation errors before saving.');
+                showNotification('Please fix validation errors before saving.', 'error');
                 return;
               }
               
-              // Show loading state
-              const submitBtn = document.querySelector('button[type="submit"]');
-              submitBtn.disabled = true;
-              submitBtn.textContent = 'Saving...';
+              // Check for sensitive changes
+              const sensitiveChanges = getSensitiveChanges();
+              
+              const proceedWithSubmission = () => {
+                // Show loading state
+                const submitBtn = document.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+                
+                // Submit the form
+                e.target.submit();
+              };
+              
+              if (sensitiveChanges.length > 0) {
+                // Show confirmation modal for sensitive changes
+                showConfirmationModal(sensitiveChanges, (confirmed) => {
+                  if (confirmed) {
+                    proceedWithSubmission();
+                  }
+                });
+              } else {
+                // No sensitive changes, proceed normally
+                proceedWithSubmission();
+              }
             });
 
             // Initial change count

@@ -61,7 +61,7 @@ describe('Config Management API', () => {
       expect(html).toContain('Description');
       expect(html).toContain('google.client_id');
       expect(html).toContain('client123'); // Non-sensitive data should be visible
-      expect(html).toContain('secret123'); // Sensitive data should be in password field
+      expect(html).toContain('data-field-type="sensitive"'); // Sensitive fields should have sensitive marker
       expect(html).toContain('type="password"'); // Sensitive fields should be password type
       expect(html).toContain('<form id="configForm"'); // Should be a form now
       expect(html).toContain('action="/config/update"'); // Form should post to config update endpoint
