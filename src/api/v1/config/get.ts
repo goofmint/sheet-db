@@ -123,9 +123,16 @@ app.get('/', async (c) => {
       const isSensitive = sensitiveKeys.includes(key);
       const type = ConfigService.getType(key);
       
+      // Clean the value to remove any extra quotes that might be present
+      let cleanValue = String(value);
+      // Remove surrounding quotes if they exist
+      if (cleanValue.startsWith('"') && cleanValue.endsWith('"')) {
+        cleanValue = cleanValue.slice(1, -1);
+      }
+      
       return {
         key,
-        value: String(value),
+        value: cleanValue,
         type,
         isSensitive,
         description: getConfigDescription(key)
@@ -213,9 +220,25 @@ app.get('/', async (c) => {
           .value-column input[type="password"] {
             font-family: Arial, sans-serif;
           }
+          .value-column input[type="password"]::placeholder {
+            font-size: 12px;
+            color: #6c757d;
+            font-style: italic;
+          }
+          .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
           .value-column input[type="checkbox"] {
             width: auto;
             transform: scale(1.2);
+            margin: 0;
+          }
+          .checkbox-label {
+            font-size: 14px;
+            color: #495057;
+            font-weight: 500;
           }
           .description-column {
             color: #6c757d;
@@ -427,12 +450,15 @@ app.get('/', async (c) => {
                     <td class="key-column">${config.key}</td>
                     <td class="value-column">
                       ${config.type === 'boolean' ? html`
-                        <input 
-                          type="checkbox" 
-                          name="${config.key}" 
-                          ${config.value === 'true' ? 'checked' : ''}
-                          data-original="${config.value}"
-                        >
+                        <label class="checkbox-container">
+                          <input 
+                            type="checkbox" 
+                            name="${config.key}" 
+                            ${config.value === 'true' ? 'checked' : ''}
+                            data-original="${config.value}"
+                          >
+                          <span class="checkbox-label">${config.value === 'true' ? 'Enabled' : 'Disabled'}</span>
+                        </label>
                       ` : html`
                         <input 
                           type="${config.isSensitive ? 'password' : 'text'}" 
@@ -440,7 +466,7 @@ app.get('/', async (c) => {
                           value="${config.isSensitive ? '' : config.value}" 
                           ${config.isSensitive ? '' : `data-original="${config.value}"`}
                           data-field-type="${config.isSensitive ? 'sensitive' : 'normal'}"
-                          ${config.isSensitive ? 'placeholder="Leave empty to keep current value"' : ''}
+                          ${config.isSensitive ? 'placeholder="Leave empty to keep current"' : ''}
                         >
                         ${config.isSensitive ? '' : html`<button type="button" class="reset-btn" title="Reset to original value" data-key="${config.key}">↺</button>`}
                       `}
@@ -591,6 +617,11 @@ app.get('/', async (c) => {
               const original = input.dataset.original;
               if (input.type === 'checkbox') {
                 input.checked = original === 'true';
+                // Update checkbox label
+                const label = input.parentElement.querySelector('.checkbox-label');
+                if (label) {
+                  label.textContent = input.checked ? 'Enabled' : 'Disabled';
+                }
               } else {
                 input.value = original;
               }
@@ -608,6 +639,11 @@ app.get('/', async (c) => {
               const original = input.dataset.original;
               if (input.type === 'checkbox') {
                 input.checked = original === 'true';
+                // Update checkbox label
+                const label = input.parentElement.querySelector('.checkbox-label');
+                if (label) {
+                  label.textContent = input.checked ? 'Enabled' : 'Disabled';
+                }
               } else {
                 input.value = original;
               }
@@ -637,7 +673,7 @@ app.get('/', async (c) => {
             // Skip validation for empty sensitive fields (they keep current value)
             if (input.dataset.fieldType === 'sensitive' && value === '') {
               statusElement.className = 'validation-status success';
-              statusElement.textContent = '✓ Will keep current value';
+              statusElement.textContent = '✓ Will keep current';
               return;
             }
             
@@ -681,6 +717,34 @@ app.get('/', async (c) => {
                 isValid = false;
                 message = 'Invalid Google Sheets ID format';
               }
+            } else if (key.includes('rate_limit_delay') && value) {
+              // Rate limit delay validation: should be a positive integer
+              const numValue = parseInt(value, 10);
+              if (isNaN(numValue) || numValue < 0 || !Number.isInteger(numValue) || value !== numValue.toString()) {
+                isValid = false;
+                message = 'Must be a positive integer (e.g., 100, 1000)';
+              }
+            } else if (key.includes('timeout') && value) {
+              // Timeout validation: should be a positive integer
+              const numValue = parseInt(value, 10);
+              if (isNaN(numValue) || numValue < 0 || !Number.isInteger(numValue) || value !== numValue.toString()) {
+                isValid = false;
+                message = 'Must be a positive integer in milliseconds';
+              }
+            } else if (key.includes('port') && value) {
+              // Port validation: should be between 1 and 65535
+              const portValue = parseInt(value, 10);
+              if (isNaN(portValue) || portValue < 1 || portValue > 65535 || value !== portValue.toString()) {
+                isValid = false;
+                message = 'Must be a valid port number (1-65535)';
+              }
+            } else if (key.includes('max_') && value) {
+              // General max_ field validation: should be a positive integer
+              const numValue = parseInt(value, 10);
+              if (isNaN(numValue) || numValue < 0 || !Number.isInteger(numValue) || value !== numValue.toString()) {
+                isValid = false;
+                message = 'Must be a positive integer';
+              }
             }
             
             statusElement.className = \`validation-status \${isValid ? 'success' : 'error'}\`;
@@ -693,7 +757,17 @@ app.get('/', async (c) => {
             const allInputs = document.querySelectorAll('input[name]');
             allInputs.forEach(input => {
               input.addEventListener('input', updateChangesCount);
-              input.addEventListener('change', updateChangesCount);
+              input.addEventListener('change', function() {
+                updateChangesCount();
+                
+                // Update checkbox label
+                if (this.type === 'checkbox') {
+                  const label = this.parentElement.querySelector('.checkbox-label');
+                  if (label) {
+                    label.textContent = this.checked ? 'Enabled' : 'Disabled';
+                  }
+                }
+              });
             });
 
             // Reset button handlers
