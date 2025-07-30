@@ -7,7 +7,7 @@ import { Env } from '@/types/env';
 
 const app = new Hono<{ Bindings: Env }>();
 
-// 機密データのキー
+// Sensitive data keys
 const sensitiveKeys = [
   'google.client_secret',
   'auth0.client_secret',
@@ -16,24 +16,24 @@ const sensitiveKeys = [
 
 app.get('/', async (c) => {
   try {
-    // 認証確認
+    // Check authentication
     const authCookie = getCookie(c, 'config_auth');
     const isAuthenticated = authCookie === 'authenticated';
 
-    // ConfigServiceを初期化
+    // Initialize ConfigService
     const db = drizzle(c.env.DB);
     if (!ConfigService.isInitialized()) {
       await ConfigService.initialize(db);
     }
 
     if (!isAuthenticated) {
-      // 未認証時：パスワード入力フォーム
+      // Unauthenticated: password input form
       return c.html(html`
         <!DOCTYPE html>
-        <html lang="ja">
+        <html lang="en">
         <head>
           <meta charset="utf-8">
-          <title>設定管理 - SheetDB</title>
+          <title>Configuration Management - SheetDB</title>
           <style>
             body {
               font-family: Arial, sans-serif;
@@ -82,11 +82,11 @@ app.get('/', async (c) => {
         </head>
         <body>
           <div class="auth-form">
-            <h1>⚙️ 設定管理</h1>
-            <p>設定画面にアクセスするにはパスワードが必要です。</p>
+            <h1>⚙️ Configuration Management</h1>
+            <p>A password is required to access the configuration screen.</p>
             <form method="post" action="/config/auth">
-              <input type="password" name="password" placeholder="設定パスワード" required>
-              <button type="submit">ログイン</button>
+              <input type="password" name="password" placeholder="Configuration Password" required>
+              <button type="submit">Login</button>
             </form>
             <div class="error" id="error" style="display: none;"></div>
           </div>
@@ -95,10 +95,10 @@ app.get('/', async (c) => {
       `);
     }
 
-    // 認証済み時：設定一覧表示
+    // Authenticated: display configuration list
     const configs = ConfigService.getAll();
     
-    // 設定データの準備（機密データのマスキング）
+    // Prepare configuration data (mask sensitive data)
     const configList = Object.entries(configs).map(([key, value]) => {
       const isSensitive = sensitiveKeys.includes(key);
       const displayValue = isSensitive ? '****' : String(value);
@@ -116,10 +116,10 @@ app.get('/', async (c) => {
 
     return c.html(html`
       <!DOCTYPE html>
-      <html lang="ja">
+      <html lang="en">
       <head>
         <meta charset="utf-8">
-        <title>設定管理 - SheetDB</title>
+        <title>Configuration Management - SheetDB</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -224,21 +224,21 @@ app.get('/', async (c) => {
         </style>
       </head>
       <body>
-        <a href="/playground" class="back-link">← プレイグラウンドに戻る</a>
+        <a href="/playground" class="back-link">← Back to Playground</a>
         
         <div class="header">
-          <a href="/config/logout" class="logout-btn">ログアウト</a>
-          <h1>⚙️ 設定管理</h1>
-          <p>アプリケーションの設定項目を確認できます。設定の変更は次のタスクで実装予定です。</p>
+          <a href="/config/logout" class="logout-btn">Logout</a>
+          <h1>⚙️ Configuration Management</h1>
+          <p>You can view application configuration settings. Configuration modification is planned for the next task.</p>
         </div>
 
         <div class="config-table">
           <table>
             <thead>
               <tr>
-                <th>設定キー</th>
-                <th>値</th>
-                <th>説明</th>
+                <th>Configuration Key</th>
+                <th>Value</th>
+                <th>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -253,11 +253,11 @@ app.get('/', async (c) => {
                         type="${config.isSensitive ? 'password' : 'text'}" 
                         value="${config.value}" 
                         readonly 
-                        title="設定の変更は次のタスクで実装予定です"
+                        title="Configuration modification is planned for the next task"
                       >
                     `}
                     ${config.isSensitive ? html`
-                      <div class="sensitive-note">機密情報（マスキング表示）</div>
+                      <div class="sensitive-note">Sensitive information (masked display)</div>
                     ` : ''}
                   </td>
                   <td class="description-column">${config.description}</td>
@@ -274,38 +274,38 @@ app.get('/', async (c) => {
     console.error('Config page error:', error);
     return c.html(html`
       <!DOCTYPE html>
-      <html lang="ja">
+      <html lang="en">
       <head>
         <meta charset="utf-8">
-        <title>エラー - 設定管理</title>
+        <title>Error - Configuration Management</title>
       </head>
       <body>
-        <h1>エラーが発生しました</h1>
-        <p>設定の読み込み中にエラーが発生しました。</p>
-        <a href="/playground">プレイグラウンドに戻る</a>
+        <h1>An Error Occurred</h1>
+        <p>An error occurred while loading the configuration.</p>
+        <a href="/playground">Back to Playground</a>
       </body>
       </html>
     `, 500);
   }
 });
 
-// 設定項目の説明を取得する関数
+// Function to get configuration item descriptions
 function getConfigDescription(key: string): string {
   const descriptions: Record<string, string> = {
-    'google.client_id': 'Google OAuth2 クライアントID',
-    'google.client_secret': 'Google OAuth2 クライアントシークレット',
-    'google.sheetId': 'メインのGoogle SpreadsheetのID',
-    'auth0.domain': 'Auth0ドメイン',
-    'auth0.client_id': 'Auth0 アプリケーションのクライアントID',
-    'auth0.client_secret': 'Auth0 アプリケーションのクライアントシークレット',
-    'auth0.audience': 'Auth0 APIオーディエンス（オプション）',
-    'auth0.scope': 'OAuth2スコープ',
-    'app.config_password': '設定画面へのアクセスパスワード',
-    'app.setup_completed': '初期セットアップ完了フラグ',
-    'storage.type': 'ファイルストレージタイプ (r2 | google_drive)'
+    'google.client_id': 'Google OAuth2 Client ID',
+    'google.client_secret': 'Google OAuth2 Client Secret',
+    'google.sheetId': 'Main Google Spreadsheet ID',
+    'auth0.domain': 'Auth0 Domain',
+    'auth0.client_id': 'Auth0 Application Client ID',
+    'auth0.client_secret': 'Auth0 Application Client Secret',
+    'auth0.audience': 'Auth0 API Audience (optional)',
+    'auth0.scope': 'OAuth2 Scope',
+    'app.config_password': 'Configuration screen access password',
+    'app.setup_completed': 'Initial setup completion flag',
+    'storage.type': 'File storage type (r2 | google_drive)'
   };
   
-  return descriptions[key] || '設定項目';
+  return descriptions[key] || 'Configuration item';
 }
 
 export default app;

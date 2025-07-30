@@ -29,8 +29,8 @@ describe('Config Management API', () => {
       expect(response.headers.get('content-type')).toContain('text/html');
       
       const html = await response.text();
-      expect(html).toContain('設定管理');
-      expect(html).toContain('設定画面にアクセスするにはパスワードが必要です');
+      expect(html).toContain('Configuration Management');
+      expect(html).toContain('A password is required to access the configuration screen');
       expect(html).toContain('<form method="post" action="/config/auth">');
       expect(html).toContain('type="password"');
     });
@@ -46,10 +46,10 @@ describe('Config Management API', () => {
       expect(response.status).toBe(200);
       const html = await response.text();
       
-      expect(html).toContain('設定管理');
-      expect(html).toContain('設定キー');
-      expect(html).toContain('値');
-      expect(html).toContain('説明');
+      expect(html).toContain('Configuration Management');
+      expect(html).toContain('Configuration Key');
+      expect(html).toContain('Value');
+      expect(html).toContain('Description');
       expect(html).toContain('google.client_id');
       expect(html).toContain('client123'); // Non-sensitive data should be visible
       expect(html).toContain('****'); // Sensitive data should be masked

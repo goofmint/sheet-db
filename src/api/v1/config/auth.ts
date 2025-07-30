@@ -6,10 +6,10 @@ import { Env } from '@/types/env';
 
 const app = new Hono<{ Bindings: Env }>();
 
-// パスワード認証
+// Password authentication
 app.post('/', async (c) => {
   try {
-    // ConfigServiceを初期化
+    // Initialize ConfigService
     const db = drizzle(c.env.DB);
     if (!ConfigService.isInitialized()) {
       await ConfigService.initialize(db);
@@ -29,28 +29,28 @@ app.post('/', async (c) => {
       return c.redirect('/config?error=password_required');
     }
 
-    // 設定パスワードを取得
+    // Get configuration password
     const configPassword = ConfigService.getString('app.config_password');
     
     if (!configPassword) {
       return c.redirect('/config?error=config_not_found');
     }
 
-    // パスワード照合（定数時間比較）
+    // Password verification (constant-time comparison)
     const isValid = await comparePasswords(password, configPassword);
     
     if (!isValid) {
-      // タイミング攻撃対策: 一定時間待機
+      // Timing attack protection: wait for a fixed duration
       await new Promise(resolve => setTimeout(resolve, 100));
       return c.redirect('/config?error=invalid_password');
     }
 
-    // 認証成功: Cookieを設定
+    // Authentication successful: set cookie
     setCookie(c, 'config_auth', 'authenticated', {
       httpOnly: true,
       secure: new URL(c.req.url).protocol === 'https:',
       sameSite: 'Strict',
-      maxAge: 60 * 60 * 2, // 2時間
+      maxAge: 60 * 60 * 2, // 2 hours
       path: '/'
     });
 
@@ -62,9 +62,9 @@ app.post('/', async (c) => {
   }
 });
 
-// 定数時間でのパスワード比較
+// Constant-time password comparison
 async function comparePasswords(input: string, stored: string): Promise<boolean> {
-  // 単純な文字列比較（本来はハッシュ化されたパスワードと比較すべき）
+  // Simple string comparison (should ideally compare with hashed passwords)
   if (input.length !== stored.length) {
     return false;
   }

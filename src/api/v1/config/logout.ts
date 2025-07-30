@@ -5,7 +5,7 @@ import { Env } from '@/types/env';
 const app = new Hono<{ Bindings: Env }>();
 
 app.get('/', async (c) => {
-  // 認証Cookieを削除
+  // Delete authentication cookie
   deleteCookie(c, 'config_auth', {
     httpOnly: true,
     secure: new URL(c.req.url).protocol === 'https:',
