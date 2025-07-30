@@ -93,10 +93,8 @@ describe('Config Management API', () => {
       expect(html).toContain('Reset All');
       expect(html).toContain('0 changes');
       
-      // Check action buttons
+      // Check reset buttons (for non-sensitive fields)
       expect(html).toContain('reset-btn');
-      expect(html).toContain('validate-btn');
-      expect(html).toContain('Actions'); // Actions column header
       
       // Check data attributes for change tracking
       expect(html).toContain('data-original');

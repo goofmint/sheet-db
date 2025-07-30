@@ -208,10 +208,15 @@ app.get('/', async (c) => {
             width: 25%;
           }
           .value-column {
-            width: 40%;
+            width: 45%;
+          }
+          .value-input-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
           }
           .value-column input {
-            width: 100%;
+            flex: 1;
             padding: 8px;
             border: 1px solid #dee2e6;
             border-radius: 4px;
@@ -243,7 +248,7 @@ app.get('/', async (c) => {
           .description-column {
             color: #6c757d;
             font-size: 14px;
-            width: 35%;
+            width: 30%;
           }
           .sensitive-note {
             color: #dc3545;
@@ -262,20 +267,19 @@ app.get('/', async (c) => {
           .back-link:hover {
             background-color: #218838;
           }
-          .actions-column {
-            width: 15%;
-          }
-          .reset-btn, .validate-btn {
-            padding: 4px 8px;
-            margin-left: 8px;
+          .reset-btn {
+            padding: 6px 8px;
             border: 1px solid #dee2e6;
             border-radius: 4px;
             background-color: #f8f9fa;
             cursor: pointer;
             font-size: 12px;
+            color: #6c757d;
+            flex-shrink: 0;
           }
-          .reset-btn:hover, .validate-btn:hover {
+          .reset-btn:hover {
             background-color: #e9ecef;
+            color: #495057;
           }
           .validation-status {
             font-size: 12px;
@@ -441,7 +445,6 @@ app.get('/', async (c) => {
                   <th>Configuration Key</th>
                   <th>Value</th>
                   <th>Description</th>
-                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -460,15 +463,17 @@ app.get('/', async (c) => {
                           <span class="checkbox-label">${config.value === 'true' ? 'Enabled' : 'Disabled'}</span>
                         </label>
                       ` : html`
-                        <input 
-                          type="${config.isSensitive ? 'password' : 'text'}" 
-                          name="${config.key}"
-                          value="${config.isSensitive ? '' : config.value}" 
-                          ${config.isSensitive ? '' : `data-original="${config.value}"`}
-                          data-field-type="${config.isSensitive ? 'sensitive' : 'normal'}"
-                          ${config.isSensitive ? 'placeholder="Leave empty to keep current"' : ''}
-                        >
-                        ${config.isSensitive ? '' : html`<button type="button" class="reset-btn" title="Reset to original value" data-key="${config.key}">↺</button>`}
+                        <div class="value-input-container">
+                          <input 
+                            type="${config.isSensitive ? 'password' : 'text'}" 
+                            name="${config.key}"
+                            value="${config.isSensitive ? '' : config.value}" 
+                            ${config.isSensitive ? '' : `data-original="${config.value}"`}
+                            data-field-type="${config.isSensitive ? 'sensitive' : 'normal'}"
+                            ${config.isSensitive ? 'placeholder="Leave empty to keep current"' : ''}
+                          >
+                          ${config.isSensitive ? '' : html`<button type="button" class="reset-btn" title="Reset to original value" data-key="${config.key}">↺</button>`}
+                        </div>
                       `}
                       <div class="validation-status" id="validation-${config.key}"></div>
                       ${config.isSensitive ? html`
@@ -476,9 +481,6 @@ app.get('/', async (c) => {
                       ` : ''}
                     </td>
                     <td class="description-column">${config.description}</td>
-                    <td class="actions-column">
-                      <button type="button" class="validate-btn" data-key="${config.key}">Validate</button>
-                    </td>
                   </tr>
                 `)}
               </tbody>
@@ -756,9 +758,15 @@ app.get('/', async (c) => {
             // Track changes on all inputs (both with and without data-original)
             const allInputs = document.querySelectorAll('input[name]');
             allInputs.forEach(input => {
-              input.addEventListener('input', updateChangesCount);
+              input.addEventListener('input', function() {
+                updateChangesCount();
+                // Auto-validate on input
+                validateField(this.name);
+              });
               input.addEventListener('change', function() {
                 updateChangesCount();
+                // Auto-validate on change
+                validateField(this.name);
                 
                 // Update checkbox label
                 if (this.type === 'checkbox') {
@@ -778,13 +786,6 @@ app.get('/', async (c) => {
               });
             });
 
-            // Validate button handlers
-            document.querySelectorAll('.validate-btn').forEach(btn => {
-              btn.addEventListener('click', function() {
-                const key = this.dataset.key;
-                validateField(key);
-              });
-            });
 
             // Reset all button
             document.getElementById('resetAll').addEventListener('click', function() {
@@ -830,8 +831,15 @@ app.get('/', async (c) => {
               }
             });
 
-            // Initial change count
+            // Initial change count and validation
             updateChangesCount();
+            
+            // Auto-validate all fields on page load
+            allInputs.forEach(input => {
+              if (input.name) {
+                validateField(input.name);
+              }
+            });
           });
         </script>
       </body>
