@@ -6,7 +6,7 @@ import { createErrorHandler, createNotFoundHandler } from './lib/error-handlers'
 import { ConfigService } from './services/config';
 import { api } from './api';
 import { setupHandler } from './setup';
-import { playgroundHandler } from './playground';
+import playgroundRouter from './playground/route';
 import { googleCallbackHandler } from './google/callback/get';
 import configRouter from './config';
 import { sheetInitializeHandler } from './sheet/initialize/get';
@@ -63,7 +63,7 @@ app.post('/sheet/initialize', sheetInitializeHandler);
 
 // Non-API routes
 app.get('/setup', setupHandler);
-app.get('/playground', playgroundHandler);
+app.route('/playground', playgroundRouter);
 
 // Config management routes
 app.route('/config', configRouter);

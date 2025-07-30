@@ -8,7 +8,6 @@ import { setupStatusRoute, setupConfigRoute } from './v1/setup/route';
 import { setupGetHandler } from './v1/setup/get';
 import { setupPostHandler } from './v1/setup/post';
 import sheetsRouter from './v1/sheets/route';
-import playgroundRouter from './v1/playground/route';
 import storagesRouter from './v1/storages/route';
 import authRouter from './v1/auth';
 import type { Env } from '@/types/env';
@@ -47,11 +46,12 @@ v1.route('/sheets', sheetsRouter);
 // Storage routes
 v1.route('/storages', storagesRouter);
 
-// Playground routes
-v1.route('/playground', playgroundRouter);
 
 // Auth routes
 v1.route('/auth', authRouter);
+
+// Redirect old playground URL for backward compatibility
+v1.get('/playground', (c) => c.redirect('/playground', 301));
 
 // Mount v1 API routes
 api.route('/v1', v1);

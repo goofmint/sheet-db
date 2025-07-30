@@ -70,8 +70,6 @@ export function playground(props: PlaygroundProps): string;
 #### 2.3 app.js (public/static/playground/)
 - 現在 `/statics/playground/app.js` として外部参照されているスクリプト
 - 同じパス `/statics/playground/app.js` でアクセス可能
-- API テスト機能の実装
-- TypeScript で型安全に実装後、JavaScript にトランスパイル
 
 ### 4. 実装手順
 
@@ -95,15 +93,9 @@ export function playground(props: PlaygroundProps): string;
 2. JavaScript 機能を実装
 3. API テスト機能の改善
 
-#### Phase 5: ルーティング統合
-1. メインアプリケーションのルーティングを更新
-2. `/api/v1/playground` から `/playground` に変更
-3. 既存の API ルーターから playground を除外
-
-#### Phase 6: 静的ファイル配信確認
+#### Phase 5: 静的ファイル配信確認
 1. `/statics/playground/style.css` パスでの CSS 配信確認
 2. `/statics/playground/app.js` パスでの JavaScript 配信確認
-3. Cloudflare Workers の静的ファイル配信設定確認
 
 ### 5. 技術的考慮事項
 
@@ -127,22 +119,11 @@ export function playground(props: PlaygroundProps): string;
 - 従来の script タグ対応
 - ブラウザ互換性の確保
 
-### 6. 後方互換性
-
-#### リダイレクト対応
-```typescript
-// 旧URLからの自動リダイレクト
-app.get('/api/v1/playground', (c) => {
-  return c.redirect('/playground', 301);
-});
-```
-
 ### 7. テスト計画
 
 #### 7.1 既存機能のテスト
-- すべての API テスト機能が動作することを確認
+- GET `/playground` でのアクセス確認
 - 認証フローの動作確認
-- ファイルアップロード機能の動作確認
 
 #### 7.2 新しい構造のテスト
 - TSX コンポーネントの正しいレンダリング
@@ -152,38 +133,11 @@ app.get('/api/v1/playground', (c) => {
 ### 8. 完了基準
 
 - [ ] `/playground` でアクセス可能
-- [ ] `/api/v1/playground` は適切にリダイレクト
 - [ ] HTML/CSS/JavaScript が適切に分離されている
 - [ ] すべての既存機能が正常動作
 - [ ] コードの可読性とメンテナンス性が向上
 - [ ] 型安全性が確保されている
 - [ ] テストが全て通過
-
-## 推定作業時間
-
-- Phase 1: 1時間
-- Phase 2: 2時間
-- Phase 3: 1時間
-- Phase 4: 2時間
-- Phase 5: 1時間
-- Phase 6: 1時間
-- テスト・調整: 2時間
-
-**合計: 約10時間**
-
-## リスク要因
-
-1. **静的ファイル配信の複雑さ**
-   - Cloudflare Workers での CSS/JS 配信設定
-   - 適切なルーティング設定
-
-2. **TSX コンポーネントの複雑さ**
-   - Hono での TSX サポート確認が必要
-   - サーバーサイドレンダリングの実装
-
-3. **既存機能の破損リスク**
-   - 大きな構造変更によるバグの可能性
-   - 十分なテストが必要
 
 ## 次のステップ
 
