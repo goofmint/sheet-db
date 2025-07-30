@@ -1,6 +1,6 @@
 # OpenAPI Documentation
 
-## 現在のAPIエンドポイント一覧
+## 対象エンドポイント: /api/v1/* のみ
 
 ### API Routes (/api/v1/*)
 
@@ -39,32 +39,6 @@
 - `GET /api/v1/auth/me` - Get current user
   - レスポンス: { id: string, email: string, name: string, picture?: string }
 
-### Web Routes (Non-API)
-
-#### Root
-- `GET /` - Root path (redirects to /setup or /playground)
-
-#### Static Files
-- `GET /statics/*` - Static file serving (CSS, JS assets)
-
-#### Google OAuth
-- `GET /google/callback` - Google OAuth callback
-
-#### Sheet Management
-- `GET /sheet/select` - Sheet selection page
-- `POST /sheet/select` - Handle sheet selection
-- `GET /sheet/initialize` - Sheet initialization page  
-- `POST /sheet/initialize` - Handle sheet initialization
-
-#### Setup & Playground
-- `GET /setup` - Setup page
-- `GET /playground` - API playground page
-
-#### Configuration Management
-- `GET /config` - Configuration management page
-- `GET /config/auth` - Configuration authentication
-- `POST /config/logout` - Configuration logout
-
 ## OpenAPI実装方針
 
 ### 利用ライブラリ
@@ -77,8 +51,7 @@ import { describeRoute } from 'hono-openapi';
 ```
 
 ### 対象エンドポイント
-- **Priority 1**: API routes (`/api/v1/*`) - 8エンドポイント
-- **Priority 2**: Web routes (必要に応じて)
+- API routes (`/api/v1/*`) - 8エンドポイント
 
 ### ドキュメント公開場所
 - OpenAPI JSON: `/api/v1/doc`
@@ -90,7 +63,6 @@ import { describeRoute } from 'hono-openapi';
 3. **Sheets**: Google Sheets操作のリクエスト/レスポンス
 4. **Storage**: ファイルアップロード/削除の仕様
 5. **Auth**: 認証関連のユーザー情報
-6. **Playground**: HTMLレスポンス（簡易）
 
 ### 実装ステップ
 1. 基本的なOpenAPIルーター作成
