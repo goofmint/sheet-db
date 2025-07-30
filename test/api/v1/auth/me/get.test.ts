@@ -7,6 +7,29 @@ import { env } from 'cloudflare:test';
 import { setupSessionDatabase, setupConfigDatabase } from '../../../../utils/database-setup';
 import { ConfigService } from '@/services/config';
 
+// Type definitions for API responses
+interface UserResponse {
+  id: string;
+  name: string;
+  email: string;
+  picture?: string;
+  email_verified?: boolean;
+  updated_at?: string;
+  sub?: string;
+}
+
+interface UserSuccessResponse {
+  success: boolean;
+  user: UserResponse;
+  session?: any;
+}
+
+interface ErrorResponse {
+  success: boolean;
+  error: string;
+  message?: string;
+}
+
 describe('Auth Me API - GET /api/v1/auth/me', () => {
   const db = drizzle(env.DB);
 
@@ -58,7 +81,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as UserSuccessResponse;
       expect(data).toEqual({
         success: true,
         user: {
@@ -130,7 +153,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json();
+      const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
         success: false,
         error: 'unauthorized',
@@ -152,7 +175,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json();
+      const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
         success: false,
         error: 'unauthorized',
@@ -189,7 +212,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json();
+      const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
         success: false,
         error: 'session_expired',
@@ -215,7 +238,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       );
 
       expect(response.status).toBe(401);
-      const data = await response.json();
+      const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
         success: false,
         error: 'unauthorized',
@@ -250,7 +273,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       );
 
       expect(response.status).toBe(500);
-      const data = await response.json();
+      const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
         success: false,
         error: 'server_error',
@@ -273,7 +296,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       );
 
       expect(response.status).toBe(500);
-      const data = await response.json();
+      const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
         success: false,
         error: 'server_error',
@@ -342,7 +365,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
         );
 
         expect(response.status).toBe(401);
-        const data = await response.json();
+        const data = await response.json() as { error: string; message: string };
         expect(data.error).toBe(testCase.expectedError);
         expect(data.message).toBe('Authentication required');
         // レスポンスに機密情報が含まれていないことを確認
@@ -390,7 +413,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as UserSuccessResponse;
       
       // レスポンス構造の確認
       expect(data).toHaveProperty('success', true);

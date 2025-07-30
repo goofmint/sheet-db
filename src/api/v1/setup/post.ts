@@ -72,7 +72,7 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
           if (key === 'csrf_token') continue;
           
           // Get existing config to preserve the original type
-          const existingType = ConfigService.getType(key);
+          const existingType = ConfigService.getType(key) as ConfigType;
           
           // Convert boolean values to string for storage
           let stringValue: string;
@@ -82,10 +82,10 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
             stringValue = String(value);
           }
           
+          const configType: ConfigType = existingType || (typeof value === 'boolean' ? 'boolean' : 'string');
           configs[key] = { 
             value: stringValue,
-            // Preserve existing type, only set new type for new configs
-            type: existingType || (typeof value === 'boolean' ? 'boolean' : undefined)
+            type: configType
           };
         }
         

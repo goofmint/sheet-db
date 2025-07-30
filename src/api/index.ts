@@ -1,10 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { healthHandler } from './v1/health/get';
-import { setupGetHandler } from './v1/setup/get';
-import { setupPostHandler } from './v1/setup/post';
-import { sheetsPostHandler } from './v1/sheets/post';
-import { playgroundGetHandler } from './v1/playground/get';
+import healthRouter from './v1/health/route';
+import setupRouter from './v1/setup/route';
+import sheetsRouter from './v1/sheets/route';
+import playgroundRouter from './v1/playground/route';
 import storagesRouter from './v1/storages/route';
 import authRouter from './v1/auth';
 import type { Env } from '@/types/env';
@@ -30,28 +29,23 @@ api.use('*', cors({
 // API versioning prefix
 const v1 = new Hono<{ Bindings: Env }>();
 
-// Health check endpoint
-v1.get('/health', healthHandler);
+// Health routes
+v1.route('/health', healthRouter);
 
-// Setup endpoints
-v1.get('/setup', setupGetHandler);
-v1.post('/setup', setupPostHandler);
+// Setup routes
+v1.route('/setup', setupRouter);
 
-// Sheets endpoints
-v1.post('/sheets', sheetsPostHandler);
+// Sheets routes
+v1.route('/sheets', sheetsRouter);
 
-// Storage endpoints
+// Storage routes
 v1.route('/storages', storagesRouter);
 
-// Playground endpoint
-v1.get('/playground', playgroundGetHandler);
+// Playground routes
+v1.route('/playground', playgroundRouter);
 
 // Auth routes
 v1.route('/auth', authRouter);
-
-
-// Future endpoints for Google Sheets integration
-// v1.route('/sheets', sheetsRouter);
 
 // Mount v1 API routes
 api.route('/v1', v1);

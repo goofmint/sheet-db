@@ -34,6 +34,8 @@ app.notFound(createNotFoundHandler());
 app.use(cors());
 app.use(logger());
 
+// Static file serving
+app.get('/statics/*', async (c) => c.env.ASSETS.fetch(c.req.url));
 
 // Root path handler
 app.get('/', async (c) => {
@@ -65,7 +67,6 @@ app.get('/playground', playgroundHandler);
 
 // Config management routes
 app.route('/config', configRouter);
-
 
 // Export for Cloudflare Workers
 export default {

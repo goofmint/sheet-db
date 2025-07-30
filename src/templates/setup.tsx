@@ -11,7 +11,7 @@ export default function SetupTemplate() {
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>SheetDB Setup</title>
-        <link rel="stylesheet" href="/styles/setup.css" />
+        <link rel="stylesheet" href="/statics/setup/style.css" />
       </head>
       <body>
         <div className="container">
@@ -23,7 +23,7 @@ export default function SetupTemplate() {
             <SetupForm />
           </main>
         </div>
-        <script src="/scripts/setup.js"></script>
+        <script src="/statics/setup/app.js"></script>
       </body>
     </html>
   );

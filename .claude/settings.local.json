@@ -75,7 +75,11 @@
       "WebFetch(domain:dev-wpguwz20dkay63vr.us.auth0.com)",
       "Bash(/dev/null)",
       "Bash(timeout 15s npm run dev)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase -i HEAD~[0-9]+)",
+      "Bash(git rebase --continue)",
+      "Bash(git rebase --abort)",
+      "Bash(timeout [0-9]+[smhd] npm (run|start|build|test))",
+      "Bash(timeout [0-9]+[smhd] npm (run|start|build|test) [a-zA-Z0-9:-]+)"
     ],
     "deny": []
   }
