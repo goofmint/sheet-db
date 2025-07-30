@@ -1,10 +1,23 @@
-import { Context } from 'hono';
+import type { Context } from 'hono';
+import type { Env } from '@/types/env';
 
-export const healthHandler = (c: Context) => {
-  return c.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    service: 'sheetDB',
-    version: '1.0.0'
-  });
+/**
+ * Health check handler - OpenAPI compatible
+ * Returns strictly typed responses matching OpenAPI schema
+ */
+export const healthHandler = (c: Context<{ Bindings: Env }>) => {
+  try {
+    return c.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      service: 'sheetDB',
+      version: '1.0.0'
+    }, 200);
+  } catch (error) {
+    console.error('Health check error:', error);
+    return c.json({
+      error: 'Internal Server Error',
+      message: 'Health check failed'
+    }, 500);
+  }
 };

@@ -115,7 +115,7 @@ export const setupGetHandler = async (c: Context<{ Bindings: Env }>) => {
       timestamp: new Date().toISOString()
     };
 
-    return c.json(response);
+    return c.json(response, 200);
 
   } catch (error) {
     console.error('Setup API error:', error);

@@ -198,7 +198,7 @@ describe('Setup API - POST /api/v1/setup', () => {
       expect(response.status).toBe(400);
       
       const data = await response.json() as SetupErrorResponse;
-      expect(data.error.code).toBe('INVALID_JSON');
+      expect(data.error.code).toBe('BAD_REQUEST');
     });
 
     it('should reject missing required fields', async () => {

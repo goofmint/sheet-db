@@ -1,7 +1,12 @@
 import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
-import healthRouter from './v1/health/route';
-import setupRouter from './v1/setup/route';
+import { swaggerUI } from '@hono/swagger-ui';
+import { healthRoute } from './v1/health/route';
+import { healthHandler } from './v1/health/get';
+import { setupStatusRoute, setupConfigRoute } from './v1/setup/route';
+import { setupGetHandler } from './v1/setup/get';
+import { setupPostHandler } from './v1/setup/post';
 import sheetsRouter from './v1/sheets/route';
 import playgroundRouter from './v1/playground/route';
 import storagesRouter from './v1/storages/route';
@@ -10,9 +15,9 @@ import type { Env } from '@/types/env';
 
 /**
  * API Router - Centralized routing for all API endpoints
- * Provides RESTful API structure with consistent error handling
+ * Provides RESTful API structure with consistent error handling and OpenAPI support
  */
-const api = new Hono<{ Bindings: Env }>();
+const api = new OpenAPIHono<{ Bindings: Env }>();
 
 // API-specific middleware
 api.use('*', cors({
@@ -29,11 +34,12 @@ api.use('*', cors({
 // API versioning prefix
 const v1 = new Hono<{ Bindings: Env }>();
 
-// Health routes
-v1.route('/health', healthRouter);
+// Health routes - direct OpenAPI mount
+api.openapi(healthRoute, healthHandler);
 
-// Setup routes
-v1.route('/setup', setupRouter);
+// Setup routes - direct OpenAPI mount
+api.openapi(setupStatusRoute, setupGetHandler);
+api.openapi(setupConfigRoute, setupPostHandler);
 
 // Sheets routes
 v1.route('/sheets', sheetsRouter);
@@ -50,6 +56,24 @@ v1.route('/auth', authRouter);
 // Mount v1 API routes
 api.route('/v1', v1);
 
+// OpenAPI documentation routes - auto-generated from api router
+api.doc('/v1/doc', {
+  openapi: '3.0.0',
+  info: {
+    version: '1.0.0',
+    title: 'Sheet DB API',
+    description: 'Backend-as-a-Service using Google Sheets as database',
+  },
+  servers: [
+    {
+      url: '/api/v1',
+      description: 'API v1',
+    },
+  ],
+});
+
+api.get('/v1/ui', swaggerUI({ url: '/api/v1/doc' }));
+
 // API root endpoint - provides API information
 api.get('/', async (c) => {
   return c.json({
@@ -57,6 +81,10 @@ api.get('/', async (c) => {
     version: '1.0.0',
     description: 'Backend-as-a-Service using Google Sheets as database',
     timestamp: new Date().toISOString(),
+    documentation: {
+      openapi: '/api/v1/doc',
+      swagger_ui: '/api/v1/ui',
+    },
   });
 });
 

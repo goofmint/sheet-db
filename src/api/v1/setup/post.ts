@@ -106,7 +106,7 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
           success: true,
           message: 'Configuration updated successfully',
           timestamp: new Date().toISOString()
-        });
+        }, 200);
       }
     }
 
@@ -132,7 +132,7 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
         success: true,
         message: 'Sheet selected successfully',
         timestamp: new Date().toISOString()
-      });
+      }, 200);
     }
 
     // Build configuration object
@@ -226,7 +226,7 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
       timestamp: new Date().toISOString()
     };
 
-    return c.json(response);
+    return c.json(response, 200);
 
   } catch (error) {
     console.error('Setup POST API error:', error);
