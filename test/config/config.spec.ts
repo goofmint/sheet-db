@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { env } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/d1';
+import { eq } from 'drizzle-orm';
 import { ConfigRepository } from '../../src/repositories/config';
 import { ConfigService } from '../../src/services/config';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import { setupTestDatabase, insertDefaultConfigData } from '../utils/database-setup';
+import { configTable } from '../../src/db/schema';
 
 describe('ConfigRepository Integration Tests', () => {
   let drizzleDb: DrizzleD1Database;
@@ -276,9 +278,14 @@ describe('ConfigRepository Integration Tests', () => {
     });
 
     it('should return empty object when no configs exist', async () => {
-      // Create a new clean database
-      await setupConfigDatabase(db);
-      await ConfigService.initialize(db);
+      // Clear all existing configs
+      const configs = await drizzleDb.select().from(configTable);
+      for (const config of configs) {
+        await drizzleDb.delete(configTable).where(eq(configTable.id, config.id));
+      }
+      
+      // Refresh cache to reflect empty state
+      await ConfigService.refreshCache();
       
       const allConfigs = ConfigService.getAll();
       expect(allConfigs).toEqual({});

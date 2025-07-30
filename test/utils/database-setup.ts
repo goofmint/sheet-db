@@ -6,17 +6,16 @@ import { configTable } from '../../src/db/schema';
  * Drop all tables in the test database
  */
 export async function dropAllTables(db: DrizzleD1Database): Promise<void> {
-  await db.execute(sql`DROP TABLE IF EXISTS Config`);
-  await db.execute(sql`DROP TABLE IF EXISTS Cache`);
-  await db.execute(sql`DROP TABLE IF EXISTS Session`);
+  await db.run(sql`DROP TABLE IF EXISTS Config`);
+  await db.run(sql`DROP TABLE IF EXISTS Cache`);
+  await db.run(sql`DROP TABLE IF EXISTS Session`);
 }
 
 /**
  * Create Config table with indexes
  */
 export async function createConfigTable(db: DrizzleD1Database): Promise<void> {
-  // D1 requires direct SQL strings, not tagged templates
-  const createTableQuery = `
+  await db.run(sql`
     CREATE TABLE Config (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         key TEXT NOT NULL UNIQUE,
@@ -26,19 +25,17 @@ export async function createConfigTable(db: DrizzleD1Database): Promise<void> {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
-  `;
-  
-  await (db as any).run(createTableQuery);
+  `);
 
   // Create indexes
-  await (db as any).run(`CREATE INDEX idx_config_key ON Config(key)`);
+  await db.run(sql`CREATE INDEX idx_config_key ON Config(key)`);
 }
 
 /**
  * Create Cache table with indexes
  */
 export async function createCacheTable(db: DrizzleD1Database): Promise<void> {
-  await db.execute(sql`
+  await db.run(sql`
     CREATE TABLE Cache (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         namespace TEXT NOT NULL,
@@ -54,15 +51,15 @@ export async function createCacheTable(db: DrizzleD1Database): Promise<void> {
   `);
 
   // Create indexes
-  await db.execute(sql`CREATE INDEX idx_cache_namespace_key ON Cache(namespace, key)`);
-  await db.execute(sql`CREATE INDEX idx_cache_expires_at ON Cache(expires_at)`);
+  await db.run(sql`CREATE INDEX idx_cache_namespace_key ON Cache(namespace, key)`);
+  await db.run(sql`CREATE INDEX idx_cache_expires_at ON Cache(expires_at)`);
 }
 
 /**
  * Create Session table with indexes
  */
 export async function createSessionTable(db: DrizzleD1Database): Promise<void> {
-  await db.execute(sql`
+  await db.run(sql`
     CREATE TABLE Session (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id TEXT NOT NULL UNIQUE,
@@ -77,20 +74,16 @@ export async function createSessionTable(db: DrizzleD1Database): Promise<void> {
   `);
 
   // Create indexes
-  await db.execute(sql`CREATE INDEX idx_session_session_id ON Session(session_id)`);
-  await db.execute(sql`CREATE INDEX idx_session_user_id ON Session(user_id)`);
-  await db.execute(sql`CREATE INDEX idx_session_expires_at ON Session(expires_at)`);
+  await db.run(sql`CREATE INDEX idx_session_session_id ON Session(session_id)`);
+  await db.run(sql`CREATE INDEX idx_session_user_id ON Session(user_id)`);
+  await db.run(sql`CREATE INDEX idx_session_expires_at ON Session(expires_at)`);
 }
 
 /**
  * Setup Config database - drops and recreates Config table
  */
 export async function setupConfigDatabase(db: DrizzleD1Database): Promise<void> {
-  try {
-    await db.execute(sql`DROP TABLE IF EXISTS Config`);
-  } catch (error) {
-    // Table might not exist, continue
-  }
+  await db.run(sql`DROP TABLE IF EXISTS Config`);
   await createConfigTable(db);
 }
 
@@ -98,11 +91,7 @@ export async function setupConfigDatabase(db: DrizzleD1Database): Promise<void> 
  * Setup Cache database - drops and recreates Cache table
  */
 export async function setupCacheDatabase(db: DrizzleD1Database): Promise<void> {
-  try {
-    await db.execute(sql`DROP TABLE IF EXISTS Cache`);
-  } catch (error) {
-    // Table might not exist, continue
-  }
+  await db.run(sql`DROP TABLE IF EXISTS Cache`);
   await createCacheTable(db);
 }
 
@@ -110,11 +99,7 @@ export async function setupCacheDatabase(db: DrizzleD1Database): Promise<void> {
  * Setup Session database - drops and recreates Session table
  */
 export async function setupSessionDatabase(db: DrizzleD1Database): Promise<void> {
-  try {
-    await db.execute(sql`DROP TABLE IF EXISTS Session`);
-  } catch (error) {
-    // Table might not exist, continue
-  }
+  await db.run(sql`DROP TABLE IF EXISTS Session`);
   await createSessionTable(db);
 }
 
