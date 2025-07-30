@@ -111,16 +111,21 @@ app.get('/', async (c) => {
     // Authenticated: display configuration list
     const configs = ConfigService.getAll();
     
-    // Prepare configuration data (mask sensitive data)
+    // Use existing CSRF token if available, otherwise generate new one
+    let csrfToken = getCSRFToken(c);
+    if (!csrfToken) {
+      csrfToken = generateCSRFToken();
+      setCSRFCookie(c, csrfToken);
+    }
+    
+    // Prepare configuration data (sensitive data shown as password fields)
     const configList = Object.entries(configs).map(([key, value]) => {
       const isSensitive = sensitiveKeys.includes(key);
-      const displayValue = isSensitive ? '****' : String(value);
       const type = ConfigService.getType(key);
       
       return {
         key,
-        value: displayValue,
-        originalValue: value,
+        value: String(value),
         type,
         isSensitive,
         description: getConfigDescription(key)
@@ -234,6 +239,69 @@ app.get('/', async (c) => {
           .back-link:hover {
             background-color: #218838;
           }
+          .actions-column {
+            width: 15%;
+          }
+          .reset-btn, .validate-btn {
+            padding: 4px 8px;
+            margin-left: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            font-size: 12px;
+          }
+          .reset-btn:hover, .validate-btn:hover {
+            background-color: #e9ecef;
+          }
+          .validation-status {
+            font-size: 12px;
+            margin-top: 4px;
+          }
+          .validation-status.success {
+            color: #28a745;
+          }
+          .validation-status.error {
+            color: #dc3545;
+          }
+          .form-actions {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            text-align: center;
+          }
+          .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0 10px;
+          }
+          .btn-primary {
+            background-color: #007bff;
+            color: white;
+          }
+          .btn-primary:hover {
+            background-color: #0056b3;
+          }
+          .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+          }
+          .btn-secondary:hover {
+            background-color: #5a6268;
+          }
+          .changes-indicator {
+            margin-left: 20px;
+            font-size: 14px;
+            color: #6c757d;
+          }
+          .changed {
+            background-color: #fff3cd;
+          }
         </style>
       </head>
       <body>
@@ -242,43 +310,195 @@ app.get('/', async (c) => {
         <div class="header">
           <a href="/config/logout" class="logout-btn">Logout</a>
           <h1>⚙️ Configuration Management</h1>
-          <p>You can view application configuration settings. Configuration modification is planned for the next task.</p>
+          <p>Manage your application configuration settings</p>
         </div>
 
-        <div class="config-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Configuration Key</th>
-                <th>Value</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${configList.map((config) => html`
+        <form id="configForm" method="post" action="/config/update">
+          <input type="hidden" name="csrf_token" value="${csrfToken}">
+          
+          <div class="config-table">
+            <table>
+              <thead>
                 <tr>
-                  <td class="key-column">${config.key}</td>
-                  <td class="value-column">
-                    ${config.type === 'boolean' ? html`
-                      <input type="checkbox" ${config.originalValue ? 'checked' : ''} disabled>
-                    ` : html`
-                      <input 
-                        type="${config.isSensitive ? 'password' : 'text'}" 
-                        value="${config.value}" 
-                        readonly 
-                        title="Configuration modification is planned for the next task"
-                      >
-                    `}
-                    ${config.isSensitive ? html`
-                      <div class="sensitive-note">Sensitive information (masked display)</div>
-                    ` : ''}
-                  </td>
-                  <td class="description-column">${config.description}</td>
+                  <th>Configuration Key</th>
+                  <th>Value</th>
+                  <th>Description</th>
+                  <th>Actions</th>
                 </tr>
-              `)}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                ${configList.map((config) => html`
+                  <tr>
+                    <td class="key-column">${config.key}</td>
+                    <td class="value-column">
+                      ${config.type === 'boolean' ? html`
+                        <input 
+                          type="checkbox" 
+                          name="${config.key}" 
+                          ${config.value === 'true' ? 'checked' : ''}
+                          data-original="${config.value}"
+                        >
+                      ` : html`
+                        <input 
+                          type="${config.isSensitive ? 'password' : 'text'}" 
+                          name="${config.key}"
+                          value="${config.value}" 
+                          data-original="${config.value}"
+                          data-field-type="${config.isSensitive ? 'sensitive' : 'normal'}"
+                        >
+                        <button type="button" class="reset-btn" title="Reset to original value" data-key="${config.key}">↺</button>
+                      `}
+                      <div class="validation-status" id="validation-${config.key}"></div>
+                      ${config.isSensitive ? html`
+                        <div class="sensitive-note">Sensitive information</div>
+                      ` : ''}
+                    </td>
+                    <td class="description-column">${config.description}</td>
+                    <td class="actions-column">
+                      <button type="button" class="validate-btn" data-key="${config.key}">Validate</button>
+                    </td>
+                  </tr>
+                `)}
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save All</button>
+            <button type="button" class="btn btn-secondary" id="resetAll">Reset All</button>
+            <span class="changes-indicator" id="changesCount">0 changes</span>
+          </div>
+        </form>
+
+        <script>
+          // Track changes and update UI
+          function updateChangesCount() {
+            const changedInputs = document.querySelectorAll('input[data-original]');
+            let changesCount = 0;
+            
+            changedInputs.forEach(input => {
+              const original = input.dataset.original;
+              const current = input.type === 'checkbox' ? input.checked.toString() : input.value;
+              
+              if (current !== original) {
+                changesCount++;
+                input.closest('tr').classList.add('changed');
+              } else {
+                input.closest('tr').classList.remove('changed');
+              }
+            });
+            
+            document.getElementById('changesCount').textContent = changesCount + ' changes';
+          }
+
+          // Reset individual field
+          function resetField(key) {
+            const input = document.querySelector(\`input[name="\${key}"]\`);
+            if (input) {
+              const original = input.dataset.original;
+              if (input.type === 'checkbox') {
+                input.checked = original === 'true';
+              } else {
+                input.value = original;
+              }
+              updateChangesCount();
+            }
+          }
+
+          // Reset all fields
+          function resetAllFields() {
+            const inputs = document.querySelectorAll('input[data-original]');
+            inputs.forEach(input => {
+              const original = input.dataset.original;
+              if (input.type === 'checkbox') {
+                input.checked = original === 'true';
+              } else {
+                input.value = original;
+              }
+            });
+            updateChangesCount();
+          }
+
+          // Basic client-side validation
+          function validateField(key) {
+            const input = document.querySelector(\`input[name="\${key}"]\`);
+            const statusElement = document.getElementById(\`validation-\${key}\`);
+            
+            if (!input || !statusElement) return;
+            
+            const value = input.type === 'checkbox' ? input.checked.toString() : input.value;
+            
+            // Basic validation rules
+            let isValid = true;
+            let message = '';
+            
+            if (key.includes('client_id') && value && !value.includes('.')) {
+              isValid = false;
+              message = 'Invalid client ID format';
+            } else if (key.includes('domain') && value && !value.includes('.')) {
+              isValid = false;
+              message = 'Invalid domain format';
+            } else if (key.includes('password') && value && value.length < 8) {
+              isValid = false;
+              message = 'Password must be at least 8 characters';
+            }
+            
+            statusElement.className = \`validation-status \${isValid ? 'success' : 'error'}\`;
+            statusElement.textContent = isValid ? '✓ Valid' : \`✗ \${message}\`;
+          }
+
+          // Event listeners
+          document.addEventListener('DOMContentLoaded', function() {
+            // Track changes on all inputs
+            const inputs = document.querySelectorAll('input[data-original]');
+            inputs.forEach(input => {
+              input.addEventListener('input', updateChangesCount);
+              input.addEventListener('change', updateChangesCount);
+            });
+
+            // Reset button handlers
+            document.querySelectorAll('.reset-btn').forEach(btn => {
+              btn.addEventListener('click', function() {
+                const key = this.dataset.key;
+                resetField(key);
+              });
+            });
+
+            // Validate button handlers
+            document.querySelectorAll('.validate-btn').forEach(btn => {
+              btn.addEventListener('click', function() {
+                const key = this.dataset.key;
+                validateField(key);
+              });
+            });
+
+            // Reset all button
+            document.getElementById('resetAll').addEventListener('click', function() {
+              if (confirm('Are you sure you want to reset all changes?')) {
+                resetAllFields();
+              }
+            });
+
+            // Form submission
+            document.getElementById('configForm').addEventListener('submit', function(e) {
+              // Check if there are any validation errors
+              const errorElements = document.querySelectorAll('.validation-status.error');
+              if (errorElements.length > 0) {
+                e.preventDefault();
+                alert('Please fix validation errors before saving.');
+                return;
+              }
+              
+              // Show loading state
+              const submitBtn = document.querySelector('button[type="submit"]');
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'Saving...';
+            });
+
+            // Initial change count
+            updateChangesCount();
+          });
+        </script>
       </body>
       </html>
     `);

@@ -61,8 +61,75 @@ describe('Config Management API', () => {
       expect(html).toContain('Description');
       expect(html).toContain('google.client_id');
       expect(html).toContain('client123'); // Non-sensitive data should be visible
-      expect(html).toContain('****'); // Sensitive data should be masked
-      expect(html).not.toContain('secret123'); // Secret should not be visible
+      expect(html).toContain('secret123'); // Sensitive data should be in password field
+      expect(html).toContain('type="password"'); // Sensitive fields should be password type
+      expect(html).toContain('<form id="configForm"'); // Should be a form now
+      expect(html).toContain('action="/config/update"'); // Form should post to config update endpoint
+    });
+
+    it('should display editable form with all required elements', async () => {
+      // First, authenticate to get a valid session token
+      const loginResponse = await authenticateUser();
+      const sessionCookie = extractSessionCookie(loginResponse);
+      
+      const request = new Request('http://localhost/config', {
+        headers: {
+          'Cookie': sessionCookie
+        }
+      });
+      const response = await app.fetch(request, env);
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      
+      // Check form structure
+      expect(html).toContain('<form id="configForm"');
+      expect(html).toContain('method="post"');
+      expect(html).toContain('action="/config/update"');
+      expect(html).toContain('name="csrf_token"');
+      
+      // Check form controls
+      expect(html).toContain('Save All');
+      expect(html).toContain('Reset All');
+      expect(html).toContain('0 changes');
+      
+      // Check action buttons
+      expect(html).toContain('reset-btn');
+      expect(html).toContain('validate-btn');
+      expect(html).toContain('Actions'); // Actions column header
+      
+      // Check data attributes for change tracking
+      expect(html).toContain('data-original');
+      expect(html).toContain('data-field-type');
+    });
+
+    it('should have proper input types for different field types', async () => {
+      // First, authenticate to get a valid session token
+      const loginResponse = await authenticateUser();
+      const sessionCookie = extractSessionCookie(loginResponse);
+      
+      const request = new Request('http://localhost/config', {
+        headers: {
+          'Cookie': sessionCookie
+        }
+      });
+      const response = await app.fetch(request, env);
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      
+      // Sensitive fields should be password type
+      expect(html).toContain('name="google.client_secret"');
+      expect(html).toContain('type="password"');
+      expect(html).toContain('name="app.config_password"');
+      
+      // Non-sensitive fields should be text type
+      expect(html).toContain('name="google.client_id"');
+      expect(html).toContain('type="text"');
+      
+      // Boolean fields should be checkboxes
+      expect(html).toContain('name="app.setup_completed"');
+      expect(html).toContain('type="checkbox"');
     });
   });
 

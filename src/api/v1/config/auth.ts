@@ -7,6 +7,8 @@ import {
   setSessionCookie,
   verifyCSRFToken,
   getCSRFToken,
+  generateCSRFToken,
+  setCSRFCookie,
   timingSafeEquals
 } from '@/utils/security';
 
@@ -64,6 +66,10 @@ app.post('/', async (c) => {
     // Authentication successful: create secure session token
     const sessionToken = await createSessionToken(configPassword);
     setSessionCookie(c, sessionToken);
+
+    // Generate and set new CSRF token for authenticated session
+    const newCSRFToken = generateCSRFToken();
+    setCSRFCookie(c, newCSRFToken);
 
     return c.redirect('/config');
 
