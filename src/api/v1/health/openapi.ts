@@ -16,7 +16,7 @@ const ErrorSchema = z.object({
 // Health Check Route
 export const healthRoute = createRoute({
   method: 'get',
-  path: '/health',
+  path: '/v1/health',
   tags: ['Health'],
   summary: 'Health Check',
   description: 'Check the health status of the API',
