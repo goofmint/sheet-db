@@ -6,6 +6,7 @@ import sheetsRouter from './v1/sheets/route';
 import playgroundRouter from './v1/playground/route';
 import storagesRouter from './v1/storages/route';
 import authRouter from './v1/auth';
+import { openapi } from './openapi';
 import type { Env } from '@/types/env';
 
 /**
@@ -50,6 +51,9 @@ v1.route('/auth', authRouter);
 // Mount v1 API routes
 api.route('/v1', v1);
 
+// OpenAPI documentation routes
+api.route('/v1', openapi);
+
 // API root endpoint - provides API information
 api.get('/', async (c) => {
   return c.json({
@@ -57,6 +61,10 @@ api.get('/', async (c) => {
     version: '1.0.0',
     description: 'Backend-as-a-Service using Google Sheets as database',
     timestamp: new Date().toISOString(),
+    documentation: {
+      openapi: '/api/v1/doc',
+      swagger_ui: '/api/v1/ui',
+    },
   });
 });
 
