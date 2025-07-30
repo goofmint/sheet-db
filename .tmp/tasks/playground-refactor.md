@@ -7,7 +7,7 @@
 ## 現状の問題点
 
 1. **API パスの不適切な使用**
-   - `/api/v1/playground` が HTML を返している（API エンドポイントではない）
+   - `src/api/v1/playground` が HTML を返している（API エンドポイントではない）
    - API 名前空間の汚染
 
 2. **ファイル配置の問題**
@@ -32,53 +32,44 @@ src/api/v1/playground/
 #### 移動後
 ```
 src/playground/
-├── route.ts          # ルート定義
-├── get.ts            # ハンドラー実装
-├── components/
-│   └── PlaygroundPage.tsx  # メインページコンポーネント
-├── styles/
-│   └── playground.css      # スタイルシート
-└── scripts/
-    └── playground.js       # JavaScript 機能
+├── route.ts              # ルート定義
+└── get.ts               # ハンドラー実装
+
+src/templates/
+└── playground.tsx       # メインページコンポーネント
+
+public/static/playground/
+├── style.css           # スタイルシート
+└── app.js             # JavaScript 機能
 ```
 
-### 2. API ルーティングの変更
+### 2. ファイル分離計画
 
-#### 現在
-- URL: `/api/v1/playground`
-- 場所: `src/api/v1/playground/`
-
-#### 変更後
-- URL: `/playground`
-- 場所: `src/playground/`
-- API 名前空間から除外
-
-### 3. ファイル分離計画
-
-#### 3.1 PlaygroundPage.tsx
+#### 2.1 playground.tsx (src/templates/)
 - React JSX ライクな TSX 構文を使用
 - HTML 構造を TypeScript コンポーネントとして定義
 - プロパティベースでデータを受け取り
 - 型安全性を確保
 
 ```typescript
-interface PlaygroundPageProps {
+interface PlaygroundProps {
   auth: AuthData | null;
   sheetId: string | null;
   storageType: string;
   baseUrl: string;
 }
 
-export function PlaygroundPage(props: PlaygroundPageProps): string;
+export function playground(props: PlaygroundProps): string;
 ```
 
-#### 3.2 playground.css
+#### 2.2 style.css (public/static/playground/)
 - 現在 `/statics/playground/style.css` として外部参照されているスタイル
-- より適切な階層構造で管理
+- 同じパス `/statics/playground/style.css` でアクセス可能
 - CSS変数やモダンなCSS機能を活用
 
-#### 3.3 playground.js
+#### 2.3 app.js (public/static/playground/)
 - 現在 `/statics/playground/app.js` として外部参照されているスクリプト
+- 同じパス `/statics/playground/app.js` でアクセス可能
 - API テスト機能の実装
 - TypeScript で型安全に実装後、JavaScript にトランスパイル
 
@@ -89,45 +80,51 @@ export function PlaygroundPage(props: PlaygroundPageProps): string;
 2. `src/playground/route.ts` 作成（Hono ルーター）
 3. `src/playground/get.ts` 作成（ハンドラー移植）
 
-#### Phase 2: コンポーネント分離
-1. `src/playground/components/PlaygroundPage.tsx` 作成
+#### Phase 2: テンプレート分離
+1. `src/templates/playground.tsx` 作成
 2. HTML 構造を TSX コンポーネントに変換
 3. プロパティインターフェース定義
 
 #### Phase 3: スタイル分離
-1. `src/playground/styles/playground.css` 作成
+1. `public/static/playground/style.css` 作成
 2. 既存の CSS を移植・整理
 3. CSS 変数とモダンな記法に更新
 
 #### Phase 4: スクリプト分離
-1. `src/playground/scripts/playground.ts` 作成
-2. JavaScript 機能を TypeScript で実装
-3. API テスト機能の型安全化
+1. `public/static/playground/app.js` 作成
+2. JavaScript 機能を実装
+3. API テスト機能の改善
 
 #### Phase 5: ルーティング統合
 1. メインアプリケーションのルーティングを更新
 2. `/api/v1/playground` から `/playground` に変更
 3. 既存の API ルーターから playground を除外
 
-#### Phase 6: 静的ファイル配信調整
-1. CSS/JS ファイルの配信パス調整
-2. 必要に応じて Cloudflare Workers の静的ファイル配信設定更新
+#### Phase 6: 静的ファイル配信確認
+1. `/statics/playground/style.css` パスでの CSS 配信確認
+2. `/statics/playground/app.js` パスでの JavaScript 配信確認
+3. Cloudflare Workers の静的ファイル配信設定確認
 
 ### 5. 技術的考慮事項
 
-#### 5.1 TSX コンポーネント
+#### 5.1 TSX テンプレート
+- `src/templates/playground.tsx` に配置
 - Hono の `html` テンプレート機能と互換性を保持
 - サーバーサイドレンダリング（SSR）として動作
 - React は使用しない（ランタイム不要）
+- ファイル名は小文字のみ使用
 
 #### 5.2 CSS 配信
+- `public/static/playground/style.css` に配置
+- `/statics/playground/style.css` パスでアクセス
 - Cloudflare Workers での静的ファイル配信
 - 適切なキャッシュヘッダー設定
 - MIME タイプの正確な設定
 
 #### 5.3 JavaScript 配信
-- TypeScript からのトランスパイル
-- ES モジュールまたは従来の script タグ対応
+- `public/static/playground/app.js` に配置
+- `/statics/playground/app.js` パスでアクセス
+- 従来の script タグ対応
 - ブラウザ互換性の確保
 
 ### 6. 後方互換性
