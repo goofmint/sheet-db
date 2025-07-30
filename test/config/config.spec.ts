@@ -259,4 +259,48 @@ describe('ConfigRepository Integration Tests', () => {
     });
   });
 
+  describe('getAll method', () => {
+    it('should return all config entries as key-value pairs', async () => {
+      await ConfigService.upsert('test.key1', 'value1');
+      await ConfigService.upsert('test.key2', 'value2');
+      await ConfigService.upsert('test.key3', 'value3');
+
+      const allConfigs = ConfigService.getAll();
+      
+      expect(Object.keys(allConfigs)).toContain('test.key1');
+      expect(Object.keys(allConfigs)).toContain('test.key2');
+      expect(Object.keys(allConfigs)).toContain('test.key3');
+      expect(allConfigs['test.key1']).toBe('value1');
+      expect(allConfigs['test.key2']).toBe('value2');
+      expect(allConfigs['test.key3']).toBe('value3');
+    });
+
+    it('should return empty object when no configs exist', async () => {
+      // Create a new clean database
+      await setupConfigDatabase(db);
+      await ConfigService.initialize(db);
+      
+      const allConfigs = ConfigService.getAll();
+      expect(allConfigs).toEqual({});
+    });
+  });
+
+  describe('getType method', () => {
+    it('should return correct type for existing config', async () => {
+      await ConfigService.upsert('test.string', 'value', 'string');
+      await ConfigService.upsert('test.boolean', 'true', 'boolean');
+      await ConfigService.upsert('test.number', '42', 'number');
+      await ConfigService.upsert('test.json', '{}', 'json');
+
+      expect(ConfigService.getType('test.string')).toBe('string');
+      expect(ConfigService.getType('test.boolean')).toBe('boolean');
+      expect(ConfigService.getType('test.number')).toBe('number');
+      expect(ConfigService.getType('test.json')).toBe('json');
+    });
+
+    it('should return string as default type for non-existent config', () => {
+      expect(ConfigService.getType('non.existent')).toBe('string');
+    });
+  });
+
 });
