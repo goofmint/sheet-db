@@ -244,18 +244,12 @@ class SetupManager {
 
   getFormData() {
     return {
-      google: {
-        clientId: document.getElementById('google-client-id').value,
-        clientSecret: document.getElementById('google-client-secret').value
-      },
-      auth0: {
-        domain: document.getElementById('auth0-domain').value,
-        clientId: document.getElementById('auth0-client-id').value,
-        clientSecret: document.getElementById('auth0-client-secret').value
-      },
-      app: {
-        configPassword: document.getElementById('config-password').value
-      }
+      'google.client_id': document.getElementById('google-client-id').value,
+      'google.client_secret': document.getElementById('google-client-secret').value,
+      'auth0.domain': document.getElementById('auth0-domain').value,
+      'auth0.client_id': document.getElementById('auth0-client-id').value,
+      'auth0.client_secret': document.getElementById('auth0-client-secret').value,
+      'app.config_password': document.getElementById('config-password').value
     };
   }
 

@@ -303,7 +303,7 @@ export default function SheetSelectionTemplate({ accessToken, configPassword, is
                       'Content-Type': 'application/json',
                       'Authorization': 'Bearer ' + configPassword
                     },
-                    body: JSON.stringify({ sheetId: selectedSheetId })
+                    body: JSON.stringify({ 'google.sheetId': selectedSheetId })
                   });
 
                   if (!response.ok) {

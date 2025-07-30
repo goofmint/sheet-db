@@ -1,0 +1,252 @@
+body {
+  font-family: Arial, sans-serif;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f8f9fa;
+}
+.header {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+  position: relative;
+}
+h1 {
+  margin: 0;
+  color: #495057;
+}
+.logout-form {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+.logout-btn {
+  padding: 8px 16px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.logout-btn:hover {
+  background-color: #5a6268;
+}
+.config-table {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th {
+  background-color: #f8f9fa;
+  padding: 15px;
+  text-align: left;
+  font-weight: bold;
+  color: #495057;
+  border-bottom: 1px solid #dee2e6;
+}
+td {
+  padding: 15px;
+  border-bottom: 1px solid #dee2e6;
+}
+tr:last-child td {
+  border-bottom: none;
+}
+.key-column {
+  font-family: monospace;
+  font-weight: bold;
+  color: #495057;
+  width: 25%;
+}
+.value-column {
+  width: 40%;
+}
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.config-input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-family: monospace;
+}
+.value-column input[type="password"] {
+  font-family: Arial, sans-serif;
+}
+.value-column input[type="checkbox"] {
+  width: auto;
+  transform: scale(1.2);
+}
+.description-column {
+  color: #6c757d;
+  font-size: 14px;
+  width: 35%;
+}
+.sensitive-note {
+  color: #dc3545;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 8px 16px;
+  background-color: #28a745;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.back-link:hover {
+  background-color: #218838;
+}
+.actions-column {
+  width: 15%;
+}
+.reset-btn {
+  padding: 4px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.reset-btn:hover {
+  background-color: #e9ecef;
+}
+.validation-status {
+  font-size: 12px;
+  margin-top: 4px;
+}
+.validation-status.success {
+  color: #28a745;
+}
+.validation-status.error {
+  color: #dc3545;
+}
+.form-actions {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin-top: 20px;
+  text-align: center;
+}
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 0 10px;
+}
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+.btn-primary:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+.changes-indicator {
+  margin-left: 20px;
+  font-size: 14px;
+  color: #6c757d;
+}
+.changed {
+  background-color: #fff3cd;
+}
+/* Login form styles */
+.auth-form {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  text-align: center;
+  max-width: 400px;
+  margin: 100px auto;
+}
+.auth-form h1 {
+  color: #495057;
+  margin-bottom: 20px;
+}
+.auth-form input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 16px;
+}
+.auth-form button {
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.auth-form button:hover {
+  background-color: #0056b3;
+}
+.error {
+  color: #dc3545;
+  margin-top: 10px;
+}
+
+/* Notification styles */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  z-index: 1000;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.notification.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.notification.success {
+  background-color: #28a745;
+}
+
+.notification.error {
+  background-color: #dc3545;
+}
+
+.notification.info {
+  background-color: #007bff;
+}

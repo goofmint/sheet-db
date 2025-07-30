@@ -433,19 +433,15 @@ export default function SheetInitializationTemplate({ accessToken, configPasswor
 
             async function saveConfigAndCompleteSetup() {
               const storageType = document.querySelector('input[name="storage"]:checked').value;
-              const storage = { type: storageType };
+              const config = { 'storage.type': storageType };
 
               if (storageType === 'r2') {
-                storage.r2 = {
-                  bucket: document.getElementById('r2-bucket').value,
-                  accessKeyId: document.getElementById('r2-access-key').value,
-                  secretAccessKey: document.getElementById('r2-secret-key').value,
-                  endpoint: document.getElementById('r2-endpoint').value
-                };
+                config['storage.r2.bucket'] = document.getElementById('r2-bucket').value;
+                config['storage.r2.accessKeyId'] = document.getElementById('r2-access-key').value;
+                config['storage.r2.secretAccessKey'] = document.getElementById('r2-secret-key').value;
+                config['storage.r2.endpoint'] = document.getElementById('r2-endpoint').value;
               } else {
-                storage.gdrive = {
-                  folderId: document.getElementById('gdrive-folder').value
-                };
+                config['storage.gdrive.folderId'] = document.getElementById('gdrive-folder').value;
               }
 
               // Save configuration first
@@ -457,9 +453,7 @@ export default function SheetInitializationTemplate({ accessToken, configPasswor
                   'Content-Type': 'application/json',
                   'Authorization': 'Bearer ' + configPassword
                 },
-                body: JSON.stringify({
-                  storage: storage
-                })
+                body: JSON.stringify(config)
               });
 
               if (!response.ok) {
