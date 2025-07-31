@@ -12,8 +12,7 @@ import { sheetsPostHandler } from './v1/sheets/post';
 import storagesRouter, { uploadFileRoute, deleteFileRoute } from './v1/storages/route';
 import storagesPostHandler from './v1/storages/post';
 import storagesDeleteHandler from './v1/storages/delete';
-import authRouter, { loginRoute, callbackRoute, logoutRoute, meRoute } from './v1/auth';
-import { loginHandler } from './v1/auth/login/get';
+import authRouter, { callbackRoute, logoutRoute, meRoute } from './v1/auth';
 import { callbackHandler } from './v1/auth/callback/get';
 import { logoutHandler } from './v1/auth/logout/post';
 import { meHandler } from './v1/auth/me/get';
@@ -54,11 +53,11 @@ api.openapi(createSheetRoute, sheetsPostHandler);
 api.openapi(uploadFileRoute, storagesPostHandler);
 api.openapi(deleteFileRoute, storagesDeleteHandler);
 
-// Auth routes - direct OpenAPI mount
-api.openapi(loginRoute, loginHandler as any);
-api.openapi(callbackRoute, callbackHandler as any);
-api.openapi(logoutRoute, logoutHandler as any);
-api.openapi(meRoute, meHandler as any);
+// Auth routes - OpenAPI mount (excluding login which uses 302 redirect)
+// Login endpoint uses traditional routing due to redirect response
+api.openapi(callbackRoute, callbackHandler);
+api.openapi(logoutRoute, logoutHandler);
+api.openapi(meRoute, meHandler);
 
 // Storage routes - backwards compatibility
 v1.route('/storages', storagesRouter);
