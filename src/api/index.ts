@@ -12,13 +12,11 @@ import { sheetsPostHandler } from './v1/sheets/post';
 import storagesRouter, { uploadFileRoute, deleteFileRoute } from './v1/storages/route';
 import storagesPostHandler from './v1/storages/post';
 import storagesDeleteHandler from './v1/storages/delete';
-import authRouter from './v1/auth';
-// TODO: Re-enable OpenAPI integration when type compatibility is fixed
-// import { loginRoute, callbackRoute, logoutRoute, meRoute } from './v1/auth';
-// import { loginHandler } from './v1/auth/login/get';
-// import { callbackHandler } from './v1/auth/callback/get';
-// import { logoutHandler } from './v1/auth/logout/post';
-// import { meHandler } from './v1/auth/me/get';
+import authRouter, { loginRoute, callbackRoute, logoutRoute, meRoute } from './v1/auth';
+import { loginHandler } from './v1/auth/login/get';
+import { callbackHandler } from './v1/auth/callback/get';
+import { logoutHandler } from './v1/auth/logout/post';
+import { meHandler } from './v1/auth/me/get';
 import type { Env } from '@/types/env';
 
 /**
@@ -56,12 +54,11 @@ api.openapi(createSheetRoute, sheetsPostHandler);
 api.openapi(uploadFileRoute, storagesPostHandler);
 api.openapi(deleteFileRoute, storagesDeleteHandler);
 
-// Auth routes - OpenAPI mount (temporarily disabled due to type mismatches)
-// TODO: Fix type compatibility between handlers and OpenAPI schemas
-// api.openapi(loginRoute, loginHandler);
-// api.openapi(callbackRoute, callbackHandler);
-// api.openapi(logoutRoute, logoutHandler);
-// api.openapi(meRoute, meHandler);
+// Auth routes - direct OpenAPI mount
+api.openapi(loginRoute, loginHandler as any);
+api.openapi(callbackRoute, callbackHandler as any);
+api.openapi(logoutRoute, logoutHandler as any);
+api.openapi(meRoute, meHandler as any);
 
 // Storage routes - backwards compatibility
 v1.route('/storages', storagesRouter);
