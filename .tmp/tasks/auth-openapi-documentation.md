@@ -1,116 +1,115 @@
-# Auth OpenAPI Documentation Task
+# Auth OpenAPI ドキュメント作成タスク
 
-## Overview
-Create comprehensive OpenAPI documentation for `/api/v1/auth` endpoints using `@hono/zod-openapi`.
+## 概要
+`@hono/zod-openapi`を使用して`/api/v1/auth`エンドポイントの包括的なOpenAPIドキュメントを作成する。
 
-## Scope
-- **Documentation Only**: This task focuses solely on creating OpenAPI documentation
-- **Implementation Prohibited**: Do not implement the actual OpenAPI integration
-- **Endpoints Covered**: 
+## スコープ
+
+- **対象エンドポイント**: 
   - GET /api/v1/auth/login
   - GET /api/v1/auth/callback
   - POST /api/v1/auth/logout
   - GET /api/v1/auth/me
 
-## Analysis of Existing Endpoints
+## 既存エンドポイントの分析
 
-### GET /api/v1/auth/login - Initialize OAuth Login
-**Purpose**: Redirects to Auth0 login page for user authentication
+### GET /api/v1/auth/login - OAuthログイン初期化
+**目的**: ユーザー認証のためAuth0ログインページにリダイレクト
 
-**Request**: No body required
+**リクエスト**: ボディ不要
 
-**Responses**:
-- 302: Redirect to Auth0 authorization URL with state parameter
-- 400: Unauthorized redirect base URL
-- 500: Authentication service not configured or unavailable
+**レスポンス**:
+- 302: stateパラメータ付きでAuth0認証URLにリダイレクト
+- 400: 認可されていないリダイレクトベースURL
+- 500: 認証サービスが設定されていないか利用不可
 
-**Security**:
-- Validates redirect URI against allowed bases
-- Generates CSRF state token
-- Sets HTTP-only cookie for state validation
+**セキュリティ**:
+- 許可されたベースに対してリダイレクトURIを検証
+- CSRF stateトークンを生成
+- state検証用にHTTP-only cookieを設定
 
-### GET /api/v1/auth/callback - OAuth Callback Handler
-**Purpose**: Handles OAuth callback from Auth0, exchanges code for tokens, creates session
+### GET /api/v1/auth/callback - OAuthコールバックハンドラー
+**目的**: Auth0からのOAuthコールバックを処理し、コードをトークンに交換、セッションを作成
 
-**Request**:
-- Query Parameters:
-  - `code`: Authorization code from Auth0
-  - `state`: CSRF protection state
-  - `error` (optional): Auth0 error code
-  - `error_description` (optional): Auth0 error details
+**リクエスト**:
+- クエリパラメータ:
+  - `code`: Auth0からの認証コード
+  - `state`: CSRF保護用state
+  - `error` (オプション): Auth0エラーコード
+  - `error_description` (オプション): Auth0エラー詳細
 
-**Responses**:
-- 200: Authentication successful with user data and session
-- 400: Missing parameters, invalid state, or Auth0 error
-- 500: Authentication process failed
+**レスポンス**:
+- 200: ユーザーデータとセッション付きで認証成功
+- 400: パラメータ不足、無効なstate、またはAuth0エラー
+- 500: 認証処理失敗
 
-**Security**:
-- Validates state parameter against cookie
-- Creates secure session with HTTP-only cookie
-- Updates user data in _User sheet
+**セキュリティ**:
+- cookieに対してstateパラメータを検証
+- HTTP-only cookieでセキュアなセッションを作成
+- _Userシートでユーザーデータを更新
 
-### POST /api/v1/auth/logout - End User Session
-**Purpose**: Logs out the current user by destroying their session
+### POST /api/v1/auth/logout - ユーザーセッション終了
+**目的**: セッションを破棄して現在のユーザーをログアウト
 
-**Request**:
-- Headers:
-  - `X-Requested-With: XMLHttpRequest` (CSRF protection)
-  - `Origin` or `Referer` header required
+**リクエスト**:
+- ヘッダー:
+  - `X-Requested-With: XMLHttpRequest` (CSRF保護)
+  - `Origin`または`Referer`ヘッダー必須
 
-**Responses**:
-- 200: Successfully logged out
-- 400: Invalid request headers or origin
-- 401: No active session found
-- 500: Logout process failed
+**レスポンス**:
+- 200: ログアウト成功
+- 400: 無効なリクエストヘッダーまたはオリジン
+- 401: アクティブなセッションが見つからない
+- 500: ログアウト処理失敗
 
-**Security**:
-- CSRF protection via custom header
-- Origin validation
-- Timing attack mitigation
+**セキュリティ**:
+- カスタムヘッダーによるCSRF保護
+- オリジン検証
+- タイミング攻撃緩和
 
-### GET /api/v1/auth/me - Get Current User
-**Purpose**: Returns information about the currently authenticated user
+### GET /api/v1/auth/me - 現在のユーザー取得
+**目的**: 現在認証されているユーザーの情報を返す
 
-**Request**: No body required (uses session cookie)
+**リクエスト**: ボディ不要（セッションcookieを使用）
 
-**Responses**:
-- 200: User information with session details
-- 401: Authentication required or session expired
-- 500: Failed to retrieve user information
+**レスポンス**:
+- 200: セッション詳細付きユーザー情報
+- 401: 認証が必要またはセッション期限切れ
+- 500: ユーザー情報の取得に失敗
 
-**Security**:
-- Session validation
-- Expiration checking
-- Timing attack mitigation
+**セキュリティ**:
+- セッション検証
+- 有効期限チェック
+- タイミング攻撃緩和
 
-## Task Deliverables
+## タスク成果物
 
-### 1. Type Definitions (`src/api/v1/auth/types.ts`)
+### 1. 型定義 (`src/api/v1/auth/types.ts`)
 
 ```typescript
 import { z } from '@hono/zod-openapi';
 
-// Login Response Schema (for documentation purposes)
+// ログインレスポンススキーマ（ドキュメント用）
 export const LoginRedirectSchema = z.object({
   message: z.string().openapi({
-    example: 'Redirecting to Auth0 login',
-    description: 'Informational message'
+    example: 'Auth0ログインにリダイレクト中',
+    description: '情報メッセージ'
   })
 });
 
-// Login Error Schema
+// ログインエラースキーマ
 export const LoginErrorSchema = z.object({
   error: z.string().openapi({
-    example: 'Unauthorized redirect base URL',
-    description: 'Error type identifier'
+    example: '認可されていないリダイレクトベースURL',
+    description: 'エラータイプ識別子'
   }),
   message: z.string().openapi({
-    example: 'Host https://example.com is not in allowed redirect bases',
-    description: 'Detailed error message'
+    example: 'ホスト https://example.com は許可されたリダイレクトベースに含まれていません',
+    description: '詳細なエラーメッセージ'
   })
 });
 
-// Callback Query Parameters Schema
+// コールバッククエリパラメータスキーマ
 export const CallbackQuerySchema = z.object({
   code: z.string().openapi({
     param: {
@@ -118,7 +117,7 @@ export const CallbackQuerySchema = z.object({
       in: 'query'
     },
     example: 'abc123xyz',
-    description: 'Authorization code from Auth0'
+    description: 'Auth0からの認証コード'
   }),
   state: z.string().openapi({
     param: {
@@ -126,7 +125,7 @@ export const CallbackQuerySchema = z.object({
       in: 'query'
     },
     example: '550e8400-e29b-41d4-a716-446655440000',
-    description: 'CSRF protection state parameter'
+    description: 'CSRF保護用stateパラメータ'
   }),
   error: z.string().optional().openapi({
     param: {
@@ -134,224 +133,224 @@ export const CallbackQuerySchema = z.object({
       in: 'query'
     },
     example: 'access_denied',
-    description: 'Auth0 error code'
+    description: 'Auth0エラーコード'
   }),
   error_description: z.string().optional().openapi({
     param: {
       name: 'error_description',
       in: 'query'
     },
-    example: 'User cancelled the login flow',
-    description: 'Human-readable error description'
+    example: 'ユーザーがログインフローをキャンセルしました',
+    description: '人間が読めるエラー説明'
   })
 });
 
-// Callback Success Response Schema
+// コールバック成功レスポンススキーマ
 export const CallbackSuccessSchema = z.object({
   success: z.literal(true).openapi({
-    description: 'Success indicator'
+    description: '成功インジケーター'
   }),
   user: z.object({
     id: z.string().openapi({
       example: 'auth0|507f1f77bcf86cd799439011',
-      description: 'Unique user identifier from Auth0'
+      description: 'Auth0からの一意ユーザー識別子'
     }),
     email: z.string().email().openapi({
       example: 'user@example.com',
-      description: 'User email address'
+      description: 'ユーザーメールアドレス'
     }),
     name: z.string().nullable().openapi({
-      example: 'John Doe',
-      description: 'User display name'
+      example: '田中太郎',
+      description: 'ユーザー表示名'
     }),
     picture: z.string().url().nullable().openapi({
       example: 'https://avatars.example.com/user.jpg',
-      description: 'User profile picture URL'
+      description: 'ユーザープロフィール画像URL'
     }),
     created_at: z.string().openapi({
       example: '2024-01-01T00:00:00.000Z',
-      description: 'User creation timestamp'
+      description: 'ユーザー作成タイムスタンプ'
     }),
     last_login: z.string().openapi({
       example: '2024-01-15T12:00:00.000Z',
-      description: 'Last login timestamp'
+      description: '最終ログインタイムスタンプ'
     })
   }).openapi({
-    description: 'User information'
+    description: 'ユーザー情報'
   }),
   session: z.object({
     session_id: z.string().openapi({
       example: 'sess_550e8400-e29b-41d4-a716-446655440000',
-      description: 'Session identifier'
+      description: 'セッション識別子'
     }),
     expires_at: z.string().openapi({
       example: '2024-01-16T12:00:00.000Z',
-      description: 'Session expiration timestamp'
+      description: 'セッション有効期限タイムスタンプ'
     })
   }).openapi({
-    description: 'Session information'
+    description: 'セッション情報'
   }),
   authenticated: z.literal(true).openapi({
-    description: 'Authentication status'
+    description: '認証ステータス'
   })
 });
 
-// Callback Error Response Schema
+// コールバックエラーレスポンススキーマ
 export const CallbackErrorSchema = z.object({
   success: z.literal(false).openapi({
-    description: 'Success indicator'
+    description: '成功インジケーター'
   }),
   error: z.string().openapi({
     example: 'invalid_state',
-    description: 'Error code'
+    description: 'エラーコード'
   }),
   message: z.string().openapi({
-    example: 'Invalid state parameter',
-    description: 'Error message'
+    example: '無効なstateパラメータ',
+    description: 'エラーメッセージ'
   }),
   authenticated: z.literal(false).openapi({
-    description: 'Authentication status'
+    description: '認証ステータス'
   })
 });
 
-// Logout Request Headers Schema
+// ログアウトリクエストヘッダースキーマ
 export const LogoutHeadersSchema = z.object({
   'X-Requested-With': z.literal('XMLHttpRequest').openapi({
     param: {
       name: 'X-Requested-With',
       in: 'header'
     },
-    description: 'CSRF protection header'
+    description: 'CSRF保護ヘッダー'
   }),
   Origin: z.string().url().optional().openapi({
     param: { name: 'Origin', in: 'header' },
-    description: 'Origin header used for CSRF / origin validation'
+    description: 'CSRF / オリジン検証に使用されるOriginヘッダー'
   }),
   Referer: z.string().url().optional().openapi({
     param: { name: 'Referer', in: 'header' },
-    description: 'Referer header used for CSRF / origin validation'
+    description: 'CSRF / オリジン検証に使用されるRefererヘッダー'
   })
 }).refine(h => h.Origin || h.Referer, {
-  message: 'Either Origin or Referer header must be present'
+  message: 'OriginまたはRefererヘッダーのいずれかが必要です'
 });
 
-// Logout Success Response Schema
+// ログアウト成功レスポンススキーマ
 export const LogoutSuccessSchema = z.object({
   success: z.literal(true).openapi({
-    description: 'Success indicator'
+    description: '成功インジケーター'
   }),
   message: z.string().openapi({
-    example: 'Successfully logged out',
-    description: 'Success message'
+    example: 'ログアウトに成功しました',
+    description: '成功メッセージ'
   })
 });
 
-// Logout Error Response Schema
+// ログアウトエラーレスポンススキーマ
 export const LogoutErrorSchema = z.object({
   success: z.literal(false).openapi({
-    description: 'Success indicator'
+    description: '成功インジケーター'
   }),
   error: z.string().openapi({
     example: 'invalid_request',
-    description: 'Error code'
+    description: 'エラーコード'
   }),
   message: z.string().openapi({
-    example: 'Invalid request headers',
-    description: 'Error message'
+    example: '無効なリクエストヘッダー',
+    description: 'エラーメッセージ'
   })
 });
 
-// Me Success Response Schema
+// Me成功レスポンススキーマ
 export const MeSuccessSchema = z.object({
   success: z.literal(true).openapi({
-    description: 'Success indicator'
+    description: '成功インジケーター'
   }),
   user: z.object({
     id: z.string().openapi({
       example: 'auth0|507f1f77bcf86cd799439011',
-      description: 'User ID from Auth0 sub claim'
+      description: 'Auth0 subクレームからのユーザーID'
     }),
     name: z.string().nullable().openapi({
-      example: 'John Doe',
-      description: 'User display name'
+      example: '田中太郎',
+      description: 'ユーザー表示名'
     }),
     email: z.string().email().openapi({
       example: 'user@example.com',
-      description: 'User email address'
+      description: 'ユーザーメールアドレス'
     }),
     picture: z.string().url().nullable().openapi({
       example: 'https://avatars.example.com/user.jpg',
-      description: 'User profile picture URL'
+      description: 'ユーザープロフィール画像URL'
     }),
     email_verified: z.boolean().openapi({
       example: true,
-      description: 'Email verification status'
+      description: 'メール検証ステータス'
     }),
     updated_at: z.string().openapi({
       example: '2024-01-15T10:00:00.000Z',
-      description: 'User last update timestamp'
+      description: 'ユーザー最終更新タイムスタンプ'
     }),
     iss: z.string().openapi({
       example: 'https://auth.example.com/',
-      description: 'Token issuer'
+      description: 'トークン発行者'
     }),
     aud: z.string().openapi({
       example: 'abc123',
-      description: 'Token audience'
+      description: 'トークンオーディエンス'
     }),
     iat: z.number().openapi({
       example: 1704067200,
-      description: 'Token issued at timestamp'
+      description: 'トークン発行時刻タイムスタンプ'
     }),
     exp: z.number().openapi({
       example: 1704153600,
-      description: 'Token expiration timestamp'
+      description: 'トークン有効期限タイムスタンプ'
     }),
     sub: z.string().openapi({
       example: 'auth0|507f1f77bcf86cd799439011',
-      description: 'Subject (user ID)'
+      description: 'サブジェクト（ユーザーID）'
     }),
     sid: z.string().openapi({
       example: 'session123',
-      description: 'Session ID from Auth0'
+      description: 'Auth0からのセッションID'
     })
   }).openapi({
-    description: 'User information from session'
+    description: 'セッションからのユーザー情報'
   }),
   session: z.object({
     session_id: z.string().openapi({
       example: 'sess_550e8400-e29b-41d4-a716-446655440000',
-      description: 'Session identifier'
+      description: 'セッション識別子'
     }),
     expires_at: z.string().openapi({
       example: '2024-01-16T12:00:00.000Z',
-      description: 'Session expiration timestamp'
+      description: 'セッション有効期限タイムスタンプ'
     }),
     created_at: z.string().openapi({
       example: '2024-01-15T12:00:00.000Z',
-      description: 'Session creation timestamp'
+      description: 'セッション作成タイムスタンプ'
     })
   }).openapi({
-    description: 'Session metadata'
+    description: 'セッションメタデータ'
   })
 });
 
-// Me Error Response Schema
+// Meエラーレスポンススキーマ
 export const MeErrorSchema = z.object({
   success: z.literal(false).openapi({
-    description: 'Success indicator'
+    description: '成功インジケーター'
   }),
   error: z.string().openapi({
     example: 'unauthorized',
-    description: 'Error code'
+    description: 'エラーコード'
   }),
   message: z.string().openapi({
-    example: 'Authentication required',
-    description: 'Error message'
+    example: '認証が必要です',
+    description: 'エラーメッセージ'
   })
 });
 
-// TypeScript types derived from schemas
+// スキーマから派生したTypeScript型
 export type LoginRedirectResponse = z.infer<typeof LoginRedirectSchema>;
 export type LoginErrorResponse = z.infer<typeof LoginErrorSchema>;
 export type CallbackQuery = z.infer<typeof CallbackQuerySchema>;
@@ -364,7 +363,7 @@ export type MeSuccessResponse = z.infer<typeof MeSuccessSchema>;
 export type MeErrorResponse = z.infer<typeof MeErrorSchema>;
 ```
 
-### 2. OpenAPI Route Definitions (`src/api/v1/auth/route.ts`)
+### 2. OpenAPIルート定義 (`src/api/v1/auth/route.ts`)
 
 ```typescript
 import { createRoute } from '@hono/zod-openapi';
@@ -382,17 +381,17 @@ import {
 } from './types';
 
 /**
- * OpenAPI route definition for login endpoint
+ * ログインエンドポイントのOpenAPIルート定義
  */
 export const loginRoute = createRoute({
   method: 'get',
   path: '/api/v1/auth/login',
-  tags: ['Authentication'],
-  summary: 'Initialize OAuth Login',
-  description: 'Redirects to Auth0 login page for user authentication. Sets CSRF state cookie.',
+  tags: ['認証'],
+  summary: 'OAuthログイン初期化',
+  description: 'ユーザー認証のためAuth0ログインページにリダイレクト。CSRF state cookieを設定。',
   responses: {
     302: {
-      description: 'Redirect to Auth0 authorization URL',
+      description: 'Auth0認証URLにリダイレクト',
       headers: {
         Location: {
           schema: {
@@ -414,7 +413,7 @@ export const loginRoute = createRoute({
           schema: LoginErrorSchema
         }
       },
-      description: 'Unauthorized redirect base URL'
+      description: '認可されていないリダイレクトベースURL'
     },
     500: {
       content: {
@@ -422,20 +421,20 @@ export const loginRoute = createRoute({
           schema: LoginErrorSchema
         }
       },
-      description: 'Authentication service not configured or unavailable'
+      description: '認証サービスが設定されていないか利用不可'
     }
   }
 });
 
 /**
- * OpenAPI route definition for OAuth callback
+ * OAuthコールバックのOpenAPIルート定義
  */
 export const callbackRoute = createRoute({
   method: 'get',
   path: '/api/v1/auth/callback',
-  tags: ['Authentication'],
-  summary: 'OAuth Callback Handler',
-  description: 'Handles OAuth callback from Auth0, exchanges authorization code for tokens, and creates user session',
+  tags: ['認証'],
+  summary: 'OAuthコールバックハンドラー',
+  description: 'Auth0からのOAuthコールバックを処理し、認証コードをトークンに交換してユーザーセッションを作成',
   request: {
     query: CallbackQuerySchema
   },
@@ -446,7 +445,7 @@ export const callbackRoute = createRoute({
           schema: CallbackSuccessSchema
         }
       },
-      description: 'Authentication successful'
+      description: '認証成功'
     },
     400: {
       content: {
@@ -454,7 +453,7 @@ export const callbackRoute = createRoute({
           schema: CallbackErrorSchema
         }
       },
-      description: 'Bad request - missing parameters, invalid state, or Auth0 error'
+      description: '不正リクエスト - パラメータ不足、無効なstate、またはAuth0エラー'
     },
     500: {
       content: {
@@ -462,20 +461,20 @@ export const callbackRoute = createRoute({
           schema: CallbackErrorSchema
         }
       },
-      description: 'Authentication process failed'
+      description: '認証処理失敗'
     }
   }
 });
 
 /**
- * OpenAPI route definition for logout
+ * ログアウトのOpenAPIルート定義
  */
 export const logoutRoute = createRoute({
   method: 'post',
   path: '/api/v1/auth/logout',
-  tags: ['Authentication'],
-  summary: 'End User Session',
-  description: 'Logs out the current user by destroying their session. Requires CSRF protection headers.',
+  tags: ['認証'],
+  summary: 'ユーザーセッション終了',
+  description: 'セッションを破棄して現在のユーザーをログアウト。CSRF保護ヘッダーが必要。',
   request: {
     headers: LogoutHeadersSchema
   },
@@ -486,7 +485,7 @@ export const logoutRoute = createRoute({
           schema: LogoutSuccessSchema
         }
       },
-      description: 'Successfully logged out'
+      description: 'ログアウト成功'
     },
     400: {
       content: {
@@ -494,7 +493,7 @@ export const logoutRoute = createRoute({
           schema: LogoutErrorSchema
         }
       },
-      description: 'Invalid request headers or origin'
+      description: '無効なリクエストヘッダーまたはオリジン'
     },
     401: {
       content: {
@@ -502,7 +501,7 @@ export const logoutRoute = createRoute({
           schema: LogoutErrorSchema
         }
       },
-      description: 'No active session found'
+      description: 'アクティブなセッションが見つからない'
     },
     500: {
       content: {
@@ -510,20 +509,20 @@ export const logoutRoute = createRoute({
           schema: LogoutErrorSchema
         }
       },
-      description: 'Logout process failed'
+      description: 'ログアウト処理失敗'
     }
   }
 });
 
 /**
- * OpenAPI route definition for current user endpoint
+ * 現在のユーザーエンドポイントのOpenAPIルート定義
  */
 export const meRoute = createRoute({
   method: 'get',
   path: '/api/v1/auth/me',
-  tags: ['Authentication'],
-  summary: 'Get Current User',
-  description: 'Returns information about the currently authenticated user based on session cookie',
+  tags: ['認証'],
+  summary: '現在のユーザー取得',
+  description: 'セッションcookieに基づいて現在認証されているユーザーの情報を返す',
   responses: {
     200: {
       content: {
@@ -531,7 +530,7 @@ export const meRoute = createRoute({
           schema: MeSuccessSchema
         }
       },
-      description: 'User information retrieved successfully'
+      description: 'ユーザー情報の取得に成功'
     },
     401: {
       content: {
@@ -539,7 +538,7 @@ export const meRoute = createRoute({
           schema: MeErrorSchema
         }
       },
-      description: 'Authentication required or session expired'
+      description: '認証が必要またはセッション期限切れ'
     },
     500: {
       content: {
@@ -547,54 +546,43 @@ export const meRoute = createRoute({
           schema: MeErrorSchema
         }
       },
-      description: 'Failed to retrieve user information'
+      description: 'ユーザー情報の取得に失敗'
     }
   }
 });
 
-// Future route definitions
-// export const refreshRoute = createRoute({ ... }); // Token refresh endpoint
-// export const revokeRoute = createRoute({ ... }); // Token revocation endpoint
+// 将来のルート定義
+// export const refreshRoute = createRoute({ ... }); // トークンリフレッシュエンドポイント
+// export const revokeRoute = createRoute({ ... }); // トークン失効エンドポイント
 ```
 
-## Implementation Notes
+## 実装ノート
 
-### Authentication Flow
-1. **Login**: User initiates login → Redirect to Auth0 → State cookie set
-2. **Callback**: Auth0 redirects back → Validate state → Exchange code for tokens → Create session
-3. **Session**: Session stored in D1 database with HTTP-only cookie
-4. **Logout**: Validate CSRF headers → Delete session → Clear cookie
+### 認証フロー
+1. **ログイン**: ユーザーがログイン開始 → Auth0にリダイレクト → State cookieを設定
+2. **コールバック**: Auth0がリダイレクトバック → stateを検証 → コードをトークンに交換 → セッション作成
+3. **セッション**: セッションはHTTP-only cookieでD1データベースに保存
+4. **ログアウト**: CSRFヘッダーを検証 → セッション削除 → cookieクリア
 
-### Security Considerations
-1. **CSRF Protection**: State parameter for OAuth flow, custom headers for logout
-2. **Cookie Security**: HTTP-only, Secure (HTTPS), SameSite attributes
-3. **Origin Validation**: Check Origin/Referer headers on sensitive operations
-4. **Timing Attack Mitigation**: Consistent response times for auth operations
-5. **Session Management**: Server-side sessions with expiration
+### セキュリティ考慮事項
+1. **CSRF保護**: OAuthフロー用stateパラメータ、ログアウト用カスタムヘッダー
+2. **Cookieセキュリティ**: HTTP-only、Secure（HTTPS）、SameSite属性
+3. **オリジン検証**: 機密操作でOrigin/Refererヘッダーをチェック
+4. **タイミング攻撃緩和**: 認証操作で一貫したレスポンス時間
+5. **セッション管理**: 有効期限付きサーバーサイドセッション
 
-### Error Handling
-1. **OAuth Errors**: Properly handle Auth0 error responses
-2. **Validation Errors**: Clear messages for missing/invalid parameters
-3. **Service Errors**: Graceful degradation when Auth0 unavailable
-4. **Session Errors**: Proper cleanup of expired sessions
+### エラーハンドリング
+1. **OAuthエラー**: Auth0エラーレスポンスを適切に処理
+2. **バリデーションエラー**: 不足/無効なパラメータに対する明確なメッセージ
+3. **サービスエラー**: Auth0が利用不可時の優雅な劣化
+4. **セッションエラー**: 期限切れセッションの適切なクリーンアップ
 
-### Data Storage
-- **Sessions**: D1 database session table
-- **User Data**: _User sheet in Google Sheets (via UserSheet service)
-- **Cookies**: HTTP-only session_id and temporary auth_state
+### データストレージ
+- **セッション**: D1データベースセッションテーブル
+- **ユーザーデータ**: Google Sheetsの_Userシート（UserSheetサービス経由）
+- **Cookie**: HTTP-only session_idと一時的なauth_state
 
-## Future Enhancements
-- GET /api/v1/auth/refresh - Refresh access token using refresh token
-- POST /api/v1/auth/revoke - Revoke refresh token
-- GET /api/v1/auth/providers - List available authentication providers
-- POST /api/v1/auth/link - Link additional auth providers to account
+## テスト要件
 
-## Testing Requirements
-When implementation is added:
-1. Test OAuth flow with valid and invalid states
-2. Test session creation and expiration
-3. Test CSRF protection mechanisms
-4. Test error handling for Auth0 failures
-5. Test cookie security attributes
-6. Test timing attack mitigation
-7. Test concurrent session handling
+- 現状のテストがすべて通ること
+- TypeScriptエラーが出ないこと

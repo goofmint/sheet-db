@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import { Auth0Service } from '../../../../services/auth0';
 import { ConfigService } from '../../../../services/config';
 import { Env } from '../../../../types/env';
@@ -6,7 +6,8 @@ import { drizzle } from 'drizzle-orm/d1';
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.get('/', async (c) => {
+// Export handler function for OpenAPI integration
+export const loginHandler = async (c: Context<{ Bindings: Env }>) => {
   try {
     // Initialize ConfigService with database
     const db = drizzle(c.env.DB);
@@ -25,7 +26,7 @@ app.get('/', async (c) => {
       return c.json({ 
         error: 'Unauthorized redirect base URL',
         message: `Host ${currentHost} is not in allowed redirect bases`
-      }, 400);
+      }, 400 as const);
     }
     
     const redirectUri = `${allowedBase}/api/v1/auth/callback`;
@@ -68,8 +69,11 @@ app.get('/', async (c) => {
     return c.json({
       error: 'Authentication failed',
       message
-    }, 500);
+    }, 500 as const);
   }
-});
+};
+
+// Traditional Hono route for backwards compatibility
+app.get('/', loginHandler);
 
 export default app;

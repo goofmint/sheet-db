@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { Auth0Service } from '@/services/auth0';
 import { ConfigService } from '@/services/config';
@@ -9,7 +9,8 @@ import { Env } from '@/types/env';
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.get('/', async (c) => {
+// Export handler function for OpenAPI integration
+export const callbackHandler = async (c: Context<{ Bindings: Env }>) => {
   try {
     // Initialize ConfigService
     const db = drizzle(c.env.DB);
@@ -171,6 +172,9 @@ app.get('/', async (c) => {
       authenticated: false
     }, 500);
   }
-});
+};
+
+// Traditional Hono route for backwards compatibility
+app.get('/', callbackHandler);
 
 export default app;

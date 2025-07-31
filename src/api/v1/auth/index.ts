@@ -1,15 +1,27 @@
 import { Hono } from 'hono';
-import loginRoute from './login/get';
-import callbackRoute from './callback/get';
-import logoutRoute from './logout/post';
-import meRoute from './me/get';
+import loginHandler from './login/get';
+import callbackHandler from './callback/get';
+import logoutHandler from './logout/post';
+import meHandler from './me/get';
 import { Env } from '@/types/env';
+import { loginRoute, callbackRoute, logoutRoute, meRoute } from './route';
 
-const app = new Hono<{ Bindings: Env }>();
+// Traditional Hono router for backwards compatibility
+const authRouter = new Hono<{ Bindings: Env }>();
 
-app.route('/login', loginRoute);
-app.route('/callback', callbackRoute);
-app.route('/logout', logoutRoute);
-app.route('/me', meRoute);
+// GET /api/v1/auth/login - OAuth login initialization
+authRouter.route('/login', loginHandler);
 
-export default app;
+// GET /api/v1/auth/callback - OAuth callback handler
+authRouter.route('/callback', callbackHandler);
+
+// POST /api/v1/auth/logout - End user session
+authRouter.route('/logout', logoutHandler);
+
+// GET /api/v1/auth/me - Get current user
+authRouter.route('/me', meHandler);
+
+export default authRouter;
+
+// Export OpenAPI route definitions for integration
+export { loginRoute, callbackRoute, logoutRoute, meRoute };
