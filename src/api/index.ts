@@ -7,7 +7,8 @@ import { healthHandler } from './v1/health/get';
 import { setupStatusRoute, setupConfigRoute } from './v1/setup/route';
 import { setupGetHandler } from './v1/setup/get';
 import { setupPostHandler } from './v1/setup/post';
-import sheetsRouter from './v1/sheets/route';
+import { createSheetRoute } from './v1/sheets/route';
+import { sheetsPostHandler } from './v1/sheets/post';
 import storagesRouter from './v1/storages/route';
 import authRouter from './v1/auth';
 import type { Env } from '@/types/env';
@@ -40,8 +41,8 @@ api.openapi(healthRoute, healthHandler);
 api.openapi(setupStatusRoute, setupGetHandler);
 api.openapi(setupConfigRoute, setupPostHandler);
 
-// Sheets routes
-v1.route('/sheets', sheetsRouter);
+// Sheets routes - direct OpenAPI mount
+api.openapi(createSheetRoute, sheetsPostHandler);
 
 // Storage routes
 v1.route('/storages', storagesRouter);
@@ -49,9 +50,6 @@ v1.route('/storages', storagesRouter);
 
 // Auth routes
 v1.route('/auth', authRouter);
-
-// Redirect old playground URL for backward compatibility
-v1.get('/playground', (c) => c.redirect('/playground', 301));
 
 // Mount v1 API routes
 api.route('/v1', v1);
