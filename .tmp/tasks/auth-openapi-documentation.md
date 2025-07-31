@@ -112,7 +112,7 @@ export const LoginErrorSchema = z.object({
 
 // Callback Query Parameters Schema
 export const CallbackQuerySchema = z.object({
-  code: z.string().optional().openapi({
+  code: z.string().openapi({
     param: {
       name: 'code',
       in: 'query'
@@ -120,7 +120,7 @@ export const CallbackQuerySchema = z.object({
     example: 'abc123xyz',
     description: 'Authorization code from Auth0'
   }),
-  state: z.string().optional().openapi({
+  state: z.string().openapi({
     param: {
       name: 'state',
       in: 'query'
@@ -222,7 +222,17 @@ export const LogoutHeadersSchema = z.object({
       in: 'header'
     },
     description: 'CSRF protection header'
+  }),
+  Origin: z.string().url().optional().openapi({
+    param: { name: 'Origin', in: 'header' },
+    description: 'Origin header used for CSRF / origin validation'
+  }),
+  Referer: z.string().url().optional().openapi({
+    param: { name: 'Referer', in: 'header' },
+    description: 'Referer header used for CSRF / origin validation'
   })
+}).refine(h => h.Origin || h.Referer, {
+  message: 'Either Origin or Referer header must be present'
 });
 
 // Logout Success Response Schema
