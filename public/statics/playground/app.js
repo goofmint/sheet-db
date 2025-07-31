@@ -33,7 +33,8 @@ async function testEndpoint(method, url, body, responseId) {
       method: method,
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
       }
     };
     
@@ -77,7 +78,11 @@ async function testFileUpload(responseId) {
     
     const response = await fetch('/api/v1/storages', {
       method: 'POST',
-      body: formData
+      body: formData,
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
     });
     
     const data = await response.json();
@@ -107,7 +112,10 @@ async function testFileDelete(responseId) {
   try {
     const response = await fetch(`/api/v1/storages/${fileId}`, {
       method: 'DELETE',
-      credentials: 'include'
+      credentials: 'include',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
     });
     
     const data = await response.json();

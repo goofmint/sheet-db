@@ -1,7 +1,16 @@
 import { html, raw } from 'hono/html';
 
+interface AuthUser {
+  name: string;
+  email: string;
+}
+
+interface AuthData {
+  user: AuthUser;
+}
+
 interface PlaygroundProps {
-  auth: any | null;
+  auth: AuthData | null;
   sheetId: string | null;
   storageType: string;
   baseUrl: string;
@@ -27,26 +36,26 @@ export function playground(props: PlaygroundProps) {
         <div class="info-grid">
           <div class="info-card">
             <h3>👤 Authentication Status</h3>
-            ${auth ? raw(`
+            ${auth ? html`
               <p>Status: <span style="color: #28a745; font-weight: bold;">✓ Authenticated</span></p>
               <p>User: ${auth.user.name} (${auth.user.email})</p>
               <div style="margin-top: 10px;">
                 <button class="test-button secondary" onclick="logout()">Logout</button>
               </div>
-            `) : raw(`
+            ` : html`
               <p>Status: <span style="color: #dc3545; font-weight: bold;">✗ Not authenticated</span></p>
               <p>Some APIs require authentication.</p>
               <div style="margin-top: 10px;">
                 <button class="test-button primary" onclick="login()">Login with Auth0</button>
               </div>
-            `)}
+            `}
           </div>
 
           <div class="info-card">
             <h3>📊 Connected Sheet</h3>
             <p>Google Sheet ID:</p>
             <div class="value">${sheetId || 'Not configured'}</div>
-            ${sheetId ? raw(`<p><a href="https://docs.google.com/spreadsheets/d/${sheetId}" target="_blank">Open in Google Sheets →</a></p>`) : ''}
+            ${sheetId ? html`<p><a href="https://docs.google.com/spreadsheets/d/${sheetId}" target="_blank">Open in Google Sheets →</a></p>` : ''}
           </div>
           
           <div class="info-card">
@@ -136,12 +145,12 @@ export function playground(props: PlaygroundProps) {
         <div class="external-links">
           <h2>🔗 Quick Links</h2>
           <div class="link-grid">
-            ${sheetId ? raw(`
+            ${sheetId ? html`
               <a href="https://docs.google.com/spreadsheets/d/${sheetId}" target="_blank" class="external-link">
                 <strong>📊 Google Sheets</strong>
                 View and edit your connected spreadsheet
               </a>
-            `) : ''}
+            ` : ''}
             
             <a href="/api/v1" target="_blank" class="external-link">
               <strong>🔗 API Root</strong>
