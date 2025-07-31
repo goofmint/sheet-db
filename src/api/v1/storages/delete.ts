@@ -12,8 +12,9 @@ export default async function storagesDeleteHandler(c: Context<{ Bindings: Env }
     
     if (!fileId) {
       return c.json({
-        error: 'File ID is required'
-      }, 400);
+        error: 'File ID required',
+        message: 'Please provide a valid file ID in the URL path'
+      }, 400 as const);
     }
     
     // Get storage configuration
@@ -23,7 +24,7 @@ export default async function storagesDeleteHandler(c: Context<{ Bindings: Env }
       return c.json({
         error: 'Storage not configured',
         message: 'Storage type is not set in configuration'
-      }, 500);
+      }, 500 as const);
     }
 
     if (storageType === 'r2') {
@@ -34,21 +35,21 @@ export default async function storagesDeleteHandler(c: Context<{ Bindings: Env }
       return c.json({
         error: 'Unsupported storage type',
         message: `Storage type '${storageType}' is not supported`
-      }, 500);
+      }, 500 as const);
     }
     
     return c.json({
       success: true,
       message: 'File deleted successfully',
       fileId,
-      storageType
-    });
+      storageType: storageType as 'r2' | 'gdrive'
+    }, 200 as const);
     
   } catch (error) {
     console.error('Storage delete error:', error);
     return c.json({
       error: 'Delete failed',
       message: error instanceof Error ? error.message : 'Unknown error'
-    }, 500);
+    }, 500 as const);
   }
 }

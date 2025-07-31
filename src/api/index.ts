@@ -9,7 +9,9 @@ import { setupGetHandler } from './v1/setup/get';
 import { setupPostHandler } from './v1/setup/post';
 import { createSheetRoute } from './v1/sheets/route';
 import { sheetsPostHandler } from './v1/sheets/post';
-import storagesRouter from './v1/storages/route';
+import storagesRouter, { uploadFileRoute, deleteFileRoute } from './v1/storages/route';
+import storagesPostHandler from './v1/storages/post';
+import storagesDeleteHandler from './v1/storages/delete';
 import authRouter from './v1/auth';
 import type { Env } from '@/types/env';
 
@@ -44,7 +46,11 @@ api.openapi(setupConfigRoute, setupPostHandler);
 // Sheets routes - direct OpenAPI mount
 api.openapi(createSheetRoute, sheetsPostHandler);
 
-// Storage routes
+// Storage routes - direct OpenAPI mount
+api.openapi(uploadFileRoute, storagesPostHandler);
+api.openapi(deleteFileRoute, storagesDeleteHandler);
+
+// Storage routes - backwards compatibility
 v1.route('/storages', storagesRouter);
 
 
