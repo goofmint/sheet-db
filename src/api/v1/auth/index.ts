@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
-import loginHandler from './login/get';
-import callbackHandler from './callback/get';
-import logoutHandler from './logout/post';
-import meHandler from './me/get';
+import { loginHandler } from './login/get';
+import { callbackHandler } from './callback/get';
+import { logoutHandler } from './logout/post';
+import { meHandler } from './me/get';
 import { Env } from '@/types/env';
 import { loginRoute, callbackRoute, logoutRoute, meRoute } from './route';
 
@@ -10,16 +10,16 @@ import { loginRoute, callbackRoute, logoutRoute, meRoute } from './route';
 const authRouter = new Hono<{ Bindings: Env }>();
 
 // GET /api/v1/auth/login - OAuth login initialization
-authRouter.route('/login', loginHandler);
+authRouter.get('/login', loginHandler);
 
 // GET /api/v1/auth/callback - OAuth callback handler
-authRouter.route('/callback', callbackHandler);
+authRouter.get('/callback', callbackHandler);
 
 // POST /api/v1/auth/logout - End user session
-authRouter.route('/logout', logoutHandler);
+authRouter.post('/logout', logoutHandler);
 
 // GET /api/v1/auth/me - Get current user
-authRouter.route('/me', meHandler);
+authRouter.get('/me', meHandler);
 
 export default authRouter;
 
