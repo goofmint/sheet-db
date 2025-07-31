@@ -38,9 +38,9 @@ src/playground/
 src/templates/
 └── playground.tsx       # メインページコンポーネント
 
-public/static/playground/
-├── style.css           # スタイルシート
-└── app.js             # JavaScript 機能
+public/statics/playground/
+├── style.css           # スタイルシート（既存）
+└── app.js             # JavaScript 機能（既存）
 ```
 
 ### 2. ファイル分離計画
@@ -62,14 +62,14 @@ interface PlaygroundProps {
 export function playground(props: PlaygroundProps): string;
 ```
 
-#### 2.2 style.css (public/static/playground/)
-- 現在 `/statics/playground/style.css` として外部参照されているスタイル
-- 同じパス `/statics/playground/style.css` でアクセス可能
+#### 2.2 style.css (public/statics/playground/)
+- 既存のファイルをそのまま利用
+- `/statics/playground/style.css` パスでアクセス
 - CSS変数やモダンなCSS機能を活用
 
-#### 2.3 app.js (public/static/playground/)
-- 現在 `/statics/playground/app.js` として外部参照されているスクリプト
-- 同じパス `/statics/playground/app.js` でアクセス可能
+#### 2.3 app.js (public/statics/playground/)
+- 既存のファイルをそのまま利用
+- `/statics/playground/app.js` パスでアクセス
 
 ### 4. 実装手順
 
@@ -83,15 +83,13 @@ export function playground(props: PlaygroundProps): string;
 2. HTML 構造を TSX コンポーネントに変換
 3. プロパティインターフェース定義
 
-#### Phase 3: スタイル分離
-1. `public/static/playground/style.css` 作成
-2. 既存の CSS を移植・整理
-3. CSS 変数とモダンな記法に更新
+#### Phase 3: スタイル確認
+1. `public/statics/playground/style.css` の既存ファイルを確認
+2. 必要に応じて CSS の最適化
 
-#### Phase 4: スクリプト分離
-1. `public/static/playground/app.js` 作成
-2. JavaScript 機能を実装
-3. API テスト機能の改善
+#### Phase 4: スクリプト確認
+1. `public/statics/playground/app.js` の既存ファイルを確認
+2. 必要に応じて JavaScript の最適化
 
 #### Phase 5: 静的ファイル配信確認
 1. `/statics/playground/style.css` パスでの CSS 配信確認
@@ -107,14 +105,14 @@ export function playground(props: PlaygroundProps): string;
 - ファイル名は小文字のみ使用
 
 #### 5.2 CSS 配信
-- `public/static/playground/style.css` に配置
+- `public/statics/playground/style.css` に既存配置
 - `/statics/playground/style.css` パスでアクセス
 - Cloudflare Workers での静的ファイル配信
 - 適切なキャッシュヘッダー設定
 - MIME タイプの正確な設定
 
 #### 5.3 JavaScript 配信
-- `public/static/playground/app.js` に配置
+- `public/statics/playground/app.js` に既存配置
 - `/statics/playground/app.js` パスでアクセス
 - 従来の script タグ対応
 - ブラウザ互換性の確保

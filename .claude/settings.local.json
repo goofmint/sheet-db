@@ -81,7 +81,8 @@
       "Bash(timeout [0-9]+[smhd] npm (run|start|build|test))",
       "Bash(timeout [0-9]+[smhd] npm (run|start|build|test) [a-zA-Z0-9:-]+)",
       "Bash(gh pr close:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(diff:*)"
     ],
     "deny": []
   }
