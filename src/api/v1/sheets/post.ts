@@ -37,7 +37,7 @@ export const sheetsPostHandler = async (c: Context<{ Bindings: Env }>) => {
       success: true,
       message,
       sheet: name
-    }, 200 as const);
+    }, 201 as const);
     
   } catch (error) {
     console.error('Sheet initialization error:', error);

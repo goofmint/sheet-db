@@ -20,13 +20,13 @@ export const createSheetRoute = createRoute({
     }
   },
   responses: {
-    200: {
+    201: {
       content: {
         'application/json': {
           schema: SheetSuccessResponseSchema
         }
       },
-      description: 'Sheet initialized successfully'
+      description: 'Sheet created or initialized successfully'
     },
     400: {
       content: {
