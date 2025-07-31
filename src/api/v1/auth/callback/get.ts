@@ -31,7 +31,7 @@ export const callbackHandler = async (c: Context<{ Bindings: Env }>) => {
         error: error,
         message: errorDescription || 'Authentication failed',
         authenticated: false
-      }, 400);
+      }, 400 as const);
     }
 
     // 必須パラメータの検証
@@ -41,7 +41,7 @@ export const callbackHandler = async (c: Context<{ Bindings: Env }>) => {
         error: 'missing_parameters',
         message: 'Missing required parameters: code and state',
         authenticated: false
-      }, 400);
+      }, 400 as const);
     }
 
     // State検証（CSRF対策）
@@ -52,7 +52,7 @@ export const callbackHandler = async (c: Context<{ Bindings: Env }>) => {
         error: 'invalid_state',
         message: 'Invalid state parameter',
         authenticated: false
-      }, 400);
+      }, 400 as const);
     }
 
     // リダイレクトURIの構築
@@ -122,34 +122,25 @@ export const callbackHandler = async (c: Context<{ Bindings: Env }>) => {
     // Stateクッキー削除
     deleteCookie(c, 'auth_state');
 
-    // TODO: Google Sheets が利用可能になったら _User シートから取得
-    // 現在はAuth0から取得したユーザー情報を直接使用
-    const finalUserData = {
-      id: userInfo.sub,
-      email: userInfo.email,
-      name: userInfo.name || '',
-      picture: userInfo.picture || '',
-      created_at: now,
-      last_login: now
-    };
+    // Note: User data is stored in _User sheet for future reference
 
-    // 成功レスポンス
+    // Success response matching CallbackSuccessSchema
     return c.json({
       success: true,
       user: {
         id: userInfo.sub,
         email: userInfo.email,
-        name: userInfo.name,
-        picture: userInfo.picture,
-        created_at: finalUserData.created_at || now,
-        last_login: finalUserData.last_login || now
+        name: userInfo.name || null,
+        picture: userInfo.picture || null,
+        created_at: now,
+        last_login: now
       },
       session: {
         session_id: sessionId,
         expires_at: expiresAt.toISOString()
       },
       authenticated: true
-    });
+    }, 200 as const);
 
   } catch (error) {
     console.error('Callback error:', error);
@@ -168,9 +159,8 @@ export const callbackHandler = async (c: Context<{ Bindings: Env }>) => {
       success: false,
       error: 'authentication_failed',
       message: 'Authentication process failed',
-      details: errorMessage, // 開発用の詳細情報
       authenticated: false
-    }, 500);
+    }, 500 as const);
   }
 };
 

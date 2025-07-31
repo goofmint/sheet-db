@@ -17,7 +17,7 @@ export const logoutHandler = async (c: Context<{ Bindings: Env }>) => {
         success: false,
         error: 'invalid_request',
         message: 'Invalid request headers'
-      }, 400);
+      }, 400 as const);
     }
 
     // Origin/Refererヘッダーの検証
@@ -31,7 +31,7 @@ export const logoutHandler = async (c: Context<{ Bindings: Env }>) => {
         success: false,
         error: 'missing_origin_headers',
         message: 'Origin or Referer header is required'
-      }, 400);
+      }, 400 as const);
     }
     
     // 存在するヘッダーを検証
@@ -41,7 +41,7 @@ export const logoutHandler = async (c: Context<{ Bindings: Env }>) => {
         success: false,
         error: 'invalid_origin',
         message: 'Invalid request origin'
-      }, 400);
+      }, 400 as const);
     }
 
     // セッションIDをCookieから取得
@@ -52,7 +52,7 @@ export const logoutHandler = async (c: Context<{ Bindings: Env }>) => {
         success: false,
         error: 'unauthorized',
         message: 'No active session found'
-      }, 401);
+      }, 401 as const);
     }
 
     // データベース接続
@@ -91,7 +91,7 @@ export const logoutHandler = async (c: Context<{ Bindings: Env }>) => {
     return c.json({
       success: true,
       message: 'Successfully logged out'
-    });
+    }, 200 as const);
 
   } catch (error) {
     console.error('Logout error:', error);
@@ -103,7 +103,7 @@ export const logoutHandler = async (c: Context<{ Bindings: Env }>) => {
       success: false,
       error: 'logout_failed',
       message: 'Logout process failed'
-    }, 500);
+    }, 500 as const);
   }
 };
 

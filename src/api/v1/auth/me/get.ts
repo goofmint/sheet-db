@@ -18,7 +18,7 @@ export const meHandler = async (c: Context<{ Bindings: Env }>) => {
         success: false,
         error: 'unauthorized',
         message: 'Authentication required'
-      }, 401);
+      }, 401 as const);
     }
 
     // データベース接続
@@ -38,7 +38,7 @@ export const meHandler = async (c: Context<{ Bindings: Env }>) => {
         success: false,
         error: 'unauthorized',
         message: 'Authentication required'
-      }, 401);
+      }, 401 as const);
     }
 
     const session = sessions[0];
@@ -59,7 +59,7 @@ export const meHandler = async (c: Context<{ Bindings: Env }>) => {
         success: false,
         error: 'session_expired',
         message: 'Session has expired'
-      }, 401);
+      }, 401 as const);
     }
 
     // ユーザーデータをパース
@@ -76,17 +76,17 @@ export const meHandler = async (c: Context<{ Bindings: Env }>) => {
         success: false,
         error: 'server_error',
         message: 'Failed to retrieve user information'
-      }, 500);
+      }, 500 as const);
     }
 
-    // レスポンス返却
+    // Response matching MeSuccessSchema
     return c.json({
       success: true,
       user: {
         id: userData.sub,
-        name: userData.name,
+        name: userData.name || null,
         email: userData.email,
-        picture: userData.picture,
+        picture: userData.picture || null,
         email_verified: userData.email_verified,
         updated_at: userData.updated_at,
         iss: userData.iss,
@@ -99,9 +99,9 @@ export const meHandler = async (c: Context<{ Bindings: Env }>) => {
       session: {
         session_id: session.session_id,
         expires_at: session.expires_at,
-        created_at: session.created_at
+        created_at: session.created_at || new Date().toISOString()
       }
-    });
+    }, 200 as const);
 
   } catch (error) {
     console.error('Auth me error:', error);
@@ -113,7 +113,7 @@ export const meHandler = async (c: Context<{ Bindings: Env }>) => {
       success: false,
       error: 'server_error',
       message: 'Failed to retrieve user information'
-    }, 500);
+    }, 500 as const);
   }
 };
 
