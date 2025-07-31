@@ -47,7 +47,7 @@ import { z } from 'zod';
 
 // File Upload Request Schema (multipart/form-data)
 export const FileUploadSchema = z.object({
-  file: z.instanceof(File).openapi({
+  file: z.string().openapi({
     type: 'string',
     format: 'binary',
     description: 'File to upload'
@@ -155,7 +155,7 @@ import {
  */
 export const uploadFileRoute = createRoute({
   method: 'post',
-  path: '/v1/storages',
+  path: '/api/v1/storages',
   tags: ['Storage'],
   summary: 'Upload File',
   description: 'Upload a file to the configured storage backend (R2 or Google Drive)',
@@ -225,7 +225,7 @@ export const uploadFileRoute = createRoute({
  */
 export const deleteFileRoute = createRoute({
   method: 'delete',
-  path: '/v1/storages/{id}',
+  path: '/api/v1/storages/{id}',
   tags: ['Storage'],
   summary: 'Delete File',
   description: 'Delete a file from the configured storage backend',
