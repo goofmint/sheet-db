@@ -171,6 +171,16 @@ export function playground(props: PlaygroundProps) {
               <strong>🛠️ Config Management</strong>
               View and manage system settings
             </a>
+            
+            <a href="/api/v1/ui" target="_blank" class="external-link">
+              <strong>📚 Swagger UI</strong>
+              Interactive API documentation
+            </a>
+            
+            <a href="/api/v1/doc" target="_blank" class="external-link">
+              <strong>📄 OpenAPI JSON</strong>
+              Raw OpenAPI specification
+            </a>
           </div>
         </div>
 
