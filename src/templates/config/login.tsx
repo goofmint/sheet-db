@@ -12,7 +12,7 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
     <head>
       <meta charset="utf-8">
       <title>Configuration Management - SheetDB</title>
-      <link rel="stylesheet" href="/config/styles.css">
+      <link rel="stylesheet" href="/statics/config/style.css">
     </head>
     <body>
       <div class="auth-form">
