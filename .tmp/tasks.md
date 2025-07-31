@@ -214,9 +214,9 @@
 - `playground-api-design.md` - Playground設計
 
 #### Phase 2.2系
-- `2.2.1-config-edit-functionality.md` - 設定編集機能実装詳細
-- `2.2.2-config-validation-system.md` - バリデーションシステム設計
-- `2.2.3-config-dynamic-management.md` - 動的設定項目管理
+- `.tmp/tasks/2.2.1-config-edit-functionality.md` - 設定編集機能実装詳細
+- `.tmp/tasks/2.2.2-config-validation-system.md` - バリデーションシステム設計
+- `.tmp/tasks/2.2.3-config-dynamic-management.md` - 動的設定項目管理
 
 ### 未作成タスクファイル（推奨）
 #### Phase 1.3系
