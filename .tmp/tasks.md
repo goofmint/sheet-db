@@ -68,10 +68,9 @@
 
 ### 2.2 設定管理UI
 - [ ] GET /config の実装（設定管理画面） - [詳細](./tasks/2.2-config-management-ui.md)
-- [ ] POST /api/v1/setup の拡張（部分更新対応）
-- [ ] 設定値バリデーション機能
-- [ ] 設定項目の追加
-- [ ] 設定項目の削除
+- [ ] POST /api/v1/config/update の実装（設定値更新） - [詳細](./tasks/2.2.1-config-edit-functionality.md)
+- [ ] 設定値バリデーションシステム - [詳細](./tasks/2.2.2-config-validation-system.md)
+- [ ] 設定項目の動的追加・削除機能 - [詳細](./tasks/2.2.3-config-dynamic-management.md)
 
 ### 2.3 セッション管理
 - [ ] src/services/session.tsの作成（セッション管理）
@@ -213,6 +212,11 @@
 - `setup-api-endpoint.md` - セットアップGET API
 - `setup-ui-design.md` - セットアップUI設計
 - `playground-api-design.md` - Playground設計
+
+#### Phase 2.2系
+- `2.2.1-config-edit-functionality.md` - 設定編集機能実装詳細
+- `2.2.2-config-validation-system.md` - バリデーションシステム設計
+- `2.2.3-config-dynamic-management.md` - 動的設定項目管理
 
 ### 未作成タスクファイル（推奨）
 #### Phase 1.3系
