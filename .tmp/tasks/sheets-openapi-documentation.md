@@ -9,11 +9,11 @@
 ### 実装済みエンドポイント
 
 #### POST /api/v1/sheets
-- **目的**: システムシート（_User または _Role）の初期化
+- **目的**: シートの初期化
 - **リクエストボディ**:
   ```json
   {
-    "name": "_User" | "_Role"
+    "name": "SHEET_NAME"
   }
   ```
 - **レスポンス**:
@@ -21,8 +21,8 @@
     ```json
     {
       "success": true,
-      "message": "User sheet initialized successfully",
-      "sheet": "_User"
+      "message": "{SHEET_NAME} sheet initialized successfully",
+      "sheet": "SHEET_NAME"
     }
     ```
   - エラー (400):
@@ -40,12 +40,6 @@
     }
     ```
 
-### 未実装エンドポイント（コメントで定義）
-- GET /api/v1/sheets - シート一覧取得
-- GET /api/v1/sheets/:id - シート詳細取得
-- PUT /api/v1/sheets/:id - シート更新
-- DELETE /api/v1/sheets/:id - シート削除
-
 ## OpenAPI 実装計画
 
 ### 1. スキーマ定義
@@ -54,9 +48,9 @@
 ```typescript
 // Sheet 作成リクエスト
 const CreateSheetRequestSchema = z.object({
-  name: z.enum(['_User', '_Role']).openapi({
-    example: '_User',
-    description: 'System sheet name to initialize'
+  name: z.string().openapi({
+    example: 'MySheet',
+    description: 'Sheet name to create or initialize'
   })
 });
 ```
@@ -66,8 +60,8 @@ const CreateSheetRequestSchema = z.object({
 // 成功レスポンス
 const SheetSuccessResponseSchema = z.object({
   success: z.literal(true),
-  message: z.string().openapi({ example: 'User sheet initialized successfully' }),
-  sheet: z.string().openapi({ example: '_User' })
+  message: z.string().openapi({ example: 'MySheet sheet initialized successfully' }),
+  sheet: z.string().openapi({ example: 'MySheet' })
 });
 
 // エラースキーマ
@@ -84,8 +78,8 @@ export const createSheetRoute = createRoute({
   method: 'post',
   path: '/v1/sheets',
   tags: ['Sheets'],
-  summary: 'Initialize System Sheet',
-  description: 'Initialize a system sheet (_User or _Role) in Google Sheets',
+  summary: 'Create or Initialize Sheet',
+  description: 'Create a new sheet or initialize a system sheet in Google Sheets',
   request: {
     body: {
       content: {
