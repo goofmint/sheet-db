@@ -1,4 +1,4 @@
-import { html, raw } from 'hono/html';
+import { html } from 'hono/html';
 
 interface AuthUser {
   name: string;
