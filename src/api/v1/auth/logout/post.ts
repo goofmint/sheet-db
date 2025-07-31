@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import { getCookie, deleteCookie } from 'hono/cookie';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
@@ -7,7 +7,8 @@ import { Env } from '@/types/env';
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.post('/', async (c) => {
+// Export handler function for OpenAPI integration
+export const logoutHandler = async (c: Context<{ Bindings: Env }>) => {
   try {
     // CSRF保護: X-Requested-Withヘッダーの検証
     const requestedWith = c.req.header('X-Requested-With');
@@ -104,6 +105,9 @@ app.post('/', async (c) => {
       message: 'Logout process failed'
     }, 500);
   }
-});
+};
+
+// Traditional Hono route for backwards compatibility
+app.post('/', logoutHandler);
 
 export default app;

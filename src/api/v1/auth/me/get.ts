@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
@@ -7,7 +7,8 @@ import { Env } from '@/types/env';
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.get('/', async (c) => {
+// Export handler function for OpenAPI integration
+export const meHandler = async (c: Context<{ Bindings: Env }>) => {
   try {
     // セッションIDをCookieから取得
     const sessionId = getCookie(c, 'session_id');
@@ -114,6 +115,9 @@ app.get('/', async (c) => {
       message: 'Failed to retrieve user information'
     }, 500);
   }
-});
+};
+
+// Traditional Hono route for backwards compatibility
+app.get('/', meHandler);
 
 export default app;
