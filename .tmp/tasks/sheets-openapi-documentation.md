@@ -161,7 +161,6 @@ src/api/v1/sheets/
 1. **高**: POST /api/v1/sheets の OpenAPI 対応
 2. **中**: playground リダイレクトの削除
 3. **中**: playground への OpenAPI リンク追加
-4. **低**: 未実装エンドポイントのスタブ定義（将来の拡張用）
 
 ## テスト項目
 
