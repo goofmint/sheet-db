@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import { ConfigService } from '@/services/config';
 import { Env } from '@/types/env';
+import type { ConfigWithValidation } from '@/utils/validation-types';
 import {
   isAuthenticated,
   generateCSRFToken,
@@ -55,7 +56,9 @@ app.get('/', async (c) => {
         value: String(value),
         type,
         isSensitive: metadata.sensitive,
-        description: getConfigDescription(key)
+        description: getConfigDescription(key),
+        validation: null, // Will be handled by frontend JavaScript
+        system_config: false
       };
     });
 

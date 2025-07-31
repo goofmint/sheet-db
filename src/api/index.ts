@@ -16,6 +16,7 @@ import authRouter, { callbackRoute, logoutRoute, meRoute } from './v1/auth';
 import { callbackHandler } from './v1/auth/callback/get';
 import { logoutHandler } from './v1/auth/logout/post';
 import { meHandler } from './v1/auth/me/get';
+import configRouter from './v1/config/route';
 import type { Env } from '@/types/env';
 
 /**
@@ -64,6 +65,9 @@ v1.route('/storages', storagesRouter);
 
 // Auth routes - backwards compatibility
 v1.route('/auth', authRouter);
+
+// Config routes
+v1.route('/config', configRouter);
 
 // Mount v1 API routes
 api.route('/v1', v1);

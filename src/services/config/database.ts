@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { configTable, type Config, type ConfigInsert, type ConfigType } from '../../db/schema';
 import type { ConfigServiceDatabase, ConfigUpdatePayload, DatabaseTransaction } from './types';
+import type { ValidationRule } from '../../utils/validation-types';
 import { ConfigDescriptions } from './descriptions';
 
 /**
@@ -56,6 +57,44 @@ export class ConfigDatabase {
           value: insertData.value,
           type: insertData.type,
           description: insertData.description,
+          updated_at: new Date().toISOString()
+        }
+      })
+      .returning();
+
+    return result[0] as Config;
+  }
+
+  /**
+   * Upsert a single configuration with validation rule
+   */
+  static async upsertWithValidation(
+    key: string, 
+    value: string, 
+    type: ConfigType = 'string', 
+    description?: string,
+    validation?: ValidationRule
+  ): Promise<Config> {
+    const db = this.getDatabase();
+
+    const insertData: ConfigInsert = {
+      key,
+      value,
+      type,
+      description: description || ConfigDescriptions.getDescription(key),
+      validation: validation ? JSON.stringify(validation) : undefined
+    };
+
+    const result = await db
+      .insert(configTable)
+      .values(insertData)
+      .onConflictDoUpdate({
+        target: configTable.key,
+        set: {
+          value: insertData.value,
+          type: insertData.type,
+          description: insertData.description,
+          validation: insertData.validation,
           updated_at: new Date().toISOString()
         }
       })

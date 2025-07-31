@@ -1,5 +1,6 @@
 import type { ConfigType, Config } from '../../db/schema';
 import type { ConfigServiceDatabase, ConfigUpdatePayload } from './types';
+import type { ConfigWithValidation, ValidationRule } from '../../utils/validation-types';
 import { ConfigCache } from './cache';
 import { ConfigDatabase } from './database';
 import { ConfigValidator } from './validation';
@@ -207,6 +208,118 @@ export class ConfigService {
    */
   static isSensitive(key: string): boolean {
     return ConfigDescriptions.isSensitive(key);
+  }
+
+  /**
+   * Get configuration with validation rule
+   * @param key - The configuration key
+   * @returns Configuration with validation info or null
+   */
+  static getWithValidation(key: string): ConfigWithValidation | null {
+    this.ensureInitialized();
+    const config = ConfigCache.get(key);
+    if (!config) return null;
+    
+    let validation: ValidationRule | null = null;
+    if (config.validation) {
+      try {
+        validation = JSON.parse(config.validation);
+      } catch (error) {
+        console.warn(`Invalid validation JSON for key ${key}:`, error);
+      }
+    }
+    
+    return {
+      key: config.key,
+      value: config.value,
+      type: config.type,
+      description: config.description,
+      validation,
+      system_config: Boolean(config.system_config)
+    };
+  }
+
+  /**
+   * Get all configurations with validation rules
+   * @returns Record of configurations with validation info
+   */
+  static getAllWithValidation(): Record<string, ConfigWithValidation> {
+    this.ensureInitialized();
+    const allConfigs = ConfigCache.getAll();
+    const result: Record<string, ConfigWithValidation> = {};
+    
+    for (const [key, config] of allConfigs) {
+      let validation: ValidationRule | null = null;
+      if (config.validation) {
+        try {
+          validation = JSON.parse(config.validation);
+        } catch (error) {
+          console.warn(`Invalid validation JSON for key ${key}:`, error);
+        }
+      }
+      
+      result[key] = {
+        key: config.key,
+        value: config.value,
+        type: config.type,
+        description: config.description,
+        validation,
+        system_config: Boolean(config.system_config)
+      };
+    }
+    
+    return result;
+  }
+
+  /**
+   * Set validation rule for a configuration key
+   * @param key - The configuration key
+   * @param validation - The validation rule
+   */
+  static async setValidation(key: string, validation: ValidationRule): Promise<void> {
+    this.ensureInitialized();
+    const config = this.findByKey(key);
+    if (!config) {
+      throw new Error(`Configuration key '${key}' not found`);
+    }
+
+    // Update configuration with validation rule
+    await this.upsertWithValidation(
+      key, 
+      config.value, 
+      config.type as ConfigType, 
+      config.description || undefined,
+      validation
+    );
+  }
+
+  /**
+   * Upsert config value with validation rule
+   * @param key - Configuration key
+   * @param value - Configuration value
+   * @param type - Configuration type
+   * @param description - Configuration description
+   * @param validation - Validation rule
+   * @returns Updated configuration
+   */
+  static async upsertWithValidation(
+    key: string, 
+    value: string, 
+    type: ConfigType = 'string', 
+    description?: string,
+    validation?: ValidationRule
+  ): Promise<Config> {
+    this.ensureInitialized();
+    
+    ConfigValidator.validateKey(key);
+    ConfigValidator.validateValue(value, type);
+
+    const updated = await ConfigDatabase.upsertWithValidation(key, value, type, description, validation);
+    
+    // Update cache
+    ConfigCache.set(key, updated);
+    
+    return updated;
   }
 
   /**

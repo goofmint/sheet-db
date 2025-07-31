@@ -46,14 +46,43 @@ function resetAllFields() {
   updateChangesCount();
 }
 
-// Validation function removed - direct saving without client-side validation
+// Validation rules (fetched from server)
+let validationRules = {};
+let formValidator = null;
+
+// Fetch validation rules from server
+async function loadValidationRules() {
+  try {
+    const response = await fetch('/api/v1/config/validation-rules');
+    if (response.ok) {
+      validationRules = await response.json();
+      formValidator = new ConfigFormValidator(validationRules);
+    }
+  } catch (error) {
+    console.warn('Failed to load validation rules:', error);
+  }
+}
+
+// Validate field (enhanced)
 function validateField(key) {
-  // No validation - removed
+  if (formValidator) {
+    const input = document.querySelector(`input[name="${key}"]`);
+    if (input) {
+      return formValidator.validateField(input);
+    }
+  }
+  return true;
 }
 
 // Format the form data for API submission
 async function submitForm(e) {
   e.preventDefault();
+  
+  // Validate all fields before submission
+  if (formValidator && !formValidator.validateAllFields()) {
+    showNotification('設定にエラーがあります。修正してから保存してください。', 'error');
+    return;
+  }
   
   // Show loading state
   const submitBtn = document.querySelector('button[type="submit"]');
@@ -123,7 +152,15 @@ async function submitForm(e) {
       }, 2000);
     } else {
       const error = await response.json();
-      showNotification('Failed to save configuration: ' + (error.message || 'Unknown error'), 'error');
+      
+      // Handle validation errors from server
+      if (error.error && error.error.code === 'VALIDATION_ERROR' && error.error.details) {
+        showValidationErrors(error.error.details);
+        showNotification('設定の検証に失敗しました。エラーを修正してください。', 'error');
+      } else {
+        showNotification('Failed to save configuration: ' + (error.message || 'Unknown error'), 'error');
+      }
+      
       submitBtn.textContent = 'Save All';
       submitBtn.disabled = false;
     }
@@ -131,6 +168,20 @@ async function submitForm(e) {
     showNotification('Failed to save configuration: ' + error.message, 'error');
     submitBtn.textContent = 'Save All';
     submitBtn.disabled = false;
+  }
+}
+
+// Show server validation errors
+function showValidationErrors(errors) {
+  Object.entries(errors).forEach(([key, message]) => {
+    const input = document.querySelector(`input[name="${key}"]`);
+    if (input && formValidator) {
+      formValidator.showFieldError(input, message);
+    }
+  });
+  
+  if (formValidator) {
+    formValidator.showErrorSummary(errors);
   }
 }
 
@@ -159,14 +210,18 @@ function showNotification(message, type = 'info') {
 }
 
 // Event listeners
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+  // Load validation rules first
+  await loadValidationRules();
+  
   // Track changes on all inputs and add auto-validation
   const inputs = document.querySelectorAll('input[data-original]');
   inputs.forEach(input => {
     input.addEventListener('input', updateChangesCount);
     input.addEventListener('change', updateChangesCount);
     
-    // Auto-validation removed
+    // Add validation class for styling
+    input.classList.add('config-input');
   });
 
   // Reset button handlers

@@ -5,6 +5,7 @@ import type { SetupSuccessResponse } from './types';
 import type { ConfigType } from '../../../db/schema';
 import { validateSetupRequest } from './validators';
 import { constantTimeEquals } from '../../../utils/security';
+import { ConfigValidator } from '../../../utils/config-validator';
 
 /**
  * Setup POST API endpoint - processes setup configuration
@@ -89,6 +90,23 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
           };
         }
         
+        // Validate configurations before saving
+        const configToValidate = Object.entries(configs).reduce((acc, [key, config]) => {
+          acc[key] = config.value;
+          return acc;
+        }, {} as Record<string, string>);
+
+        const validationResult = await ConfigValidator.validateAll(configToValidate);
+        if (!validationResult.valid) {
+          return c.json({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Configuration validation failed',
+              details: validationResult.errors
+            }
+          }, 400);
+        }
+
         // Save all configurations
         try {
           await ConfigService.setAll(configs);
@@ -186,6 +204,23 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
     } else if (isSetupCompleted) {
       // Re-setup scenario - keep completed status
       configs['app.setup_completed'] = { value: 'true', type: 'boolean' };
+    }
+
+    // Validate configurations before saving
+    const configToValidateNested = Object.entries(configs).reduce((acc, [key, config]) => {
+      acc[key] = config.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    const validationResultNested = await ConfigValidator.validateAll(configToValidateNested);
+    if (!validationResultNested.valid) {
+      return c.json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Configuration validation failed',
+          details: validationResultNested.errors
+        }
+      }, 400);
     }
 
     // Save all configurations

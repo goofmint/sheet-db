@@ -7,6 +7,8 @@ interface ConfigItem {
   type: string;
   isSensitive: boolean;
   description: string;
+  validation?: any;
+  system_config?: boolean;
 }
 
 interface ConfigFormProps {
@@ -91,6 +93,7 @@ export function ConfigForm({ configList, csrfToken }: ConfigFormProps) {
         </div>
       </form>
 
+      <script src="/statics/config/form-validator.js"></script>
       <script src="/statics/config/client.js"></script>
     </body>
     </html>
