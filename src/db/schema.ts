@@ -8,6 +8,8 @@ export const configTable = sqliteTable('Config', {
   value: text().notNull(),
   type: text().notNull().default('string'),
   description: text(),
+  validation: text(), // JSON format validation rules
+  system_config: int().default(0), // 0=custom, 1=system (boolean as integer)
   created_at: text().default(sql`CURRENT_TIMESTAMP`),
   updated_at: text().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => ({
@@ -47,6 +49,8 @@ export interface Config {
   value: string;
   type: ConfigType;
   description: string | null;
+  validation: string | null;
+  system_config: number;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -56,12 +60,16 @@ export interface ConfigInsert {
   value: string;
   type?: ConfigType;
   description?: string;
+  validation?: string;
+  system_config?: number;
 }
 
 export interface ConfigUpdate {
   value?: string;
   type?: ConfigType;
   description?: string;
+  validation?: string;
+  system_config?: number;
 }
 
 export interface Cache {
