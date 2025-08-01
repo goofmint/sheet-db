@@ -65,8 +65,13 @@ v1.route('/storages', storagesRouter);
 // Auth routes - backwards compatibility
 v1.route('/auth', authRouter);
 
+// Config routes
+import configsRouter from './v1/configs';
+v1.route('/configs', configsRouter);
+
 // Mount v1 API routes
 api.route('/v1', v1);
+
 
 // OpenAPI documentation routes - auto-generated from api router
 api.doc('/v1/doc', {
