@@ -66,8 +66,8 @@ v1.route('/storages', storagesRouter);
 v1.route('/auth', authRouter);
 
 // Config routes
-import { configsHandler } from './v1/configs/get';
-v1.get('/configs', configsHandler);
+import configsRouter from './v1/configs';
+v1.route('/configs', configsRouter);
 
 // Mount v1 API routes
 api.route('/v1', v1);
