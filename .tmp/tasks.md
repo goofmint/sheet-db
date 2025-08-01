@@ -67,8 +67,12 @@
 - [x] src/api/v1/auth/me/get.tsの作成（現在のユーザー情報） - [詳細](./tasks/2.1.5-auth-me-api.md)
 
 ### 2.2 設定管理UI
+- [ ] GET /api/v1/configs の実装（設定項目の一覧取得）
+- [ ] GET /api/v1/configs/:id の実装（設定項目の取得）
+- [ ] POST /api/v1/configs の実装（設定項目の追加）
+- [ ] PUT /api/v1/configs/:id の実装（設定項目の更新）
+- [ ] DELETE /api/v1/configs/:id の実装（設定項目の削除）
 - [ ] GET /config の実装（設定管理画面） - [詳細](./tasks/2.2-config-management-ui.md)
-- [ ] POST /api/v1/setup の拡張（部分更新対応）
 - [ ] 設定値バリデーション機能
 - [ ] 設定項目の追加
 - [ ] 設定項目の削除
