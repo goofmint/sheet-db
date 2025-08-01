@@ -193,11 +193,7 @@ export class ConfigDatabase {
     const { page, limit, search, type, system, sort, order } = params;
     const offset = (page - 1) * limit;
 
-    // クエリビルダーの構築
-    let query = db.select().from(configTable);
-    let countQuery = db.select({ count: count() }).from(configTable);
-
-    // 検索条件の追加
+    // 検索条件の構築
     const conditions = [];
     if (search) {
       conditions.push(
@@ -214,13 +210,7 @@ export class ConfigDatabase {
       conditions.push(eq(configTable.system_config, system ? 1 : 0));
     }
 
-    if (conditions.length > 0) {
-      const whereCondition = and(...conditions);
-      query = query.where(whereCondition);
-      countQuery = countQuery.where(whereCondition);
-    }
-
-    // ソート条件の追加  
+    // ソート列の決定
     const sortColumn = {
       'key': configTable.key,
       'type': configTable.type,
@@ -228,18 +218,33 @@ export class ConfigDatabase {
       'updated_at': configTable.updated_at
     }[sort];
 
-    query = order === 'desc' 
-      ? query.orderBy(desc(sortColumn))
-      : query.orderBy(asc(sortColumn));
+    // クエリの構築
+    const baseQuery = db.select().from(configTable);
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    const query = whereCondition 
+      ? baseQuery.where(whereCondition)
+          .orderBy(order === 'desc' ? desc(sortColumn) : asc(sortColumn))
+          .limit(limit)
+          .offset(offset)
+      : baseQuery
+          .orderBy(order === 'desc' ? desc(sortColumn) : asc(sortColumn))
+          .limit(limit)
+          .offset(offset);
 
     // 総件数の取得
+    const baseCountQuery = db.select({ count: count() }).from(configTable);
+    const countQuery = whereCondition ? baseCountQuery.where(whereCondition) : baseCountQuery;
     const [{ count: total }] = await countQuery;
 
-    // ページネーション適用
-    query = query.limit(limit).offset(offset);
-
     // データの取得
-    const configs = await query as Config[];
+    const rawConfigs = await query;
+
+    // 型を適切にキャストしてConfig[]として返す
+    const configs: Config[] = rawConfigs.map(config => ({
+      ...config,
+      type: config.type as ConfigType
+    }));
 
     // ページネーション情報の計算
     const totalPages = Math.ceil(total / limit);

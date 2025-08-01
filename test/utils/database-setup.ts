@@ -122,7 +122,8 @@ export async function setupTestDatabase(db: DrizzleD1Database): Promise<void> {
  * Insert default config data for testing
  */
 export async function insertDefaultConfigData(db: DrizzleD1Database): Promise<void> {
-  await db.insert(configTable).values([
+  // Split into smaller batches to avoid SQLite variable limit
+  const configData = [
     // Application basic settings
     { key: 'app.setup_completed', value: 'false', type: 'boolean', description: 'Flag indicating whether setup is completed' },
     { key: 'app.name', value: 'Sheet DB', type: 'string', description: 'Application name' },
@@ -162,5 +163,12 @@ export async function insertDefaultConfigData(db: DrizzleD1Database): Promise<vo
     // Background task settings
     { key: 'background.cache_refresh_interval', value: '600', type: 'number', description: 'Background cache refresh interval in seconds' },
     { key: 'background.cleanup_old_sessions_interval', value: '3600', type: 'number', description: 'Old session cleanup interval in seconds' }
-  ] as const);
+  ] as const;
+
+  // Insert in batches of 5 to avoid SQLite variable limits
+  const batchSize = 5;
+  for (let i = 0; i < configData.length; i += batchSize) {
+    const batch = configData.slice(i, i + batchSize);
+    await db.insert(configTable).values(batch);
+  }
 }

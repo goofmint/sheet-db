@@ -9,6 +9,44 @@ import { setupConfigDatabase, setupSessionDatabase } from '../../../utils/databa
 import { SessionRepository } from '@/repositories/session';
 import { createTestSession } from '../../../utils/auth-utils';
 
+interface ConfigItem {
+  key: string;
+  value: string;
+  type: 'string' | 'boolean' | 'number' | 'json';
+  description: string | null;
+  system_config: boolean;
+  validation: any;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+interface Pagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+interface ApiSuccessResponse {
+  success: true;
+  data: {
+    configs: ConfigItem[];
+    pagination: Pagination;
+  };
+}
+
+interface ApiErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+  };
+}
+
+type ApiResponse = ApiSuccessResponse | ApiErrorResponse;
+
 describe('GET /api/v1/configs', () => {
   const db = drizzle(env.DB);
   const sessionRepo = new SessionRepository(db);
@@ -39,13 +77,14 @@ describe('GET /api/v1/configs', () => {
     it('認証済みユーザーは設定一覧を取得できる', async () => {
       const request = new Request('http://localhost/api/v1/configs', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
       expect(data.success).toBe(true);
       expect(data.data.configs).toBeInstanceOf(Array);
       expect(data.data.configs.length).toBeGreaterThan(0);
@@ -62,12 +101,13 @@ describe('GET /api/v1/configs', () => {
     it('各設定項目が正しい形式で返される', async () => {
       const request = new Request('http://localhost/api/v1/configs', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
       const config = data.data.configs[0];
       
       expect(config).toMatchObject({
@@ -76,7 +116,7 @@ describe('GET /api/v1/configs', () => {
         type: expect.stringMatching(/^(string|boolean|number|json)$/),
         description: expect.any(String),
         system_config: expect.any(Boolean),
-        validation: expect.anything(), // null or object
+        validation: expect.toSatisfy((val: any) => val === null || typeof val === 'object'), // null or object
         created_at: expect.any(String),
         updated_at: expect.any(String)
       });
@@ -85,14 +125,15 @@ describe('GET /api/v1/configs', () => {
     it('検索機能が正常に動作する', async () => {
       const request = new Request('http://localhost/api/v1/configs?search=google', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.data.configs).toSatisfy((configs: any[]) => 
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
+      expect(data.data.configs).toSatisfy((configs: ConfigItem[]) => 
         configs.every(config => 
           config.key.includes('google') || 
           (config.description && config.description.toLowerCase().includes('google'))
@@ -103,14 +144,15 @@ describe('GET /api/v1/configs', () => {
     it('型フィルタリングが正常に動作する', async () => {
       const request = new Request('http://localhost/api/v1/configs?type=boolean', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.data.configs).toSatisfy((configs: any[]) => 
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
+      expect(data.data.configs).toSatisfy((configs: ConfigItem[]) => 
         configs.every(config => config.type === 'boolean')
       );
     });
@@ -118,13 +160,14 @@ describe('GET /api/v1/configs', () => {
     it('ページネーションが正常に動作する', async () => {
       const request = new Request('http://localhost/api/v1/configs?page=1&limit=3', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
       expect(data.data.configs.length).toBeLessThanOrEqual(3);
       expect(data.data.pagination.limit).toBe(3);
       expect(data.data.pagination.page).toBe(1);
@@ -133,13 +176,14 @@ describe('GET /api/v1/configs', () => {
     it('ソート機能が正常に動作する', async () => {
       const request = new Request('http://localhost/api/v1/configs?sort=key&order=asc', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
       const configs = data.data.configs;
       
       // Check if configs are sorted by key in ascending order
@@ -151,13 +195,14 @@ describe('GET /api/v1/configs', () => {
     it('降順ソートが正常に動作する', async () => {
       const request = new Request('http://localhost/api/v1/configs?sort=key&order=desc', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
       const configs = data.data.configs;
       
       // Check if configs are sorted by key in descending order
@@ -169,14 +214,15 @@ describe('GET /api/v1/configs', () => {
     it('複数の条件でフィルタリングできる', async () => {
       const request = new Request('http://localhost/api/v1/configs?search=app&type=string&sort=key&order=asc', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.data.configs).toSatisfy((configs: any[]) => 
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
+      expect(data.data.configs).toSatisfy((configs: ConfigItem[]) => 
         configs.every(config => 
           (config.key.includes('app') || 
            (config.description && config.description.toLowerCase().includes('app'))) &&
@@ -192,29 +238,31 @@ describe('GET /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(401);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
       expect(data.success).toBe(false);
+      if (data.success) throw new Error("Expected error response");
       expect(data.error.code).toBe('UNAUTHORIZED');
     });
 
-    it('無効なセッションIDで401エラーが返る', async () => {
+    it('無効な認証トークンで401エラーが返る', async () => {
       const request = new Request('http://localhost/api/v1/configs', {
         headers: { 
-          'Cookie': 'session_id=invalid-session-id'
+          'Authorization': 'Bearer invalid-token'
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(401);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
       expect(data.success).toBe(false);
+      if (data.success) throw new Error("Expected error response");
       expect(data.error.code).toBe('UNAUTHORIZED');
     });
 
     it('無効なページ番号で400エラーが返る', async () => {
       const request = new Request('http://localhost/api/v1/configs?page=0', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
@@ -225,7 +273,7 @@ describe('GET /api/v1/configs', () => {
     it('無効な制限数で400エラーが返る', async () => {
       const request = new Request('http://localhost/api/v1/configs?limit=0', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
@@ -236,20 +284,21 @@ describe('GET /api/v1/configs', () => {
     it('制限数が最大値を超えた場合にクランプされる', async () => {
       const request = new Request('http://localhost/api/v1/configs?limit=200', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
       expect(data.data.pagination.limit).toBe(100); // Max limit should be 100
     });
 
     it('無効な型フィルタで400エラーが返る', async () => {
       const request = new Request('http://localhost/api/v1/configs?type=invalid', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
@@ -260,7 +309,7 @@ describe('GET /api/v1/configs', () => {
     it('無効なソート項目で400エラーが返る', async () => {
       const request = new Request('http://localhost/api/v1/configs?sort=invalid', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
@@ -271,7 +320,7 @@ describe('GET /api/v1/configs', () => {
     it('無効なソート順で400エラーが返る', async () => {
       const request = new Request('http://localhost/api/v1/configs?order=invalid', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
@@ -284,15 +333,16 @@ describe('GET /api/v1/configs', () => {
     it('設定値の型が正しく変換される', async () => {
       const request = new Request('http://localhost/api/v1/configs', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
-      const data = await response.json();
-      const booleanConfig = data.data.configs.find((c: any) => c.type === 'boolean');
-      const numberConfig = data.data.configs.find((c: any) => c.type === 'number');
-      const jsonConfig = data.data.configs.find((c: any) => c.type === 'json');
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
+      const booleanConfig = data.data.configs.find((c: ConfigItem) => c.type === 'boolean');
+      const numberConfig = data.data.configs.find((c: ConfigItem) => c.type === 'number');
+      const jsonConfig = data.data.configs.find((c: ConfigItem) => c.type === 'json');
       
       if (booleanConfig) {
         expect(typeof booleanConfig.system_config).toBe('boolean');
@@ -321,15 +371,17 @@ describe('GET /api/v1/configs', () => {
 
       const request = new Request('http://localhost/api/v1/configs?search=client_secret', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
-      const data = await response.json();
-      const config = data.data.configs.find((c: any) => c.key === 'google.client_secret');
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
+      const config = data.data.configs.find((c: ConfigItem) => c.key === 'google.client_secret');
       
-      expect(config.validation).toMatchObject({
+      expect(config).toBeDefined();
+      expect(config!.validation).toMatchObject({
         required: true,
         minLength: 5,
         errorMessage: 'Must be at least 5 characters'
@@ -344,15 +396,17 @@ describe('GET /api/v1/configs', () => {
 
       const request = new Request('http://localhost/api/v1/configs?search=client_id', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
-      const data = await response.json();
-      const config = data.data.configs.find((c: any) => c.key === 'google.client_id');
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
+      const config = data.data.configs.find((c: ConfigItem) => c.key === 'google.client_id');
       
-      expect(config.validation).toBeNull();
+      expect(config).toBeDefined();
+      expect(config!.validation).toBeNull();
     });
   });
 
@@ -369,13 +423,14 @@ describe('GET /api/v1/configs', () => {
 
       const request = new Request('http://localhost/api/v1/configs?limit=10', {
         headers: { 
-          'Cookie': `session_id=${validSessionId}` 
+          'Authorization': 'Bearer admin123' 
         }
       });
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
+      if (!data.success) throw new Error("Unexpected error response");
       expect(data.data.configs.length).toBe(10);
       expect(data.data.pagination.total).toBeGreaterThanOrEqual(25);
       expect(data.data.pagination.hasNext).toBe(true);

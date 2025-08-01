@@ -20,8 +20,8 @@ const ConfigItemSchema = z.object({
     errorMessage: z.string(),
     default: z.union([z.string(), z.number(), z.boolean()]).optional()
   }).nullable(),
-  created_at: z.string().openapi({ format: 'date-time' }),
-  updated_at: z.string().openapi({ format: 'date-time' })
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable()
 }).openapi('ConfigItem');
 
 const PaginationSchema = z.object({
