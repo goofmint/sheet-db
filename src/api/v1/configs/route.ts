@@ -45,7 +45,7 @@ const ConfigsListResponseSchema = z.object({
 const ErrorResponseSchema = z.object({
   success: z.boolean().openapi({ example: false }),
   error: z.object({
-    code: z.enum(['UNAUTHORIZED', 'FORBIDDEN', 'VALIDATION_ERROR', 'INTERNAL_ERROR']),
+    code: z.enum(['UNAUTHORIZED', 'FORBIDDEN', 'VALIDATION_ERROR', 'INVALID_KEY', 'NOT_FOUND', 'INTERNAL_ERROR']),
     message: z.string(),
     details: z.record(z.string()).optional()
   })
@@ -97,6 +97,73 @@ export const getConfigsListRoute = createRoute({
         }
       },
       description: 'Unauthorized - Authentication required'
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Internal server error'
+    }
+  }
+});
+
+// Individual config item response schema
+const ConfigItemResponseSchema = z.object({
+  success: z.boolean().openapi({ example: true }),
+  data: ConfigItemSchema,
+  message: z.string().optional()
+}).openapi('ConfigItemResponse');
+
+// Path parameter schema for individual config
+const configKeyParamSchema = z.object({
+  key: z.string().openapi({ example: 'google.client_id' })
+});
+
+// Individual config route definition
+export const getConfigByKeyRoute = createRoute({
+  method: 'get',
+  path: '/configs/{key}',
+  summary: 'Get configuration item by key',
+  description: 'Retrieve a specific configuration item by its key',
+  tags: ['Configuration'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: configKeyParamSchema
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: ConfigItemResponseSchema
+        }
+      },
+      description: 'Successful response'
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Bad request - Invalid key format'
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Unauthorized - Authentication required'
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Configuration item not found'
     },
     500: {
       content: {

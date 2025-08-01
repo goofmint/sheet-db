@@ -2,12 +2,33 @@ import { Hono } from 'hono';
 import { ConfigService } from '../../../services/config';
 import { checkConfigAuthentication } from '../../../utils/auth';
 import type { Env } from '../../../types/env';
+import type { ConfigType } from '../../../db/schema';
 
 const app = new Hono<{ Bindings: Env }>();
 
-// GET /api/v1/configs/:id - 個別の設定項目取得
-app.get('/:id', async (c) => {
-  // 認証チェック
+// Convert config value based on type for proper response typing
+function convertConfigValue(value: string, type: ConfigType): string | number | boolean | Record<string, unknown> {
+  switch (type) {
+    case 'boolean':
+      return value.toLowerCase() === 'true';
+    case 'number':
+      const num = Number(value);
+      return isNaN(num) ? value : num;
+    case 'json':
+      try {
+        return JSON.parse(value) as Record<string, unknown>;
+      } catch {
+        return value;
+      }
+    case 'string':
+    default:
+      return value;
+  }
+}
+
+// GET /api/v1/configs/:key - Get individual configuration item
+app.get('/:key', async (c) => {
+  // Authentication check
   const isAuthenticated = await checkConfigAuthentication(c);
   if (!isAuthenticated) {
     return c.json({
@@ -20,26 +41,37 @@ app.get('/:id', async (c) => {
   }
 
   try {
-    const id = c.req.param('id');
+    const key = c.req.param('key');
     
-    // IDはkeyとして扱う（RESTful API設計に従う）
-    const config = ConfigService.findByKey(id);
+    // Validate key format
+    if (!key || key.trim() === '') {
+      return c.json({
+        success: false,
+        error: {
+          code: 'INVALID_KEY' as const,
+          message: 'Configuration key cannot be empty'
+        }
+      }, 400);
+    }
+    
+    // Get configuration by key
+    const config = ConfigService.findByKey(key);
     
     if (!config) {
       return c.json({
         success: false,
         error: {
           code: 'NOT_FOUND' as const,
-          message: `Configuration with key '${id}' not found`
+          message: `Configuration with key '${key}' not found`
         }
       }, 404);
     }
     
-    // レスポンスデータの構築
+    // Build response data with proper type conversion
     const responseData = {
       key: config.key,
-      value: config.value,
-      type: config.type as 'string' | 'boolean' | 'number' | 'json',
+      value: convertConfigValue(config.value, config.type),
+      type: config.type,
       description: config.description,
       system_config: config.system_config === 1,
       validation: (() => {
@@ -59,7 +91,7 @@ app.get('/:id', async (c) => {
     }, 200);
 
   } catch (error) {
-    console.error('Get config by id error:', error);
+    console.error('Get config by key error:', error);
     return c.json({
       success: false,
       error: {

@@ -20,21 +20,9 @@ interface ConfigItem {
   updated_at: string | null;
 }
 
-interface Pagination {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
-
-interface ApiSuccessResponse {
+interface ApiSingleSuccessResponse {
   success: true;
-  data: {
-    configs: ConfigItem[];
-    pagination: Pagination;
-  };
+  data: ConfigItem;
 }
 
 interface ApiErrorResponse {
@@ -45,12 +33,12 @@ interface ApiErrorResponse {
   };
 }
 
-type ApiResponse = ApiSuccessResponse | ApiErrorResponse;
+type ApiSingleResponse = ApiSingleSuccessResponse | ApiErrorResponse;
 
-describe('GET /api/v1/configs', () => {
+
+describe('GET /api/v1/configs/:key', () => {
   const db = drizzle(env.DB);
   const sessionRepo = new SessionRepository(db);
-  let validSessionId: string;
 
   beforeEach(async () => {
     // Setup database and ConfigService
@@ -59,23 +47,19 @@ describe('GET /api/v1/configs', () => {
     await ConfigService.initialize(db);
     
     // Create test session for authentication
-    const testSession = await createTestSession(sessionRepo);
-    validSessionId = testSession.session_id;
+    await createTestSession(sessionRepo);
     
     // Add test configuration data
     await ConfigService.upsert('google.client_id', '12345-abcdef.apps.googleusercontent.com', 'string', 'Google OAuth2 Client ID');
-    await ConfigService.upsert('google.client_secret', 'GOCSPX-test-secret-123', 'string', 'Google OAuth2 Client Secret');
-    await ConfigService.upsert('auth0.domain', 'test.auth0.com', 'string', 'Auth0 Domain');
     await ConfigService.upsert('app.config_password', 'admin123', 'string', 'Configuration screen access password');
     await ConfigService.upsert('app.setup_completed', 'true', 'boolean', 'Initial setup completion flag');
-    await ConfigService.upsert('storage.type', 'r2', 'string', 'File storage type');
     await ConfigService.upsert('cache.default_ttl', '600', 'number', 'Default cache TTL in seconds');
     await ConfigService.upsert('features.enabled', '["notifications","export"]', 'json', 'Enabled features list');
   });
 
   describe('正常系', () => {
-    it('認証済みユーザーは設定一覧を取得できる', async () => {
-      const request = new Request('http://localhost/api/v1/configs', {
+    it('認証済みユーザーは特定の設定項目を取得できる', async () => {
+      const request = new Request('http://localhost/api/v1/configs/google.client_id', {
         headers: { 
           'Authorization': 'Bearer admin123' 
         }
@@ -83,47 +67,23 @@ describe('GET /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json() as ApiResponse;
+      const data = await response.json() as ApiSingleResponse;
       if (!data.success) throw new Error("Unexpected error response");
       expect(data.success).toBe(true);
-      expect(data.data.configs).toBeInstanceOf(Array);
-      expect(data.data.configs.length).toBeGreaterThan(0);
-      expect(data.data.pagination).toMatchObject({
-        total: expect.any(Number),
-        page: 1,
-        limit: 50,
-        totalPages: expect.any(Number),
-        hasNext: expect.any(Boolean),
-        hasPrev: expect.any(Boolean)
-      });
-    });
-
-    it('各設定項目が正しい形式で返される', async () => {
-      const request = new Request('http://localhost/api/v1/configs', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
-      
-      const data = await response.json() as ApiResponse;
-      if (!data.success) throw new Error("Unexpected error response");
-      const config = data.data.configs[0];
-      
-      expect(config).toMatchObject({
-        key: expect.any(String),
-        value: expect.any(String),
-        type: expect.stringMatching(/^(string|boolean|number|json)$/),
-        description: expect.any(String),
+      expect(data.data).toMatchObject({
+        key: 'google.client_id',
+        value: '12345-abcdef.apps.googleusercontent.com',
+        type: 'string',
+        description: 'Google OAuth2 Client ID',
         system_config: expect.any(Boolean),
-        validation: expect.toSatisfy((val: any) => val === null || typeof val === 'object'), // null or object
+        validation: expect.toSatisfy((val: any) => val === null || typeof val === 'object'),
         created_at: expect.any(String),
         updated_at: expect.any(String)
       });
     });
 
-    it('検索機能が正常に動作する', async () => {
-      const request = new Request('http://localhost/api/v1/configs?search=google', {
+    it('boolean型の設定値が正しく変換される', async () => {
+      const request = new Request('http://localhost/api/v1/configs/app.setup_completed', {
         headers: { 
           'Authorization': 'Bearer admin123' 
         }
@@ -131,18 +91,14 @@ describe('GET /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json() as ApiResponse;
+      const data = await response.json() as ApiSingleResponse;
       if (!data.success) throw new Error("Unexpected error response");
-      expect(data.data.configs).toSatisfy((configs: ConfigItem[]) => 
-        configs.every(config => 
-          config.key.includes('google') || 
-          (config.description && config.description.toLowerCase().includes('google'))
-        )
-      );
+      expect(data.data.value).toBe(true);
+      expect(data.data.type).toBe('boolean');
     });
 
-    it('型フィルタリングが正常に動作する', async () => {
-      const request = new Request('http://localhost/api/v1/configs?type=boolean', {
+    it('number型の設定値が正しく変換される', async () => {
+      const request = new Request('http://localhost/api/v1/configs/cache.default_ttl', {
         headers: { 
           'Authorization': 'Bearer admin123' 
         }
@@ -150,15 +106,14 @@ describe('GET /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json() as ApiResponse;
+      const data = await response.json() as ApiSingleResponse;
       if (!data.success) throw new Error("Unexpected error response");
-      expect(data.data.configs).toSatisfy((configs: ConfigItem[]) => 
-        configs.every(config => config.type === 'boolean')
-      );
+      expect(data.data.value).toBe(600);
+      expect(data.data.type).toBe('number');
     });
 
-    it('ページネーションが正常に動作する', async () => {
-      const request = new Request('http://localhost/api/v1/configs?page=1&limit=3', {
+    it('json型の設定値が正しく変換される', async () => {
+      const request = new Request('http://localhost/api/v1/configs/features.enabled', {
         headers: { 
           'Authorization': 'Bearer admin123' 
         }
@@ -166,34 +121,28 @@ describe('GET /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json() as ApiResponse;
+      const data = await response.json() as ApiSingleResponse;
       if (!data.success) throw new Error("Unexpected error response");
-      expect(data.data.configs.length).toBeLessThanOrEqual(3);
-      expect(data.data.pagination.limit).toBe(3);
-      expect(data.data.pagination.page).toBe(1);
+      expect(data.data.value).toEqual(['notifications', 'export']);
+      expect(data.data.type).toBe('json');
     });
 
-    it('ソート機能が正常に動作する', async () => {
-      const request = new Request('http://localhost/api/v1/configs?sort=key&order=asc', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
+    it('validationフィールドが正しくパースされる', async () => {
+      // Add validation data to a config using direct database update after ConfigService initialization
+      await db.update(configTable)
+        .set({ 
+          validation: JSON.stringify({
+            required: true,
+            minLength: 10,
+            errorMessage: 'Must be at least 10 characters'
+          })
+        })
+        .where(eq(configTable.key, 'google.client_id'));
       
-      expect(response.status).toBe(200);
-      const data = await response.json() as ApiResponse;
-      if (!data.success) throw new Error("Unexpected error response");
-      const configs = data.data.configs;
-      
-      // Check if configs are sorted by key in ascending order
-      for (let i = 1; i < configs.length; i++) {
-        expect(configs[i].key >= configs[i-1].key).toBe(true);
-      }
-    });
+      // Refresh cache to pick up the validation change
+      await ConfigService.refreshCache();
 
-    it('降順ソートが正常に動作する', async () => {
-      const request = new Request('http://localhost/api/v1/configs?sort=key&order=desc', {
+      const request = new Request('http://localhost/api/v1/configs/google.client_id', {
         headers: { 
           'Authorization': 'Bearer admin123' 
         }
@@ -201,51 +150,30 @@ describe('GET /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json() as ApiResponse;
+      const data = await response.json() as ApiSingleResponse;
       if (!data.success) throw new Error("Unexpected error response");
-      const configs = data.data.configs;
-      
-      // Check if configs are sorted by key in descending order
-      for (let i = 1; i < configs.length; i++) {
-        expect(configs[i].key <= configs[i-1].key).toBe(true);
-      }
-    });
-
-    it('複数の条件でフィルタリングできる', async () => {
-      const request = new Request('http://localhost/api/v1/configs?search=app&type=string&sort=key&order=asc', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
+      expect(data.data.validation).toMatchObject({
+        required: true,
+        minLength: 10,
+        errorMessage: 'Must be at least 10 characters'
       });
-      const response = await app.fetch(request, env);
-      
-      expect(response.status).toBe(200);
-      const data = await response.json() as ApiResponse;
-      if (!data.success) throw new Error("Unexpected error response");
-      expect(data.data.configs).toSatisfy((configs: ConfigItem[]) => 
-        configs.every(config => 
-          (config.key.includes('app') || 
-           (config.description && config.description.toLowerCase().includes('app'))) &&
-          config.type === 'string'
-        )
-      );
     });
   });
 
   describe('異常系', () => {
     it('未認証ユーザーは401エラーが返る', async () => {
-      const request = new Request('http://localhost/api/v1/configs');
+      const request = new Request('http://localhost/api/v1/configs/google.client_id');
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(401);
-      const data = await response.json() as ApiResponse;
+      const data = await response.json() as ApiSingleResponse;
       expect(data.success).toBe(false);
       if (data.success) throw new Error("Expected error response");
       expect(data.error.code).toBe('UNAUTHORIZED');
     });
 
     it('無効な認証トークンで401エラーが返る', async () => {
-      const request = new Request('http://localhost/api/v1/configs', {
+      const request = new Request('http://localhost/api/v1/configs/google.client_id', {
         headers: { 
           'Authorization': 'Bearer invalid-token'
         }
@@ -253,14 +181,42 @@ describe('GET /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(401);
-      const data = await response.json() as ApiResponse;
+      const data = await response.json() as ApiSingleResponse;
       expect(data.success).toBe(false);
       if (data.success) throw new Error("Expected error response");
       expect(data.error.code).toBe('UNAUTHORIZED');
     });
 
-    it('無効なページ番号で400エラーが返る', async () => {
-      const request = new Request('http://localhost/api/v1/configs?page=0', {
+    it('存在しない設定キーで404エラーが返る', async () => {
+      const request = new Request('http://localhost/api/v1/configs/nonexistent.key', {
+        headers: { 
+          'Authorization': 'Bearer admin123' 
+        }
+      });
+      const response = await app.fetch(request, env);
+      
+      expect(response.status).toBe(404);
+      const data = await response.json() as ApiSingleResponse;
+      expect(data.success).toBe(false);
+      if (data.success) throw new Error("Expected error response");
+      expect(data.error.code).toBe('NOT_FOUND');
+      expect(data.error.message).toContain('nonexistent.key');
+    });
+
+    it('trailing slashは404エラーが返る', async () => {
+      const request = new Request('http://localhost/api/v1/configs/', {
+        headers: { 
+          'Authorization': 'Bearer admin123' 
+        }
+      });
+      const response = await app.fetch(request, env);
+      
+      // Trailing slash doesn't match any route
+      expect(response.status).toBe(404);
+    });
+
+    it('スペースのみの設定キーで400エラーが返る', async () => {
+      const request = new Request('http://localhost/api/v1/configs/%20%20%20', {
         headers: { 
           'Authorization': 'Bearer admin123' 
         }
@@ -268,160 +224,21 @@ describe('GET /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(400);
-    });
-
-    it('無効な制限数で400エラーが返る', async () => {
-      const request = new Request('http://localhost/api/v1/configs?limit=0', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
-      
-      expect(response.status).toBe(400);
-    });
-
-    it('制限数が最大値を超えた場合にクランプされる', async () => {
-      const request = new Request('http://localhost/api/v1/configs?limit=200', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
-      
-      expect(response.status).toBe(200);
-      const data = await response.json() as ApiResponse;
-      if (!data.success) throw new Error("Unexpected error response");
-      expect(data.data.pagination.limit).toBe(100); // Max limit should be 100
-    });
-
-    it('無効な型フィルタで400エラーが返る', async () => {
-      const request = new Request('http://localhost/api/v1/configs?type=invalid', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
-      
-      expect(response.status).toBe(400);
-    });
-
-    it('無効なソート項目で400エラーが返る', async () => {
-      const request = new Request('http://localhost/api/v1/configs?sort=invalid', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
-      
-      expect(response.status).toBe(400);
-    });
-
-    it('無効なソート順で400エラーが返る', async () => {
-      const request = new Request('http://localhost/api/v1/configs?order=invalid', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
-      
-      expect(response.status).toBe(400);
+      const data = await response.json() as ApiSingleResponse;
+      expect(data.success).toBe(false);
+      if (data.success) throw new Error("Expected error response");
+      expect(data.error.code).toBe('INVALID_KEY');
     });
   });
 
   describe('データ整合性', () => {
-    it('設定値の型が正しく変換される', async () => {
-      const request = new Request('http://localhost/api/v1/configs', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
-      
-      const data = await response.json() as ApiResponse;
-      if (!data.success) throw new Error("Unexpected error response");
-      const booleanConfig = data.data.configs.find((c: ConfigItem) => c.type === 'boolean');
-      const numberConfig = data.data.configs.find((c: ConfigItem) => c.type === 'number');
-      const jsonConfig = data.data.configs.find((c: ConfigItem) => c.type === 'json');
-      
-      if (booleanConfig) {
-        expect(typeof booleanConfig.system_config).toBe('boolean');
-      }
-      
-      if (numberConfig) {
-        expect(numberConfig.type).toBe('number');
-      }
-      
-      if (jsonConfig) {
-        expect(jsonConfig.type).toBe('json');
-      }
-    });
-
-    it('validationフィールドのJSONパースが正常に動作する', async () => {
-      // Add config with validation JSON
-      await db.update(configTable)
-        .set({ 
-          validation: JSON.stringify({
-            required: true,
-            minLength: 5,
-            errorMessage: 'Must be at least 5 characters'
-          })
-        })
-        .where(eq(configTable.key, 'google.client_secret'));
-
-      const request = new Request('http://localhost/api/v1/configs?search=client_secret', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
-      
-      const data = await response.json() as ApiResponse;
-      if (!data.success) throw new Error("Unexpected error response");
-      const config = data.data.configs.find((c: ConfigItem) => c.key === 'google.client_secret');
-      
-      expect(config).toBeDefined();
-      expect(config!.validation).toMatchObject({
-        required: true,
-        minLength: 5,
-        errorMessage: 'Must be at least 5 characters'
-      });
-    });
-
     it('不正なvalidation JSONは null として扱われる', async () => {
       // Add config with invalid validation JSON
       await db.update(configTable)
         .set({ validation: 'invalid-json' })
         .where(eq(configTable.key, 'google.client_id'));
 
-      const request = new Request('http://localhost/api/v1/configs?search=client_id', {
-        headers: { 
-          'Authorization': 'Bearer admin123' 
-        }
-      });
-      const response = await app.fetch(request, env);
-      
-      const data = await response.json() as ApiResponse;
-      if (!data.success) throw new Error("Unexpected error response");
-      const config = data.data.configs.find((c: ConfigItem) => c.key === 'google.client_id');
-      
-      expect(config).toBeDefined();
-      expect(config!.validation).toBeNull();
-    });
-  });
-
-  describe('パフォーマンス', () => {
-    it('大量データでも適切にページネーションされる', async () => {
-      // Add many configs for testing
-      const promises = [];
-      for (let i = 0; i < 25; i++) {
-        promises.push(
-          ConfigService.upsert(`test.config.${i}`, `value${i}`, 'string', `Test config ${i}`)
-        );
-      }
-      await Promise.all(promises);
-
-      const request = new Request('http://localhost/api/v1/configs?limit=10', {
+      const request = new Request('http://localhost/api/v1/configs/google.client_id', {
         headers: { 
           'Authorization': 'Bearer admin123' 
         }
@@ -429,11 +246,79 @@ describe('GET /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
-      const data = await response.json() as ApiResponse;
+      const data = await response.json() as ApiSingleResponse;
       if (!data.success) throw new Error("Unexpected error response");
-      expect(data.data.configs.length).toBe(10);
-      expect(data.data.pagination.total).toBeGreaterThanOrEqual(25);
-      expect(data.data.pagination.hasNext).toBe(true);
+      expect(data.data.validation).toBeNull();
+    });
+
+    it('system_configが正しくbooleanに変換される', async () => {
+      const request = new Request('http://localhost/api/v1/configs/google.client_id', {
+        headers: { 
+          'Authorization': 'Bearer admin123' 
+        }
+      });
+      const response = await app.fetch(request, env);
+      
+      expect(response.status).toBe(200);
+      const data = await response.json() as ApiSingleResponse;
+      if (!data.success) throw new Error("Unexpected error response");
+      expect(typeof data.data.system_config).toBe('boolean');
+    });
+
+    it('無効なnumber値はstring型のまま返される', async () => {
+      // Directly insert invalid number value to database to bypass validation
+      await db.insert(configTable).values({
+        key: 'test.invalid_number',
+        value: 'not-a-number',
+        type: 'number',
+        description: 'Invalid number test',
+        system_config: 0,
+        validation: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      await ConfigService.refreshCache();
+      
+      const request = new Request('http://localhost/api/v1/configs/test.invalid_number', {
+        headers: { 
+          'Authorization': 'Bearer admin123' 
+        }
+      });
+      const response = await app.fetch(request, env);
+      
+      expect(response.status).toBe(200);
+      const data = await response.json() as ApiSingleResponse;
+      if (!data.success) throw new Error("Unexpected error response");
+      expect(data.data.value).toBe('not-a-number');
+      expect(data.data.type).toBe('number');
+    });
+
+    it('無効なjson値はstring型のまま返される', async () => {
+      // Directly insert invalid JSON value to database to bypass validation
+      await db.insert(configTable).values({
+        key: 'test.invalid_json',
+        value: 'invalid-json',
+        type: 'json',
+        description: 'Invalid JSON test',
+        system_config: 0,
+        validation: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      await ConfigService.refreshCache();
+      
+      const request = new Request('http://localhost/api/v1/configs/test.invalid_json', {
+        headers: { 
+          'Authorization': 'Bearer admin123' 
+        }
+      });
+      const response = await app.fetch(request, env);
+      
+      expect(response.status).toBe(200);
+      const data = await response.json() as ApiSingleResponse;
+      if (!data.success) throw new Error("Unexpected error response");
+      expect(data.data.value).toBe('invalid-json');
+      expect(data.data.type).toBe('json');
     });
   });
 });
