@@ -31,6 +31,34 @@
 - `updateFields` パラメータで更新対象を明示
 - 未指定フィールドは現在値を保持
 
+##### updateFields 文法定義
+
+`updateFields` は以下のBNF形式で定義される:
+
+```bnf
+field_path    ::= top_level | dotted_path
+top_level     ::= "google" | "auth0" | "app" | "storage" | "sheetId"
+dotted_path   ::= prefix "." suffix
+prefix        ::= "google" | "auth0" | "app" | "storage"
+suffix        ::= field_name | nested_path
+field_name    ::= [a-zA-Z][a-zA-Z0-9]*
+nested_path   ::= storage_path
+storage_path  ::= ("r2" | "gdrive") ["." field_name]
+```
+
+**有効な例:**
+- `"google"`, `"auth0"`, `"app"`, `"storage"`, `"sheetId"`
+- `"google.clientId"`, `"auth0.domain"`, `"app.configPassword"`
+- `"storage.type"`, `"storage.r2"`, `"storage.gdrive"`
+- `"storage.r2.bucket"`, `"storage.gdrive.folderId"`
+
+**無効な例:**
+- `"invalid_field"` (未定義のトップレベルフィールド)
+- `"google.unknown"` (存在しないサブフィールド)
+- `"storage.r2.unknown"` (無効なネストパス)
+- `"google..clientId"` (二重ドット)
+- `""` (空文字列)
+
 #### FR-003: 条件付きバリデーション
 - 新規セットアップ時: 全必須フィールドの検証
 - 部分更新時: 指定されたフィールドのみの検証

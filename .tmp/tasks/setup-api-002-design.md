@@ -21,7 +21,7 @@ interface PartialSetupRequest {
     configPassword?: string;
   };
   storage?: {
-    type: 'r2' | 'gdrive';
+    type?: 'r2' | 'gdrive';
     r2?: {
       bucket: string;
       accessKeyId: string;
@@ -40,12 +40,12 @@ interface PartialSetupRequest {
 ```typescript
 interface FlatSetupRequest {
   updateFields?: string[];  // オプション：指定されない場合は全フィールド更新
-  "google.client_id"?: string;
-  "google.client_secret"?: string;
+  "google.clientId"?: string;
+  "google.clientSecret"?: string;
   "auth0.domain"?: string;
-  "auth0.client_id"?: string;
-  "auth0.client_secret"?: string;
-  "app.config_password"?: string;
+  "auth0.clientId"?: string;
+  "auth0.clientSecret"?: string;
+  "app.configPassword"?: string;
   "storage.type"?: 'r2' | 'gdrive';
   "storage.r2.bucket"?: string;
   "storage.r2.accessKeyId"?: string;
@@ -127,6 +127,8 @@ const validateUpdateFields = (fields: string[]): ValidationResult => {
     'auth0', 'auth0.domain', 'auth0.clientId', 'auth0.clientSecret',
     'app', 'app.configPassword',
     'storage', 'storage.type', 'storage.r2', 'storage.gdrive',
+    'storage.r2.bucket', 'storage.r2.accessKeyId', 'storage.r2.secretAccessKey', 'storage.r2.endpoint',
+    'storage.gdrive.folderId',
     'sheetId'
   ];
   
@@ -229,8 +231,8 @@ const validateDependencies = (updateFields: string[], data: any): ValidationErro
 ### カスタムバリデーション
 
 ```typescript
-const customValidations: Record<string, (value: any) => ValidationError[]> = {
-  'google.clientId': (value: string) => {
+const customValidations: Record<string, (value: any, data: any) => ValidationError[]> = {
+  'google.clientId': (value: string, data: any) => {
     if (!value.endsWith('.googleusercontent.com')) {
       return [{ field: 'google.clientId', message: 'Invalid Google Client ID format' }];
     }
