@@ -210,6 +210,32 @@ export class ConfigService {
   }
 
   /**
+   * Get configuration list with pagination, search, and filtering
+   */
+  static async getConfigsList(params: {
+    page: number;
+    limit: number;
+    search: string;
+    type?: ConfigType;
+    system?: boolean;
+    sort: 'key' | 'type' | 'created_at' | 'updated_at';
+    order: 'asc' | 'desc';
+  }): Promise<{
+    configs: Config[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> {
+    this.ensureInitialized();
+    return await ConfigDatabase.getConfigsList(params);
+  }
+
+  /**
    * Ensure ConfigService is initialized
    */
   private static ensureInitialized(): void {

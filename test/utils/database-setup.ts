@@ -22,6 +22,8 @@ export async function createConfigTable(db: DrizzleD1Database): Promise<void> {
         value TEXT NOT NULL,
         type TEXT NOT NULL DEFAULT 'string' CHECK (type IN ('string', 'number', 'boolean', 'json')),
         description TEXT,
+        system_config INTEGER NOT NULL DEFAULT 0 CHECK (system_config IN (0, 1)),
+        validation TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
@@ -29,6 +31,8 @@ export async function createConfigTable(db: DrizzleD1Database): Promise<void> {
 
   // Create indexes
   await db.run(sql`CREATE INDEX idx_config_key ON Config(key)`);
+  await db.run(sql`CREATE INDEX idx_config_type ON Config(type)`);
+  await db.run(sql`CREATE INDEX idx_config_system ON Config(system_config)`);
 }
 
 /**

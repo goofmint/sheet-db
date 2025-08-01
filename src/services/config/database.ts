@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, like, or, and, desc, asc, count } from 'drizzle-orm';
 import { configTable, type Config, type ConfigInsert, type ConfigType } from '../../db/schema';
 import type { ConfigServiceDatabase, ConfigUpdatePayload, DatabaseTransaction } from './types';
 import { ConfigDescriptions } from './descriptions';
@@ -165,5 +165,97 @@ export class ConfigDatabase {
       
       await this.upsert(key, config.value, type, description);
     }
+  }
+
+  /**
+   * Get configuration list with pagination, search, and filtering
+   */
+  static async getConfigsList(params: {
+    page: number;
+    limit: number;
+    search: string;
+    type?: ConfigType;
+    system?: boolean;
+    sort: 'key' | 'type' | 'created_at' | 'updated_at';
+    order: 'asc' | 'desc';
+  }): Promise<{
+    configs: Config[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> {
+    const db = this.getDatabase();
+    const { page, limit, search, type, system, sort, order } = params;
+    const offset = (page - 1) * limit;
+
+    // クエリビルダーの構築
+    let query = db.select().from(configTable);
+    let countQuery = db.select({ count: count() }).from(configTable);
+
+    // 検索条件の追加
+    const conditions = [];
+    if (search) {
+      conditions.push(
+        or(
+          like(configTable.key, `%${search}%`),
+          like(configTable.description, `%${search}%`)
+        )
+      );
+    }
+    if (type) {
+      conditions.push(eq(configTable.type, type));
+    }
+    if (system !== undefined) {
+      conditions.push(eq(configTable.system_config, system ? 1 : 0));
+    }
+
+    if (conditions.length > 0) {
+      const whereCondition = and(...conditions);
+      query = query.where(whereCondition);
+      countQuery = countQuery.where(whereCondition);
+    }
+
+    // ソート条件の追加  
+    const sortColumn = {
+      'key': configTable.key,
+      'type': configTable.type,
+      'created_at': configTable.created_at,
+      'updated_at': configTable.updated_at
+    }[sort];
+
+    query = order === 'desc' 
+      ? query.orderBy(desc(sortColumn))
+      : query.orderBy(asc(sortColumn));
+
+    // 総件数の取得
+    const [{ count: total }] = await countQuery;
+
+    // ページネーション適用
+    query = query.limit(limit).offset(offset);
+
+    // データの取得
+    const configs = await query as Config[];
+
+    // ページネーション情報の計算
+    const totalPages = Math.ceil(total / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
+
+    return {
+      configs,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNext,
+        hasPrev
+      }
+    };
   }
 }

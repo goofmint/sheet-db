@@ -8,10 +8,13 @@ export const configTable = sqliteTable('Config', {
   value: text().notNull(),
   type: text().notNull().default('string'),
   description: text(),
+  system_config: int().notNull().default(0), // 0 = false, 1 = true (SQLite doesn't have native boolean)
+  validation: text(), // JSON string for validation rules
   created_at: text().default(sql`CURRENT_TIMESTAMP`),
   updated_at: text().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => ({
   typeCheck: check('type_check', sql`${table.type} IN ('string', 'number', 'boolean', 'json')`),
+  systemConfigCheck: check('system_config_check', sql`${table.system_config} IN (0, 1)`),
 }));
 
 // Cache table for Google Sheets data caching
@@ -47,6 +50,8 @@ export interface Config {
   value: string;
   type: ConfigType;
   description: string | null;
+  system_config: number; // 0 = false, 1 = true
+  validation: string | null; // JSON string
   created_at: string | null;
   updated_at: string | null;
 }
@@ -56,12 +61,16 @@ export interface ConfigInsert {
   value: string;
   type?: ConfigType;
   description?: string;
+  system_config?: number;
+  validation?: string;
 }
 
 export interface ConfigUpdate {
   value?: string;
   type?: ConfigType;
   description?: string;
+  system_config?: number;
+  validation?: string;
 }
 
 export interface Cache {
