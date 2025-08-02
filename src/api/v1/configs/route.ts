@@ -4,8 +4,9 @@ import type { Env } from '../../../types/env';
 import { getConfigsListHandler } from '.';
 import { getConfigByKeyHandler } from './get';
 import { createConfigHandler } from './post';
+import { updateConfigHandler } from './put';
 import { configKeyParamSchema, CreateConfigRequestSchema, CreateConfigResponseSchema,
-  ConfigItemResponseSchema, ConfigsListResponseSchema, configsListQuerySchema, ErrorResponseSchema } from './schema';
+  ConfigItemResponseSchema, ConfigsListResponseSchema, configsListQuerySchema, UpdateConfigRequestSchema, UpdateConfigResponseSchema, ErrorResponseSchema } from './schema';
 
 
 // GET /api/v1/configs - List configurations
@@ -171,16 +172,81 @@ export const createConfigRoute = createRoute({
   }
 });
 
+// PUT /api/v1/configs/{key} - Update configuration
+export const updateConfigRoute = createRoute({
+  method: 'put',
+  path: '/configs/{key}',
+  summary: 'Update configuration item by key',
+  description: 'Update an existing configuration item with new values',
+  tags: ['Configuration'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: configKeyParamSchema,
+    body: {
+      content: {
+        'application/json': {
+          schema: UpdateConfigRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: UpdateConfigResponseSchema
+        }
+      },
+      description: 'Configuration updated successfully'
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Bad request - Invalid configuration data'
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Unauthorized - Authentication required'
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Configuration item not found'
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Internal server error'
+    }
+  }
+});
+
 // Traditional Hono router for backwards compatibility
 const configRouter = new Hono<{ Bindings: Env }>();
 
-// GET /api/v1/auth/login - OAuth login initialization
+// GET /api/v1/configs - List configurations
 configRouter.get('/', getConfigsListHandler);
 
-// GET /api/v1/auth/callback - OAuth callback handler
+// GET /api/v1/configs/:key - Get configuration by key
 configRouter.get('/:key', getConfigByKeyHandler);
 
-// POST /api/v1/auth/logout - End user session
+// POST /api/v1/configs - Create configuration
 configRouter.post('/', createConfigHandler);
+
+// PUT /api/v1/configs/:key - Update configuration
+configRouter.put('/:key', updateConfigHandler);
 
 export default configRouter;

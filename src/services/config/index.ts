@@ -198,6 +198,55 @@ export class ConfigService {
   }
 
   /**
+   * Update existing config entry (async - updates DB and cache)
+   * Throws error if key doesn't exist
+   */
+  static async updateConfig(key: string, params: {
+    value: string | number | boolean | object;
+    type: ConfigType;
+    description?: string;
+    system_config?: boolean;
+    validation?: string;
+  }): Promise<Config> {
+    this.ensureInitialized();
+    
+    // Check if key exists
+    if (!this.has(key)) {
+      throw new Error('NOT_FOUND');
+    }
+    
+    // Convert value to string based on type
+    let stringValue: string;
+    if (params.type === 'json') {
+      stringValue = JSON.stringify(params.value);
+    } else {
+      stringValue = String(params.value);
+    }
+    
+    // Validate
+    ConfigValidator.validateKey(key);
+    ConfigValidator.validateValue(stringValue, params.type);
+    
+    // Update in database
+    const updated = await ConfigDatabase.update(key, {
+      value: stringValue,
+      type: params.type,
+      description: params.description,
+      system_config: params.system_config ? 1 : 0,
+      validation: params.validation
+    });
+    
+    if (!updated) {
+      throw new Error('NOT_FOUND');
+    }
+    
+    // Update cache
+    ConfigCache.set(key, updated);
+    
+    return updated;
+  }
+
+  /**
    * Delete config by key (async - updates both DB and cache)
    */
   static async deleteByKey(key: string): Promise<boolean> {
