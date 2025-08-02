@@ -72,6 +72,8 @@ const CreateConfigRequestSchema = z.object({
   validation: z.object({
     min: z.number().optional(),
     max: z.number().optional(),
+    minLength: z.number().optional(),
+    maxLength: z.number().optional(),
     pattern: z.string().optional(),
     enum: z.array(z.union([z.string(), z.number(), z.boolean()])).optional(),
     required: z.boolean().optional()
@@ -106,7 +108,7 @@ const configsListQuerySchema = z.object({
 });
 
 const configKeyParamSchema = z.object({
-  key: z.string().openapi({ example: 'google.client_id' })
+  key: z.string().regex(/^[a-zA-Z0-9_.-]+$/).openapi({ example: 'google.client_id' })
 });
 
 export {

@@ -2,6 +2,7 @@ import { Context } from 'hono';
 import { ConfigService } from '../../../services/config';
 import { checkConfigAuthentication } from '../../../utils/auth';
 import type { ConfigType } from '../../../db/schema';
+import { CreateConfigRequestSchema } from './schema';
 
 // POST /api/v1/configs - Create new configuration item
 export async function createConfigHandler(c: Context) {
@@ -18,64 +19,48 @@ export async function createConfigHandler(c: Context) {
   }
 
   try {
-    // Parse and validate request body
-    const body = await c.req.json();
+    // Parse and validate request body with Zod schema
+    const requestBody = await c.req.json();
+    const validationResult = CreateConfigRequestSchema.safeParse(requestBody);
+    
+    if (!validationResult.success) {
+      const errors: Record<string, string[]> = {};
+      validationResult.error.issues.forEach(issue => {
+        const path = issue.path.join('.');
+        if (!errors[path]) {
+          errors[path] = [];
+        }
+        errors[path].push(issue.message);
+      });
 
-    // Basic validation
-    if (!body.key || typeof body.key !== 'string') {
+      return c.json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR' as const,
+          message: 'Invalid configuration data',
+          details: errors
+        }
+      }, 400);
+    }
+
+    const body = validationResult.data;
+
+    // Additional value size validation (max 64KB)
+    const valueString = body.type === 'json' ? JSON.stringify(body.value) : String(body.value);
+    if (new TextEncoder().encode(valueString).length > 65536) {
       return c.json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR' as const,
           message: 'Invalid configuration data',
           details: {
-            key: ['Key is required and must be a string']
+            value: ['Value exceeds maximum size of 64KB']
           }
         }
       }, 400);
     }
 
-    if (!body.type || !['string', 'number', 'boolean', 'json'].includes(body.type)) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR' as const,
-          message: 'Invalid configuration data',
-          details: {
-            type: ['Type must be one of: string, number, boolean, json']
-          }
-        }
-      }, 400);
-    }
-
-    if (body.value === undefined || body.value === null) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR' as const,
-          message: 'Invalid configuration data',
-          details: {
-            value: ['Value is required']
-          }
-        }
-      }, 400);
-    }
-
-    // Key format validation
-    if (!/^[a-zA-Z0-9_.-]+$/.test(body.key)) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR' as const,
-          message: 'Invalid configuration data',
-          details: {
-            key: ['Key must contain only alphanumeric characters, underscores, hyphens, and dots']
-          }
-        }
-      }, 400);
-    }
-
-    // Validate value against type
+    // Validate value type consistency
     if (body.type === 'number' && typeof body.value !== 'number') {
       return c.json({
         success: false,
@@ -115,21 +100,6 @@ export async function createConfigHandler(c: Context) {
       }, 400);
     }
 
-    // Validate value size (max 64KB)
-    const valueString = body.type === 'json' ? JSON.stringify(body.value) : String(body.value);
-    if (new TextEncoder().encode(valueString).length > 65536) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR' as const,
-          message: 'Invalid configuration data',
-          details: {
-            value: ['Value exceeds maximum size of 64KB']
-          }
-        }
-      }, 400);
-    }
-
     // Validate validation rules against type
     if (body.validation) {
       if ((body.validation.min !== undefined || body.validation.max !== undefined) && body.type !== 'number') {
@@ -140,6 +110,19 @@ export async function createConfigHandler(c: Context) {
             message: 'Invalid configuration data',
             details: {
               validation: ['min/max validation is only applicable for number type']
+            }
+          }
+        }, 400);
+      }
+
+      if ((body.validation.minLength !== undefined || body.validation.maxLength !== undefined) && body.type !== 'string') {
+        return c.json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR' as const,
+            message: 'Invalid configuration data',
+            details: {
+              validation: ['minLength/maxLength validation is only applicable for string type']
             }
           }
         }, 400);
@@ -216,11 +199,19 @@ export async function createConfigHandler(c: Context) {
           }
         }, 409);
       }
-      throw error;
+      
+      console.error('Config creation error:', error);
+      return c.json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR' as const,
+          message: 'Failed to create configuration'
+        }
+      }, 500);
     }
 
   } catch (error) {
-    console.error('Create config error:', error);
+    console.error('Unexpected error in config creation:', error);
     return c.json({
       success: false,
       error: {
