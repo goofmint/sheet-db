@@ -1,13 +1,10 @@
-import { Hono } from 'hono';
+import { Context } from 'hono';
 import { ConfigService } from '../../../services/config';
 import { checkConfigAuthentication } from '../../../utils/auth';
-import type { Env } from '../../../types/env';
 import { convertConfigValue } from './utils';
 
-const app = new Hono<{ Bindings: Env }>();
-
 // GET /api/v1/configs/:key - Get individual configuration item
-app.get('/:key', async (c) => {
+export async function getConfigByKeyHandler(c: Context) {
   // Authentication check
   const isAuthenticated = await checkConfigAuthentication(c);
   if (!isAuthenticated) {
@@ -51,7 +48,7 @@ app.get('/:key', async (c) => {
     const responseData = {
       key: config.key,
       value: convertConfigValue(config.value, config.type),
-      type: (['string', 'boolean', 'number', 'json'] as const).includes(config.type as any)
+      type: (['string', 'boolean', 'number', 'json'] as const).includes(config.type as 'string' | 'boolean' | 'number' | 'json')
         ? (config.type as 'string' | 'boolean' | 'number' | 'json')
         : 'string', // fallback to string if invalid
       description: config.description,
@@ -82,7 +79,4 @@ app.get('/:key', async (c) => {
       }
     }, 500);
   }
-});
-
-export default app;
-export { app as configGetRouter };
+};

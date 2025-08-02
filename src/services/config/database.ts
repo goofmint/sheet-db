@@ -35,6 +35,37 @@ export class ConfigDatabase {
   }
 
   /**
+   * Create a new configuration entry
+   * Throws error if key already exists
+   */
+  static async create(data: {
+    key: string;
+    value: string;
+    type: ConfigType;
+    description?: string;
+    system_config?: number;
+    validation?: string;
+  }): Promise<Config> {
+    const db = this.getDatabase();
+
+    const insertData: ConfigInsert = {
+      key: data.key,
+      value: data.value,
+      type: data.type,
+      description: data.description || ConfigDescriptions.getDescription(data.key),
+      system_config: data.system_config,
+      validation: data.validation
+    };
+
+    const result = await db
+      .insert(configTable)
+      .values(insertData)
+      .returning();
+
+    return result[0] as Config;
+  }
+
+  /**
    * Upsert a single configuration
    */
   static async upsert(key: string, value: string, type: ConfigType = 'string', description?: string): Promise<Config> {

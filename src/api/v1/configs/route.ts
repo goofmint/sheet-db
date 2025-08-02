@@ -1,68 +1,14 @@
 import { createRoute } from '@hono/zod-openapi';
-import { z } from 'zod';
+import { Hono } from 'hono';
+import type { Env } from '../../../types/env';
+import { getConfigsListHandler } from '.';
+import { getConfigByKeyHandler } from './get';
+import { createConfigHandler } from './post';
+import { configKeyParamSchema, CreateConfigRequestSchema, CreateConfigResponseSchema,
+  ConfigItemResponseSchema, ConfigsListResponseSchema, configsListQuerySchema, ErrorResponseSchema } from './schema';
 
-// レスポンススキーマ定義
-const ConfigItemSchema = z.object({
-  key: z.string().openapi({ example: 'google.client_id' }),
-  value: z.string().openapi({ example: '12345-abcdef.apps.googleusercontent.com' }),
-  type: z.enum(['string', 'boolean', 'number', 'json']),
-  description: z.string().nullable(),
-  system_config: z.boolean(),
-  validation: z.object({
-    required: z.boolean().optional(),
-    type: z.enum(['string', 'boolean', 'number', 'json']).optional(),
-    minLength: z.number().optional(),
-    maxLength: z.number().optional(),
-    min: z.number().optional(),
-    max: z.number().optional(),
-    pattern: z.string().optional(),
-    enum: z.array(z.string()).optional(),
-    errorMessage: z.string(),
-    default: z.union([z.string(), z.number(), z.boolean()]).optional()
-  }).nullable(),
-  created_at: z.string().nullable(),
-  updated_at: z.string().nullable()
-}).openapi('ConfigItem');
 
-const PaginationSchema = z.object({
-  total: z.number().openapi({ example: 15 }),
-  page: z.number().openapi({ example: 1 }),
-  limit: z.number().openapi({ example: 50 }),
-  totalPages: z.number().openapi({ example: 1 }),
-  hasNext: z.boolean().openapi({ example: false }),
-  hasPrev: z.boolean().openapi({ example: false })
-}).openapi('Pagination');
-
-const ConfigsListResponseSchema = z.object({
-  success: z.boolean().openapi({ example: true }),
-  data: z.object({
-    configs: z.array(ConfigItemSchema),
-    pagination: PaginationSchema
-  }),
-  message: z.string().optional()
-}).openapi('ConfigsListResponse');
-
-const ErrorResponseSchema = z.object({
-  success: z.boolean().openapi({ example: false }),
-  error: z.object({
-    code: z.enum(['UNAUTHORIZED', 'FORBIDDEN', 'VALIDATION_ERROR', 'INVALID_KEY', 'NOT_FOUND', 'INTERNAL_ERROR']),
-    message: z.string(),
-    details: z.record(z.string()).optional()
-  })
-}).openapi('ErrorResponse');
-
-// クエリパラメータスキーマ
-const configsListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
-  limit: z.coerce.number().int().min(1).max(100).default(50).openapi({ example: 20 }),
-  search: z.string().optional().default('').openapi({ example: 'google' }),
-  type: z.enum(['string', 'boolean', 'number', 'json']).optional().openapi({ example: 'string' }),
-  system: z.coerce.boolean().optional().openapi({ example: true }),
-  sort: z.enum(['key', 'type', 'created_at', 'updated_at']).default('key').openapi({ example: 'key' }),
-  order: z.enum(['asc', 'desc']).default('asc').openapi({ example: 'asc' })
-});
-
-// ルート定義
+// GET /api/v1/configs - List configurations
 export const getConfigsListRoute = createRoute({
   method: 'get',
   path: '/configs',
@@ -109,19 +55,7 @@ export const getConfigsListRoute = createRoute({
   }
 });
 
-// Individual config item response schema
-const ConfigItemResponseSchema = z.object({
-  success: z.boolean().openapi({ example: true }),
-  data: ConfigItemSchema,
-  message: z.string().optional()
-}).openapi('ConfigItemResponse');
-
-// Path parameter schema for individual config
-const configKeyParamSchema = z.object({
-  key: z.string().openapi({ example: 'google.client_id' })
-});
-
-// Individual config route definition
+// GET /api/v1/configs/:key - Get configuration by key
 export const getConfigByKeyRoute = createRoute({
   method: 'get',
   path: '/configs/{key}',
@@ -175,3 +109,78 @@ export const getConfigByKeyRoute = createRoute({
     }
   }
 });
+
+// POST /api/v1/configs - Create configuration
+export const createConfigRoute = createRoute({
+  method: 'post',
+  path: '/configs',
+  summary: 'Create new configuration item',
+  description: 'Create a new configuration item with the specified key and value',
+  tags: ['Configuration'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: CreateConfigRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    201: {
+      content: {
+        'application/json': {
+          schema: CreateConfigResponseSchema
+        }
+      },
+      description: 'Configuration created successfully'
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Bad request - Invalid configuration data'
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Unauthorized - Authentication required'
+    },
+    409: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Conflict - Configuration key already exists'
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Internal server error'
+    }
+  }
+});
+
+// Traditional Hono router for backwards compatibility
+const configRouter = new Hono<{ Bindings: Env }>();
+
+// GET /api/v1/auth/login - OAuth login initialization
+configRouter.get('/', getConfigsListHandler);
+
+// GET /api/v1/auth/callback - OAuth callback handler
+configRouter.get('/:key', getConfigByKeyHandler);
+
+// POST /api/v1/auth/logout - End user session
+configRouter.post('/', createConfigHandler);
+
+export default configRouter;

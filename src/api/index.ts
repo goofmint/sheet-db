@@ -15,6 +15,7 @@ import storagesDeleteHandler from './v1/storages/delete';
 import authRouter, { callbackRoute, logoutRoute, meRoute } from './v1/auth';
 import { callbackHandler } from './v1/auth/callback/get';
 import { logoutHandler } from './v1/auth/logout/post';
+import configsRouter from './v1/configs/route';
 import { meHandler } from './v1/auth/me/get';
 import type { Env } from '@/types/env';
 
@@ -66,10 +67,7 @@ v1.route('/storages', storagesRouter);
 v1.route('/auth', authRouter);
 
 // Config routes
-import configsRouter from './v1/configs';
-import configGetRouter from './v1/configs/get';
 v1.route('/configs', configsRouter);
-v1.route('/configs', configGetRouter);
 
 // Mount v1 API routes
 api.route('/v1', v1);

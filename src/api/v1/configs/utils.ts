@@ -1,6 +1,8 @@
 import type { ConfigType } from '../../../db/schema';
 
-export function convertConfigValue(value: string, type: ConfigType): string | number | boolean | Record<string, unknown> {
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+export function convertConfigValue(value: string, type: ConfigType): string | number | boolean | JsonValue {
   switch (type) {
     case 'boolean':
       return value.toLowerCase() === 'true';
@@ -10,7 +12,7 @@ export function convertConfigValue(value: string, type: ConfigType): string | nu
     }
     case 'json':
       try {
-        return JSON.parse(value) as Record<string, unknown>;
+        return JSON.parse(value) as JsonValue;
       } catch {
         return value;
       }
