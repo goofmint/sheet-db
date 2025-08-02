@@ -4,25 +4,47 @@ import { env } from 'cloudflare:test';
 import app from '@/index';
 import { ConfigService } from '@/services/config';
 import { setupConfigDatabase, setupSessionDatabase } from '../../../utils/database-setup';
+import { SessionRepository } from '@/repositories/session';
+import { createTestSession } from '../../../utils/auth-utils';
+
+type ConfigResponse = {
+  success: boolean;
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, string[]>;
+  };
+  data?: {
+    id: string;
+    key: string;
+    value: string | number | boolean | object;
+    type: string;
+    description: string | null;
+    system_config: boolean;
+    validation: object | null;
+    created_at: string;
+    updated_at: string;
+  };
+};
 
 describe('POST /api/v1/configs', () => {
   const baseUrl = 'http://localhost';
-  let config_password: string;
+  const db = drizzle(env.DB);
+  const sessionRepo = new SessionRepository(db);
+  let validSessionId: string;
 
   beforeEach(async () => {
-    // Initialize database connections
-    const db = drizzle(env.DB);
-    
-    // Setup databases
+    // Setup database and ConfigService
     await setupConfigDatabase(db);
     await setupSessionDatabase(db);
-    
-    // Initialize services
     await ConfigService.initialize(db);
     
-    // Setup test config_password
-    config_password = 'test_config_password';
-    await ConfigService.upsert('config_password', config_password, 'string');
+    // Create test session for authentication
+    const testSession = await createTestSession(sessionRepo);
+    validSessionId = testSession.session_id;
+    
+    // Add test configuration data with proper auth setup
+    await ConfigService.upsert('app.config_password', 'admin123', 'string', 'Configuration screen access password');
   });
 
   afterEach(async () => {
@@ -54,9 +76,9 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(401);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('UNAUTHORIZED');
+      expect(data.error?.code).toBe('UNAUTHORIZED');
     });
 
     it('should reject invalid authentication', async () => {
@@ -64,7 +86,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'invalid_password'
+          'Authorization': 'Bearer invalid_password'
         },
         body: JSON.stringify({
           key: 'test_key',
@@ -75,9 +97,9 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(401);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('UNAUTHORIZED');
+      expect(data.error?.code).toBe('UNAUTHORIZED');
     });
   });
 
@@ -87,17 +109,17 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({})
       });
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('VALIDATION_ERROR');
-      expect(data.error.details).toBeDefined();
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+      expect(data.error?.details).toBeDefined();
     });
 
     it('should validate key format', async () => {
@@ -105,7 +127,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'invalid key with spaces',
@@ -116,9 +138,9 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('VALIDATION_ERROR');
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
     });
 
     it('should validate type field', async () => {
@@ -126,7 +148,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_key',
@@ -137,9 +159,9 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('VALIDATION_ERROR');
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
     });
   });
 
@@ -149,7 +171,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_key',
@@ -160,10 +182,10 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('VALIDATION_ERROR');
-      expect(data.error.details.value).toContain('Value must be a number for type "number"');
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+      expect(data.error?.details?.value).toContain('Value must be a number for type "number"');
     });
 
     it('should validate boolean type', async () => {
@@ -171,7 +193,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_key',
@@ -182,10 +204,10 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('VALIDATION_ERROR');
-      expect(data.error.details.value).toContain('Value must be a boolean for type "boolean"');
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+      expect(data.error?.details?.value).toContain('Value must be a boolean for type "boolean"');
     });
 
     it('should validate json type', async () => {
@@ -193,7 +215,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_key',
@@ -204,10 +226,10 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('VALIDATION_ERROR');
-      expect(data.error.details.value).toContain('Value must be an object for type "json"');
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+      expect(data.error?.details?.value).toContain('Value must be an object for type "json"');
     });
   });
 
@@ -217,7 +239,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_string_key',
@@ -229,16 +251,16 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(201);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(true);
-      expect(data.data.id).toBeDefined();
-      expect(data.data.key).toBe('test_string_key');
-      expect(data.data.value).toBe('test_string_value');
-      expect(data.data.type).toBe('string');
-      expect(data.data.description).toBe('Test string configuration');
-      expect(data.data.system_config).toBe(false);
-      expect(data.data.created_at).toBeDefined();
-      expect(data.data.updated_at).toBeDefined();
+      expect(data.data?.id).toBeDefined();
+      expect(data.data?.key).toBe('test_string_key');
+      expect(data.data?.value).toBe('test_string_value');
+      expect(data.data?.type).toBe('string');
+      expect(data.data?.description).toBe('Test string configuration');
+      expect(data.data?.system_config).toBe(false);
+      expect(data.data?.created_at).toBeDefined();
+      expect(data.data?.updated_at).toBeDefined();
     });
 
     it('should create number configuration', async () => {
@@ -246,7 +268,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_number_key',
@@ -257,11 +279,11 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(201);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(true);
-      expect(data.data.key).toBe('test_number_key');
-      expect(data.data.value).toBe('42');
-      expect(data.data.type).toBe('number');
+      expect(data.data?.key).toBe('test_number_key');
+      expect(data.data?.value).toBe('42');
+      expect(data.data?.type).toBe('number');
     });
 
     it('should create boolean configuration', async () => {
@@ -269,7 +291,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_boolean_key',
@@ -280,11 +302,11 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(201);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(true);
-      expect(data.data.key).toBe('test_boolean_key');
-      expect(data.data.value).toBe('true');
-      expect(data.data.type).toBe('boolean');
+      expect(data.data?.key).toBe('test_boolean_key');
+      expect(data.data?.value).toBe('true');
+      expect(data.data?.type).toBe('boolean');
     });
 
     it('should create json configuration', async () => {
@@ -293,7 +315,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_json_key',
@@ -304,11 +326,11 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(201);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(true);
-      expect(data.data.key).toBe('test_json_key');
-      expect(data.data.value).toEqual(jsonValue);
-      expect(data.data.type).toBe('json');
+      expect(data.data?.key).toBe('test_json_key');
+      expect(data.data?.value).toEqual(jsonValue);
+      expect(data.data?.type).toBe('json');
     });
 
     it('should create system configuration', async () => {
@@ -316,7 +338,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_system_key',
@@ -328,10 +350,10 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(201);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(true);
-      expect(data.data.key).toBe('test_system_key');
-      expect(data.data.system_config).toBe(true);
+      expect(data.data?.key).toBe('test_system_key');
+      expect(data.data?.system_config).toBe(true);
       
       // Cleanup
       await ConfigService.deleteByKey('test_system_key');
@@ -345,7 +367,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'duplicate_key',
@@ -361,7 +383,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'duplicate_key',
@@ -371,9 +393,9 @@ describe('POST /api/v1/configs', () => {
       }));
 
       expect(duplicateResponse.status).toBe(409);
-      const data = await duplicateResponse.json();
+      const data = await duplicateResponse.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('DUPLICATE_KEY');
+      expect(data.error?.code).toBe('DUPLICATE_KEY');
     });
   });
 
@@ -383,7 +405,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_string_validation',
@@ -398,9 +420,9 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(201);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(true);
-      expect(data.data.validation).toEqual({
+      expect(data.data?.validation).toEqual({
         pattern: '^test_.*',
         required: true
       });
@@ -414,7 +436,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_number_validation',
@@ -429,9 +451,9 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(201);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(true);
-      expect(data.data.validation).toEqual({
+      expect(data.data?.validation).toEqual({
         min: 0,
         max: 100
       });
@@ -445,7 +467,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_invalid_validation',
@@ -460,10 +482,10 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('VALIDATION_ERROR');
-      expect(data.error.details.validation).toContain('min/max validation is only applicable for number type');
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+      expect(data.error?.details?.validation).toContain('min/max validation is only applicable for number type');
     });
 
     it('should reject pattern validation for non-string types', async () => {
@@ -471,7 +493,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_invalid_pattern',
@@ -485,10 +507,10 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('VALIDATION_ERROR');
-      expect(data.error.details.validation).toContain('pattern validation is only applicable for string type');
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+      expect(data.error?.details?.validation).toContain('pattern validation is only applicable for string type');
     });
 
     it('should reject invalid regex patterns', async () => {
@@ -496,7 +518,7 @@ describe('POST /api/v1/configs', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': config_password
+          'Authorization': 'Bearer admin123'
         },
         body: JSON.stringify({
           key: 'test_invalid_regex',
@@ -510,10 +532,10 @@ describe('POST /api/v1/configs', () => {
 
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
-      expect(data.error.code).toBe('VALIDATION_ERROR');
-      expect(data.error.details.validation).toContain('Invalid regular expression pattern');
+      expect(data.error?.code).toBe('VALIDATION_ERROR');
+      expect(data.error?.details?.validation).toContain('Invalid regular expression pattern');
     });
   });
 });

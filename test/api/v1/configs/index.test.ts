@@ -15,7 +15,7 @@ interface ConfigItem {
   type: 'string' | 'boolean' | 'number' | 'json';
   description: string | null;
   system_config: boolean;
-  validation: any;
+  validation: Record<string, string | number | boolean> | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -116,7 +116,7 @@ describe('GET /api/v1/configs', () => {
         type: expect.stringMatching(/^(string|boolean|number|json)$/),
         description: expect.any(String),
         system_config: expect.any(Boolean),
-        validation: expect.toSatisfy((val: any) => val === null || typeof val === 'object'), // null or object
+        validation: expect.toSatisfy((val: Record<string, string | number | boolean> | null) => val === null || typeof val === 'object'), // null or object
         created_at: expect.any(String),
         updated_at: expect.any(String)
       });

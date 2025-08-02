@@ -1,14 +1,11 @@
-import { Hono } from 'hono';
+import { Context } from 'hono';
 import { ConfigService } from '../../../services/config';
 import { checkConfigAuthentication } from '../../../utils/auth';
-import type { Env } from '../../../types/env';
 import type { Config } from '../../../db/schema';
 import { convertConfigValue } from './utils';
 
-const app = new Hono<{ Bindings: Env }>();
-
 // GET /api/v1/configs - Configuration list retrieval
-app.get('/', async (c) => {
+export async function getConfigsListHandler(c: Context) {
   // 認証チェック
   const isAuthenticated = await checkConfigAuthentication(c);
   if (!isAuthenticated) {
@@ -144,7 +141,4 @@ app.get('/', async (c) => {
       }
     }, 500);
   }
-});
-
-export default app;
-export { app as configsRouter };
+};
