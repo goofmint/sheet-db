@@ -66,16 +66,13 @@
 - [x] src/api/v1/auth/logout/post.tsの作成（ログアウト） - [詳細](./tasks/2.1.4-logout-api.md)
 - [x] src/api/v1/auth/me/get.tsの作成（現在のユーザー情報） - [詳細](./tasks/2.1.5-auth-me-api.md)
 
-### 2.2 設定管理UI
+### 2.2 設定管理UI ✅ **完了**
 - [x] GET /api/v1/configs の実装（設定項目の一覧取得） - [詳細](./tasks/2.2.4-configs-list-api.md)
-- [x] GET /api/v1/configs/:id の実装（設定項目の取得） - [詳細](./tasks/2.2.2-configs-get-by-id-api.md)
-- [ ] POST /api/v1/configs の実装（設定項目の追加）
-- [ ] PUT /api/v1/configs/:id の実装（設定項目の更新）
-- [ ] DELETE /api/v1/configs/:id の実装（設定項目の削除）
+- [x] GET /api/v1/configs/:key の実装（設定項目の取得） - [詳細](./tasks/2.2.2-configs-get-by-key-api.md)
+- [x] POST /api/v1/configs の実装（設定項目の追加） - [詳細](./tasks/2.2.3-post-configs-api.md)
+- [x] PUT /api/v1/configs/:key の実装（設定項目の更新） - [詳細](./tasks/2.2.5-put-configs-api.md)
+- [x] DELETE /api/v1/configs/:key の実装（設定項目の削除） - [詳細](./tasks/2.2.6-delete-configs-api.md)
 - [ ] GET /config の実装（設定管理画面） - [詳細](./tasks/2.2-config-management-ui.md)
-- [ ] 設定値バリデーション機能
-- [ ] 設定項目の追加
-- [ ] 設定項目の削除
 
 ### 2.3 セッション管理
 - [ ] src/services/session.tsの作成（セッション管理）
