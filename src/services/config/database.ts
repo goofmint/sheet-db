@@ -96,6 +96,37 @@ export class ConfigDatabase {
   }
 
   /**
+   * Update an existing configuration entry
+   * Returns null if key doesn't exist
+   */
+  static async update(key: string, data: {
+    value: string;
+    type: ConfigType;
+    description?: string;
+    system_config?: number;
+    validation?: string;
+  }): Promise<Config | null> {
+    const db = this.getDatabase();
+
+    const updateData = {
+      value: data.value,
+      type: data.type,
+      description: data.description,
+      system_config: data.system_config,
+      validation: data.validation,
+      updated_at: new Date().toISOString()
+    };
+
+    const result = await db
+      .update(configTable)
+      .set(updateData)
+      .where(eq(configTable.key, key))
+      .returning();
+
+    return result.length > 0 ? result[0] as Config : null;
+  }
+
+  /**
    * Delete configuration by key
    */
   static async delete(key: string): Promise<boolean> {

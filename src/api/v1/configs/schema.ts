@@ -87,6 +87,46 @@ const CreateConfigResponseSchema = z.object({
   data: ConfigItemSchema
 }).openapi('CreateConfigResponse');
 
+const UpdateConfigRequestSchema = z.object({
+  value: z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.object({}).passthrough()
+  ]).openapi({ 
+    example: 'sk-updated-key-456',
+    description: 'Configuration value'
+  }),
+  type: z.enum(['string', 'number', 'boolean', 'json']).openapi({ 
+    example: 'string',
+    description: 'Value type'
+  }),
+  description: z.string().max(1000).optional().openapi({ 
+    example: 'Updated API Key for external service',
+    description: 'Configuration description'
+  }),
+  system_config: z.boolean().optional().openapi({ 
+    example: false,
+    description: 'System configuration flag'
+  }),
+  validation: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    minLength: z.number().optional(),
+    maxLength: z.number().optional(),
+    pattern: z.string().optional(),
+    enum: z.array(z.union([z.string(), z.number(), z.boolean()])).optional(),
+    required: z.boolean().optional()
+  }).optional().openapi({ 
+    description: 'Validation rules for the configuration value'
+  })
+}).openapi('UpdateConfigRequest');
+
+const UpdateConfigResponseSchema = z.object({
+  success: z.boolean().openapi({ example: true }),
+  data: ConfigItemSchema
+}).openapi('UpdateConfigResponse');
+
 const ErrorResponseSchema = z.object({
   success: z.boolean().openapi({ example: false }),
   error: z.object({
@@ -119,5 +159,7 @@ export {
   ConfigItemResponseSchema,
   CreateConfigRequestSchema,
   CreateConfigResponseSchema,
+  UpdateConfigRequestSchema,
+  UpdateConfigResponseSchema,
   ErrorResponseSchema
 }
