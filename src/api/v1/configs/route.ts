@@ -5,8 +5,9 @@ import { getConfigsListHandler } from '.';
 import { getConfigByKeyHandler } from './get';
 import { createConfigHandler } from './post';
 import { updateConfigHandler } from './put';
+import { deleteConfigHandler } from './delete';
 import { configKeyParamSchema, CreateConfigRequestSchema, CreateConfigResponseSchema,
-  ConfigItemResponseSchema, ConfigsListResponseSchema, configsListQuerySchema, UpdateConfigRequestSchema, UpdateConfigResponseSchema, ErrorResponseSchema } from './schema';
+  ConfigItemResponseSchema, ConfigsListResponseSchema, configsListQuerySchema, UpdateConfigRequestSchema, UpdateConfigResponseSchema, DeleteConfigResponseSchema, ErrorResponseSchema } from './schema';
 
 
 // GET /api/v1/configs - List configurations
@@ -234,6 +235,69 @@ export const updateConfigRoute = createRoute({
   }
 });
 
+// DELETE /api/v1/configs/{key} - Delete configuration
+export const deleteConfigRoute = createRoute({
+  method: 'delete',
+  path: '/configs/{key}',
+  summary: 'Delete configuration item by key',
+  description: 'Delete an existing configuration item by its key',
+  tags: ['Configuration'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: configKeyParamSchema
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: DeleteConfigResponseSchema
+        }
+      },
+      description: 'Configuration deleted successfully'
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Bad request - Invalid key format'
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Unauthorized - Authentication required'
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Forbidden - Cannot delete system configuration'
+    },
+    404: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Configuration item not found'
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Internal server error'
+    }
+  }
+});
+
 // Traditional Hono router for backwards compatibility
 const configRouter = new Hono<{ Bindings: Env }>();
 
@@ -248,5 +312,8 @@ configRouter.post('/', createConfigHandler);
 
 // PUT /api/v1/configs/:key - Update configuration
 configRouter.put('/:key', updateConfigHandler);
+
+// DELETE /api/v1/configs/:key - Delete configuration
+configRouter.delete('/:key', deleteConfigHandler);
 
 export default configRouter;

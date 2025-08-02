@@ -127,6 +127,14 @@ const UpdateConfigResponseSchema = z.object({
   data: ConfigItemSchema
 }).openapi('UpdateConfigResponse');
 
+const DeleteConfigResponseSchema = z.object({
+  success: z.boolean().openapi({ example: true }),
+  data: z.object({
+    message: z.string().openapi({ example: "Configuration 'api_key' deleted successfully" }),
+    deleted_key: z.string().openapi({ example: 'api_key' })
+  })
+}).openapi('DeleteConfigResponse');
+
 const ErrorResponseSchema = z.object({
   success: z.boolean().openapi({ example: false }),
   error: z.object({
@@ -161,5 +169,6 @@ export {
   CreateConfigResponseSchema,
   UpdateConfigRequestSchema,
   UpdateConfigResponseSchema,
+  DeleteConfigResponseSchema,
   ErrorResponseSchema
 }
