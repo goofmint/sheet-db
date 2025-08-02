@@ -3,25 +3,23 @@ import { z } from 'zod';
 
 // レスポンススキーマ定義
 const ConfigItemSchema = z.object({
+  id: z.string().openapi({ example: 'd7f3c6e1-3e6b-46cf-a07c-e4d4ac9b7c1d' }),
   key: z.string().openapi({ example: 'google.client_id' }),
-  value: z.string().openapi({ example: '12345-abcdef.apps.googleusercontent.com' }),
+  value: z.union([z.string(), z.number(), z.boolean(), z.object({}).passthrough()]).openapi({ example: '12345-abcdef.apps.googleusercontent.com' }),
   type: z.enum(['string', 'boolean', 'number', 'json']),
   description: z.string().nullable(),
   system_config: z.boolean(),
   validation: z.object({
     required: z.boolean().optional(),
-    type: z.enum(['string', 'boolean', 'number', 'json']).optional(),
     minLength: z.number().optional(),
     maxLength: z.number().optional(),
     min: z.number().optional(),
     max: z.number().optional(),
     pattern: z.string().optional(),
-    enum: z.array(z.string()).optional(),
-    errorMessage: z.string(),
-    default: z.union([z.string(), z.number(), z.boolean()]).optional()
+    enum: z.array(z.unknown()).optional()
   }).nullable(),
-  created_at: z.string().nullable(),
-  updated_at: z.string().nullable()
+  created_at: z.string(),
+  updated_at: z.string()
 }).openapi('ConfigItem');
 
 const PaginationSchema = z.object({
@@ -38,16 +36,62 @@ const ConfigsListResponseSchema = z.object({
   data: z.object({
     configs: z.array(ConfigItemSchema),
     pagination: PaginationSchema
-  }),
-  message: z.string().optional()
+  })
 }).openapi('ConfigsListResponse');
+
+const ConfigItemResponseSchema = z.object({
+  success: z.boolean().openapi({ example: true }),
+  data: ConfigItemSchema
+}).openapi('ConfigItemResponse');
+
+const CreateConfigRequestSchema = z.object({
+  key: z.string().min(1).max(255).regex(/^[a-zA-Z0-9_.-]+$/).openapi({ 
+    example: 'api_key',
+    description: 'Unique configuration key'
+  }),
+  value: z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.object({}).passthrough()
+  ]).openapi({ 
+    example: 'sk-abc123',
+    description: 'Configuration value'
+  }),
+  type: z.enum(['string', 'number', 'boolean', 'json']).openapi({ 
+    example: 'string',
+    description: 'Value type'
+  }),
+  description: z.string().max(1000).optional().openapi({ 
+    example: 'API Key for external service',
+    description: 'Configuration description'
+  }),
+  system_config: z.boolean().optional().openapi({ 
+    example: false,
+    description: 'System configuration flag'
+  }),
+  validation: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    pattern: z.string().optional(),
+    enum: z.array(z.unknown()).optional(),
+    required: z.boolean().optional()
+  }).optional().openapi({ 
+    description: 'Validation rules for the configuration value'
+  })
+}).openapi('CreateConfigRequest');
+
+const CreateConfigResponseSchema = z.object({
+  success: z.boolean().openapi({ example: true }),
+  data: ConfigItemSchema
+}).openapi('CreateConfigResponse');
 
 const ErrorResponseSchema = z.object({
   success: z.boolean().openapi({ example: false }),
   error: z.object({
-    code: z.enum(['UNAUTHORIZED', 'FORBIDDEN', 'VALIDATION_ERROR', 'INVALID_KEY', 'NOT_FOUND', 'INTERNAL_ERROR']),
+    code: z.enum(['UNAUTHORIZED', 'FORBIDDEN', 'VALIDATION_ERROR', 'DUPLICATE_KEY', 'NOT_FOUND', 'INTERNAL_ERROR']),
     message: z.string(),
-    details: z.record(z.string()).optional()
+    details: z.record(z.array(z.string())).optional()
   })
 }).openapi('ErrorResponse');
 
@@ -62,7 +106,11 @@ const configsListQuerySchema = z.object({
   order: z.enum(['asc', 'desc']).default('asc').openapi({ example: 'asc' })
 });
 
-// ルート定義
+const configKeyParamSchema = z.object({
+  key: z.string().openapi({ example: 'google.client_id' })
+});
+
+// GET /api/v1/configs - List configurations
 export const getConfigsListRoute = createRoute({
   method: 'get',
   path: '/configs',
@@ -109,19 +157,7 @@ export const getConfigsListRoute = createRoute({
   }
 });
 
-// Individual config item response schema
-const ConfigItemResponseSchema = z.object({
-  success: z.boolean().openapi({ example: true }),
-  data: ConfigItemSchema,
-  message: z.string().optional()
-}).openapi('ConfigItemResponse');
-
-// Path parameter schema for individual config
-const configKeyParamSchema = z.object({
-  key: z.string().openapi({ example: 'google.client_id' })
-});
-
-// Individual config route definition
+// GET /api/v1/configs/:key - Get configuration by key
 export const getConfigByKeyRoute = createRoute({
   method: 'get',
   path: '/configs/{key}',
@@ -164,6 +200,67 @@ export const getConfigByKeyRoute = createRoute({
         }
       },
       description: 'Configuration item not found'
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Internal server error'
+    }
+  }
+});
+
+// POST /api/v1/configs - Create configuration
+export const createConfigRoute = createRoute({
+  method: 'post',
+  path: '/configs',
+  summary: 'Create new configuration item',
+  description: 'Create a new configuration item with the specified key and value',
+  tags: ['Configuration'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: CreateConfigRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    201: {
+      content: {
+        'application/json': {
+          schema: CreateConfigResponseSchema
+        }
+      },
+      description: 'Configuration created successfully'
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Bad request - Invalid configuration data'
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Unauthorized - Authentication required'
+    },
+    409: {
+      content: {
+        'application/json': {
+          schema: ErrorResponseSchema
+        }
+      },
+      description: 'Conflict - Configuration key already exists'
     },
     500: {
       content: {

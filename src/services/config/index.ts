@@ -134,6 +134,53 @@ export class ConfigService {
   }
 
   /**
+   * Create new config entry (async - creates in DB and updates cache)
+   * Throws error if key already exists
+   */
+  static async createConfig(params: {
+    key: string;
+    value: string | number | boolean | object;
+    type: ConfigType;
+    description?: string;
+    system_config?: boolean;
+    validation?: string;
+  }): Promise<Config> {
+    this.ensureInitialized();
+    
+    // Check if key already exists
+    if (this.has(params.key)) {
+      throw new Error('DUPLICATE_KEY');
+    }
+    
+    // Convert value to string based on type
+    let stringValue: string;
+    if (params.type === 'json') {
+      stringValue = JSON.stringify(params.value);
+    } else {
+      stringValue = String(params.value);
+    }
+    
+    // Validate
+    ConfigValidator.validateKey(params.key);
+    ConfigValidator.validateValue(stringValue, params.type);
+    
+    // Create in database
+    const created = await ConfigDatabase.create({
+      key: params.key,
+      value: stringValue,
+      type: params.type,
+      description: params.description,
+      system_config: params.system_config ? 1 : 0,
+      validation: params.validation
+    });
+    
+    // Update cache
+    ConfigCache.set(params.key, created);
+    
+    return created;
+  }
+
+  /**
    * Upsert config value (async - updates both DB and cache)
    */
   static async upsert(key: string, value: string, type: ConfigType = 'string', description?: string): Promise<Config> {
