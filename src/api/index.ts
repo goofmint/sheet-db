@@ -67,7 +67,9 @@ v1.route('/auth', authRouter);
 
 // Config routes
 import configsRouter from './v1/configs';
+import configGetRouter from './v1/configs/get';
 v1.route('/configs', configsRouter);
+v1.route('/configs', configGetRouter);
 
 // Mount v1 API routes
 api.route('/v1', v1);

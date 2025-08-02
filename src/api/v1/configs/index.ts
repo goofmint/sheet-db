@@ -3,10 +3,11 @@ import { ConfigService } from '../../../services/config';
 import { checkConfigAuthentication } from '../../../utils/auth';
 import type { Env } from '../../../types/env';
 import type { Config } from '../../../db/schema';
+import { convertConfigValue } from './utils';
 
 const app = new Hono<{ Bindings: Env }>();
 
-// GET /api/v1/configs - 設定一覧取得
+// GET /api/v1/configs - Configuration list retrieval
 app.get('/', async (c) => {
   // 認証チェック
   const isAuthenticated = await checkConfigAuthentication(c);
@@ -107,13 +108,13 @@ app.get('/', async (c) => {
       page, limit: finalLimit, search, type, system, sort, order
     });
     
-    // validationフィールドのパースと system_config の boolean 変換、id除外
+    // Parse validation field and convert system_config to boolean, exclude id
     const configs = result.configs.map((config: Config) => ({
       key: config.key,
-      value: config.value,
-      type: config.type as 'string' | 'boolean' | 'number' | 'json',
+      value: convertConfigValue(config.value, config.type),
+      type: config.type,
       description: config.description,
-      system_config: config.system_config === 1, // int to boolean
+      system_config: config.system_config === 1,
       validation: (() => {
         try {
           return config.validation ? JSON.parse(config.validation) : null;
