@@ -2,29 +2,10 @@ import { Hono } from 'hono';
 import { ConfigService } from '../../../services/config';
 import { checkConfigAuthentication } from '../../../utils/auth';
 import type { Env } from '../../../types/env';
-import type { Config, ConfigType } from '../../../db/schema';
+import type { Config } from '../../../db/schema';
+import { convertConfigValue } from './utils';
 
 const app = new Hono<{ Bindings: Env }>();
-
-// Convert config value based on type for proper response typing
-function convertConfigValue(value: string, type: ConfigType): string | number | boolean | Record<string, unknown> {
-  switch (type) {
-    case 'boolean':
-      return value.toLowerCase() === 'true';
-    case 'number':
-      const num = Number(value);
-      return isNaN(num) ? value : num;
-    case 'json':
-      try {
-        return JSON.parse(value) as Record<string, unknown>;
-      } catch {
-        return value;
-      }
-    case 'string':
-    default:
-      return value;
-  }
-}
 
 // GET /api/v1/configs - Configuration list retrieval
 app.get('/', async (c) => {

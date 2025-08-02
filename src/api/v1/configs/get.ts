@@ -2,29 +2,9 @@ import { Hono } from 'hono';
 import { ConfigService } from '../../../services/config';
 import { checkConfigAuthentication } from '../../../utils/auth';
 import type { Env } from '../../../types/env';
-import type { ConfigType } from '../../../db/schema';
+import { convertConfigValue } from './utils';
 
 const app = new Hono<{ Bindings: Env }>();
-
-// Convert config value based on type for proper response typing
-function convertConfigValue(value: string, type: ConfigType): string | number | boolean | Record<string, unknown> {
-  switch (type) {
-    case 'boolean':
-      return value.toLowerCase() === 'true';
-    case 'number':
-      const num = Number(value);
-      return isNaN(num) ? value : num;
-    case 'json':
-      try {
-        return JSON.parse(value) as Record<string, unknown>;
-      } catch {
-        return value;
-      }
-    case 'string':
-    default:
-      return value;
-  }
-}
 
 // GET /api/v1/configs/:key - Get individual configuration item
 app.get('/:key', async (c) => {
@@ -71,7 +51,9 @@ app.get('/:key', async (c) => {
     const responseData = {
       key: config.key,
       value: convertConfigValue(config.value, config.type),
-      type: config.type,
+      type: (['string', 'boolean', 'number', 'json'] as const).includes(config.type as any)
+        ? (config.type as 'string' | 'boolean' | 'number' | 'json')
+        : 'string', // fallback to string if invalid
       description: config.description,
       system_config: config.system_config === 1,
       validation: (() => {
