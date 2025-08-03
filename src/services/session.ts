@@ -76,21 +76,24 @@ export class SessionService {
 
       // Update _User sheet if environment and full profile are provided
       if (env && fullProfile) {
-        try {
-          const userSheet = new UserSheet(env);
-          const now = new Date().toISOString();
-          
-          await userSheet.upsertUser({
-            id: userData.auth0_user_id,
-            email: fullProfile.email,
-            name: fullProfile.name || fullProfile.email,
-            picture: fullProfile.picture,
-            created_at: now, // Will be ignored if user already exists
-            last_login: now
-          });
-        } catch (userSheetError) {
-          console.error('Failed to update _User sheet:', userSheetError);
-          // Continue with session creation even if user sheet update fails
+        const userSheet = new UserSheet(env);
+        const now = new Date().toISOString();
+        
+        const userSheetResult = await userSheet.upsertUser({
+          id: userData.auth0_user_id,
+          email: fullProfile.email,
+          name: fullProfile.name || fullProfile.email,
+          picture: fullProfile.picture,
+          created_at: now, // Will be ignored if user already exists
+          last_login: now
+        });
+
+        if (!userSheetResult.success) {
+          console.error('Failed to update _User sheet:', userSheetResult.error);
+          return {
+            success: false,
+            error: 'Failed to update user data in _User sheet'
+          };
         }
       }
 

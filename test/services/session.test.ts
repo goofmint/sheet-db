@@ -363,5 +363,46 @@ describe('SessionService', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('auth0_user_id and sub are required');
     });
+
+    it('should fail session creation when UserSheet update fails', async () => {
+      const userData = {
+        auth0_user_id: 'auth0|usersheet_fail',
+        sub: 'auth0|usersheet_fail'
+      };
+
+      const fullProfile = {
+        auth0_user_id: 'auth0|usersheet_fail',
+        email: 'test@invalid-domain', // Invalid email might cause UserSheet to fail
+        name: 'Test User',
+        picture: 'https://example.com/avatar.jpg',
+        email_verified: true,
+        sub: 'auth0|usersheet_fail'
+      };
+
+      // Create a mock environment that will cause UserSheet to fail
+      const mockEnv = {
+        ...env,
+        // We can't easily mock UserSheet failure in this test setup,
+        // so we'll test with invalid configuration that should cause failure
+      };
+
+      // Test with missing Google configuration which should cause UserSheet to fail
+      // First, save current config
+      const originalSheetId = ConfigService.getString('google.sheetId');
+      
+      // Temporarily remove the sheetId to cause UserSheet failure
+      await ConfigService.upsert('google.sheetId', '', 'string', 'Test removal');
+
+      const result = await SessionService.createSession(userData, mockEnv, fullProfile);
+
+      // Restore original config
+      if (originalSheetId) {
+        await ConfigService.upsert('google.sheetId', originalSheetId, 'string', 'Google Sheets ID');
+      }
+
+      // The session creation should fail due to UserSheet error
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Failed to update user data in _User sheet');
+    });
   });
 });
