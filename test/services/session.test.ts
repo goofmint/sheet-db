@@ -4,6 +4,7 @@ import { env } from 'cloudflare:test';
 import { SessionService } from '../../src/services/session';
 import { ConfigService } from '../../src/services/config';
 import { setupConfigDatabase, setupSessionDatabase } from '../utils/database-setup';
+import { sessionTable } from '../../src/db/schema';
 import type { Auth0UserData } from '../../src/types/session';
 
 describe('SessionService', () => {
@@ -25,7 +26,13 @@ describe('SessionService', () => {
   });
 
   afterEach(async () => {
-    // Cleanup is handled by beforeEach setup
+    // Clean up any sessions created during tests
+    try {
+      await db.delete(sessionTable);
+    } catch (error) {
+      // Ignore errors if table doesn't exist (test setup failures)
+      // This is expected behavior when tests create the table in beforeEach
+    }
   });
 
   describe('Initialization', () => {
