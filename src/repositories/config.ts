@@ -193,48 +193,6 @@ export class ConfigRepository extends AbstractBaseRepository<Config, ConfigInser
     return ConfigService.size();
   }
 
-  /**
-   * Initialize master key configuration
-   * Creates api.master_key_hash and api.master_key_salt entries if they don't exist
-   */
-  async initializeMasterKeyConfig(): Promise<void> {
-    try {
-      // Check if master key configuration already exists
-      const existingHash = ConfigService.get('api.master_key_hash');
-      if (existingHash) {
-        console.log('Master key configuration already exists');
-        return;
-      }
-
-      // Generate initial salt
-      const salt = crypto.randomUUID();
-      
-      // Create initial configuration entries
-      const initialConfigs = [
-        {
-          key: 'api.master_key_hash',
-          value: '', // Empty string instead of null
-          type: 'string' as const,
-          description: 'Master key hash for full API access'
-        },
-        {
-          key: 'api.master_key_salt',
-          value: salt,
-          type: 'string' as const,
-          description: 'Salt for master key hashing'
-        }
-      ];
-
-      for (const config of initialConfigs) {
-        await ConfigService.upsert(config.key, config.value, config.type, config.description);
-      }
-
-      console.log('Master key configuration initialized');
-    } catch (error) {
-      console.error('Failed to initialize master key configuration:', error);
-      throw error;
-    }
-  }
 
   /**
    * Hash master key with salt using SHA-256
