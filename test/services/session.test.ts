@@ -323,12 +323,25 @@ describe('SessionService', () => {
       expect(result3).toBe(false);
     });
 
-    it('should get user data from session', async () => {
+    it('should get auth data from session', async () => {
+      const authData = await SessionService.getAuthData(testSessionId);
+      
+      expect(authData).toBeDefined();
+      expect(authData!.auth0_user_id).toBe('auth0|utility123');
+      expect(authData!.sub).toBe('auth0|utility123');
+    });
+
+    it('should return null for invalid session when getting auth data', async () => {
+      const authData = await SessionService.getAuthData('invalid-session-id');
+      expect(authData).toBeNull();
+    });
+
+    it('should get user data (minimal auth data when no env provided)', async () => {
       const userData = await SessionService.getUserData(testSessionId);
       
       expect(userData).toBeDefined();
-      expect(userData!.auth0_user_id).toBe('auth0|utility123');
-      expect(userData!.sub).toBe('auth0|utility123');
+      expect((userData as any)!.auth0_user_id).toBe('auth0|utility123');
+      expect((userData as any)!.sub).toBe('auth0|utility123');
     });
 
     it('should return null for invalid session when getting user data', async () => {

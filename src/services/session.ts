@@ -7,7 +7,7 @@ import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import { SessionRepository } from '../repositories/session';
 import { ConfigService } from './config';
 import { constantTimeEquals } from '../utils/security';
-import { UserSheet } from '../sheet/user';
+import { UserSheet, UserRecord } from '../sheet/user';
 import type { 
   Auth0UserData, 
   Auth0FullUserProfile,
@@ -291,9 +291,72 @@ export class SessionService {
   }
 
   /**
-   * Get user data from session (convenience method)
+   * Type guard to check if a SheetRow is a valid UserRecord
    */
-  static async getUserData(sessionId: string): Promise<Auth0UserData | null> {
+  private static isUserRecord(data: unknown): data is UserRecord {
+    if (data === null || data === undefined || typeof data !== 'object') {
+      return false;
+    }
+
+    const obj = data as Record<string, unknown>;
+    
+    // Check required fields
+    if (typeof obj.id !== 'string' ||
+        typeof obj.email !== 'string' ||
+        typeof obj.name !== 'string' ||
+        typeof obj.created_at !== 'string') {
+      return false;
+    }
+
+    // Check optional fields
+    const pictureValid = obj.picture === undefined || 
+                        obj.picture === null || 
+                        typeof obj.picture === 'string';
+    
+    const lastLoginValid = obj.last_login === undefined || 
+                          obj.last_login === null || 
+                          typeof obj.last_login === 'string';
+
+    return pictureValid && lastLoginValid;
+  }
+
+  /**
+   * Get user data from _User sheet based on session (convenience method)
+   */
+  static async getUserData(sessionId: string, env?: Env): Promise<UserRecord | Auth0UserData | null> {
+    const sessionValidation = await this.validateSession(sessionId);
+    if (!sessionValidation.valid || !sessionValidation.user_data) {
+      return null;
+    }
+
+    // If environment is provided, get user data from _User sheet
+    if (env) {
+      try {
+        const userSheet = new UserSheet(env);
+        const userResult = await userSheet.findById(sessionValidation.user_data.auth0_user_id);
+        
+        if (userResult.success && userResult.data && Array.isArray(userResult.data) && userResult.data.length > 0) {
+          const userData = userResult.data[0];
+          if (this.isUserRecord(userData)) {
+            return userData; // Return full user data from _User sheet
+          } else {
+            console.warn('Invalid user data structure from _User sheet:', userData);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to get user data from _User sheet:', error);
+        // Fall back to session data if _User sheet is unavailable
+      }
+    }
+
+    // Fall back to session data (minimal Auth0 identifiers)
+    return sessionValidation.user_data;
+  }
+
+  /**
+   * Get authentication data only (minimal identifiers from session)
+   */
+  static async getAuthData(sessionId: string): Promise<Auth0UserData | null> {
     const result = await this.validateSession(sessionId);
     return result.valid ? result.user_data || null : null;
   }
