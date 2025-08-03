@@ -75,14 +75,14 @@
 - [ ] GET /config の実装（設定管理画面） - [詳細](./tasks/2.2-config-management-ui.md)
 
 ### 2.3 セッション管理
-- [ ] src/services/session.tsの作成（セッション管理）
-- [ ] src/middleware/auth.tsの作成（認証ミドルウェア）
+- [x] src/services/session.tsの作成（セッション管理） - [詳細](./tasks/2.3.1-session-service.md)
+- [ ] src/middleware/auth.tsの作成（認証ミドルウェア） - [詳細](./tasks/2.3.2-auth-middleware.md)
 - [ ] JWTトークン検証の実装
 - [ ] セッションの有効期限管理
 - [ ] リフレッシュトークンの実装
 
-### 2.3 ACL実装
-- [ ] src/services/acl.tsの作成（アクセス制御サービス）
+### 2.4 ACL実装
+- [ ] src/services/acl.tsの作成（アクセス制御サービス） - [詳細](./tasks/2.4.1-acl-service.md)
 - [ ] src/middleware/authorization.tsの作成（認可ミドルウェア）
 - [ ] 公開データアクセスの実装
 - [ ] ユーザーベースアクセス制御
