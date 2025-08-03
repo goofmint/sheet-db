@@ -242,12 +242,59 @@ describe('SessionService', () => {
       expect(result).toBe(0);
     });
 
-    it('should clean up expired sessions', async () => {
-      // This test would require creating sessions with past expiry dates
-      // For now, we'll just verify the method doesn't throw
-      const result = await SessionService.cleanupExpiredSessions();
-      expect(typeof result).toBe('number');
-      expect(result).toBeGreaterThanOrEqual(0);
+    it('should clean up expired sessions and leave valid ones', async () => {
+      
+      // Create multiple sessions
+      const userData1: Auth0UserData = {
+        auth0_user_id: 'auth0|cleanup1',
+        sub: 'auth0|cleanup1'
+      };
+      const userData2: Auth0UserData = {
+        auth0_user_id: 'auth0|cleanup2',
+        sub: 'auth0|cleanup2'
+      };
+
+      // Create valid sessions
+      const session1 = await SessionService.createSession(userData1);
+      const session2 = await SessionService.createSession(userData2);
+      expect(session1.success).toBe(true);
+      expect(session2.success).toBe(true);
+
+      // Create expired session by directly manipulating the database
+      const expiredUserData: Auth0UserData = {
+        auth0_user_id: 'auth0|expired',
+        sub: 'auth0|expired'
+      };
+      const expiredSession = await SessionService.createSession(expiredUserData);
+      expect(expiredSession.success).toBe(true);
+
+      // Update the session to be expired (past date)
+      const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // 24 hours ago
+      await env.DB.prepare(
+        'UPDATE Session SET expires_at = ? WHERE session_id = ?'
+      ).bind(pastDate, expiredSession.session_id).run();
+
+      // Verify we have 3 sessions total
+      const allSessionsResult = await env.DB.prepare('SELECT COUNT(*) as count FROM Session').first();
+      expect(allSessionsResult?.count).toBe(3);
+
+      // Run cleanup
+      const cleanedCount = await SessionService.cleanupExpiredSessions();
+      expect(cleanedCount).toBe(1);
+
+      // Verify only valid sessions remain
+      const remainingSessionsResult = await env.DB.prepare('SELECT COUNT(*) as count FROM Session').first();
+      expect(remainingSessionsResult?.count).toBe(2);
+
+      // Verify valid sessions are still accessible
+      const validation1 = await SessionService.validateSession(session1.session_id!);
+      const validation2 = await SessionService.validateSession(session2.session_id!);
+      expect(validation1.valid).toBe(true);
+      expect(validation2.valid).toBe(true);
+
+      // Verify expired session is gone
+      const expiredValidation = await SessionService.validateSession(expiredSession.session_id!);
+      expect(expiredValidation.valid).toBe(false);
     });
   });
 

@@ -9,8 +9,6 @@ import type {
   ApiResponse,
   ErrorResponse,
   
-  // session.d.ts
-  Session,
   
   // cache.d.ts
   CacheEntry,
@@ -84,17 +82,6 @@ describe('Type Definitions', () => {
     });
   });
 
-  describe('Session Types', () => {
-    it('should define Session interface correctly', () => {
-      const session: Partial<Session> = {
-        id: 'session-123',
-        userId: 'user-123',
-        auth0Sub: 'auth0|123',
-        email: 'test@example.com',
-      };
-      expect(session.id).toBe('session-123');
-    });
-  });
 
   describe('Cache Types', () => {
     it('should define Cache interface correctly', () => {
@@ -149,7 +136,6 @@ describe('Type Definitions', () => {
         Env: {} as Env,
         ApiResponse: {} as ApiResponse<any>,
         ErrorResponse: {} as ErrorResponse,
-        Session: {} as Session,
         CacheEntry: {} as CacheEntry,
         SheetRow: {} as SheetRow,
       };

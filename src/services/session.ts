@@ -7,13 +7,16 @@ import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import { SessionRepository } from '../repositories/session';
 import { ConfigService } from './config';
 import { constantTimeEquals } from '../utils/security';
+import { UserSheet } from '../sheet/user';
 import type { 
   Auth0UserData, 
+  Auth0FullUserProfile,
   SessionCreateResult, 
   SessionValidationResult, 
   SessionRefreshResult 
 } from '../types/session';
 import type { Session } from '../db/schema';
+import type { Env } from '../types/env';
 
 export class SessionService {
   private static repository: SessionRepository;
@@ -44,9 +47,9 @@ export class SessionService {
   }
 
   /**
-   * Create a new session for authenticated user
+   * Create a new session for authenticated user and update _User sheet
    */
-  static async createSession(userData: Auth0UserData): Promise<SessionCreateResult> {
+  static async createSession(userData: Auth0UserData, env?: Env, fullProfile?: Auth0FullUserProfile): Promise<SessionCreateResult> {
     this.ensureInitialized();
 
     try {
@@ -70,6 +73,26 @@ export class SessionService {
         auth0_user_id: userData.auth0_user_id,
         sub: userData.sub
       };
+
+      // Update _User sheet if environment and full profile are provided
+      if (env && fullProfile) {
+        try {
+          const userSheet = new UserSheet(env);
+          const now = new Date().toISOString();
+          
+          await userSheet.upsertUser({
+            id: userData.auth0_user_id,
+            email: fullProfile.email,
+            name: fullProfile.name || fullProfile.email,
+            picture: fullProfile.picture,
+            created_at: now, // Will be ignored if user already exists
+            last_login: now
+          });
+        } catch (userSheetError) {
+          console.error('Failed to update _User sheet:', userSheetError);
+          // Continue with session creation even if user sheet update fails
+        }
+      }
 
       // Create session in database using direct create method
       const sessionData = {

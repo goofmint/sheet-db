@@ -128,10 +128,10 @@ export const callbackHandler = async (c: Context<{ Bindings: Env }>) => {
     return c.json({
       success: true,
       user: {
-        id: userInfo.sub,
-        email: userInfo.email,
-        name: userInfo.name || null,
-        picture: userInfo.picture || null,
+        id: userInfo.sub as string,
+        email: userInfo.email as string,
+        name: (userInfo.name || null) as string | null,
+        picture: (userInfo.picture || null) as string | null,
         created_at: now,
         last_login: now
       },
