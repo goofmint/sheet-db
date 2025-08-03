@@ -192,6 +192,83 @@ export class ConfigRepository extends AbstractBaseRepository<Config, ConfigInser
   size(): number {
     return ConfigService.size();
   }
+
+  /**
+   * Initialize master key configuration
+   * Creates api.master_key_hash and api.master_key_salt entries if they don't exist
+   */
+  async initializeMasterKeyConfig(): Promise<void> {
+    try {
+      // Check if master key configuration already exists
+      const existingHash = ConfigService.get('api.master_key_hash');
+      if (existingHash) {
+        console.log('Master key configuration already exists');
+        return;
+      }
+
+      // Generate initial salt
+      const salt = crypto.randomUUID();
+      
+      // Create initial configuration entries
+      const initialConfigs = [
+        {
+          key: 'api.master_key_hash',
+          value: '', // Empty string instead of null
+          type: 'string' as const,
+          description: 'Master key hash for full API access'
+        },
+        {
+          key: 'api.master_key_salt',
+          value: salt,
+          type: 'string' as const,
+          description: 'Salt for master key hashing'
+        }
+      ];
+
+      for (const config of initialConfigs) {
+        await ConfigService.upsert(config.key, config.value, config.type, config.description);
+      }
+
+      console.log('Master key configuration initialized');
+    } catch (error) {
+      console.error('Failed to initialize master key configuration:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Hash master key with salt using SHA-256
+   */
+  async hashMasterKey(key: string, salt: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(key + salt);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', keyData);
+    return Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  /**
+   * Set master key by hashing it with existing salt
+   * Special handling for api.master_key to store only the hash
+   */
+  async setMasterKey(rawKey: string): Promise<Config> {
+    const salt = ConfigService.get('api.master_key_salt');
+    if (!salt || salt === '') {
+      throw new Error('Master key salt not found. System initialization required.');
+    }
+    
+    // Hash the raw key
+    const hash = await this.hashMasterKey(rawKey, salt);
+    
+    // Store only the hash
+    const result = await ConfigService.upsert('api.master_key_hash', hash, 'string', 'Master key hash for full API access');
+    
+    // Clear the raw key from memory (parameter is already passed by value)
+    // Note: This is a best-effort approach in JavaScript
+    
+    return result;
+  }
 }
 
 /**
@@ -209,7 +286,9 @@ export function getConfigDescription(key: string): string {
     'auth0.scope': 'OAuth2 Scope',
     'app.config_password': 'Configuration screen access password',
     'app.setup_completed': 'Initial setup completion flag',
-    'storage.type': 'File storage type (r2 | google_drive)'
+    'storage.type': 'File storage type (r2 | google_drive)',
+    'api.master_key_hash': 'Master key hash for full API access',
+    'api.master_key_salt': 'Salt for master key hashing'
   };
   
   return descriptions[key] || 'Configuration item';

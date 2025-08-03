@@ -1,8 +1,11 @@
 import { Context } from 'hono';
+import { drizzle } from 'drizzle-orm/d1';
 import { ConfigService } from '../../../services/config';
+import { ConfigRepository } from '../../../repositories/config';
 import { checkConfigAuthentication } from '../../../utils/auth';
 import type { ConfigType } from '../../../db/schema';
 import { CreateConfigRequestSchema } from './schema';
+import type { Env } from '../../../types/env';
 
 // POST /api/v1/configs - Create new configuration item
 export async function createConfigHandler(c: Context) {
@@ -160,7 +163,62 @@ export async function createConfigHandler(c: Context) {
       }
     }
 
-    // Create configuration
+    // Special handling for master key
+    if (body.key === 'api.master_key') {
+      // Initialize database connection for ConfigRepository
+      const db = drizzle((c.env as Env).DB);
+      const configRepo = new ConfigRepository(db);
+      
+      if (body.type !== 'string' || typeof body.value !== 'string') {
+        return c.json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR' as const,
+            message: 'Invalid configuration data',
+            details: {
+              value: ['Master key must be a string']
+            }
+          }
+        }, 400);
+      }
+
+      try {
+        // Hash and store the master key
+        const created = await configRepo.setMasterKey(body.value);
+        
+        const response = {
+          id: String(created.id),
+          key: 'api.master_key_hash',
+          value: '[REDACTED]', // Never return the hash
+          type: created.type,
+          description: created.description || 'Master key hash for full API access',
+          system_config: created.system_config === 1,
+          validation: null,
+          created_at: created.created_at,
+          updated_at: created.updated_at
+        };
+
+        return c.json({
+          success: true,
+          message: 'Master key has been securely hashed and stored',
+          data: response
+        }, 201);
+        
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('System initialization required')) {
+          return c.json({
+            success: false,
+            error: {
+              code: 'INITIALIZATION_ERROR' as const,
+              message: 'Master key salt not found. System initialization required.'
+            }
+          }, 500);
+        }
+        throw error; // Re-throw to be caught by outer catch
+      }
+    }
+
+    // Create configuration (normal handling)
     try {
       const created = await ConfigService.createConfig({
         key: body.key,

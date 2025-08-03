@@ -35,6 +35,15 @@ export class ConfigDatabase {
   }
 
   /**
+   * Find configuration by key
+   */
+  static async findByKey(key: string): Promise<Config | null> {
+    const db = this.getDatabase();
+    const result = await db.select().from(configTable).where(eq(configTable.key, key)).limit(1);
+    return result.length > 0 ? result[0] as Config : null;
+  }
+
+  /**
    * Create a new configuration entry
    * Throws error if key already exists
    */
