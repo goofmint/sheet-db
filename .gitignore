@@ -174,3 +174,4 @@ dev.log
 
 # Test auth cache
 .test-auth-cache.json
+line.sh
