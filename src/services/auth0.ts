@@ -11,7 +11,7 @@ import {
   JWKS,
   JWK
 } from '../types/auth';
-import { Auth0Profile, AuthToken } from '../types/session';
+import { Auth0Profile, AuthToken } from '../types/session.d';
 
 export class Auth0Service {
   private jwksCache: Map<string, JWK> = new Map();

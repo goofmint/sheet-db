@@ -107,6 +107,8 @@ export class SessionRepository extends AbstractBaseRepository<Session, SessionIn
     
     // Check if session is expired
     if (session.expires_at < now) {
+      // Cleanup expired session
+      await this.deleteBySessionId(sessionId);
       return null;
     }
     
