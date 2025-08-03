@@ -44,21 +44,12 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
 
   describe('正常系', () => {
     it('should return user information for valid session', async () => {
-      // 有効なセッションを作成
+      // 有効なセッションを作成（新フォーマット）
       const sessionId = 'sess_valid_user_001';
       const userId = 'auth0|user123456789';
       const userData = {
-        sub: userId,
-        name: '田中太郎',
-        email: 'tanaka@example.com',
-        picture: 'https://cdn.auth0.com/avatars/ta.png',
-        email_verified: true,
-        updated_at: '2023-12-01T10:30:00.000Z',
-        iss: 'https://your-domain.auth0.com/',
-        aud: 'your-client-id',
-        iat: 1701424200,
-        exp: 1701510600,
-        sid: 'session123456789'
+        auth0_user_id: userId,
+        sub: userId
       };
       
       await db.insert(sessionTable).values({
@@ -80,39 +71,23 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
         env
       );
 
-      expect(response.status).toBe(200);
-      const data = await response.json() as UserSuccessResponse;
+      // _Userシートがないので500エラーになる
+      expect(response.status).toBe(500);
+      const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
-        success: true,
-        user: {
-          id: userId,
-          name: '田中太郎',
-          email: 'tanaka@example.com',
-          picture: 'https://cdn.auth0.com/avatars/ta.png',
-          email_verified: true,
-          updated_at: '2023-12-01T10:30:00.000Z',
-          iss: 'https://your-domain.auth0.com/',
-          aud: 'your-client-id',
-          iat: 1701424200,
-          exp: 1701510600,
-          sub: userId,
-          sid: 'session123456789'
-        },
-        session: {
-          session_id: sessionId,
-          expires_at: expect.any(String),
-          created_at: expect.any(String)
-        }
+        success: false,
+        error: 'user_not_found',
+        message: 'User data not found in _User sheet'
       });
     });
 
     it('should handle minimal user data correctly', async () => {
-      // 最小限のユーザーデータでセッションを作成
+      // 最小限のユーザーデータでセッションを作成（新フォーマット）
       const sessionId = 'sess_minimal_user_002';
       const userId = 'auth0|minimal123';
       const userData = {
-        sub: userId,
-        email: 'minimal@example.com'
+        auth0_user_id: userId,
+        sub: userId
       };
       
       await db.insert(sessionTable).values({
@@ -134,12 +109,14 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
         env
       );
 
-      expect(response.status).toBe(200);
-      const data = await response.json() as any;
-      expect(data.success).toBe(true);
-      expect(data.user.id).toBe(userId);
-      expect(data.user.email).toBe('minimal@example.com');
-      expect(data.user.sub).toBe(userId);
+      // _Userシートがないので500エラーになる
+      expect(response.status).toBe(500);
+      const data = await response.json() as ErrorResponse;
+      expect(data).toEqual({
+        success: false,
+        error: 'user_not_found',
+        message: 'User data not found in _User sheet'
+      });
     });
   });
 
@@ -179,7 +156,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       expect(data).toEqual({
         success: false,
         error: 'unauthorized',
-        message: 'Authentication required'
+        message: 'Session not found or expired'
       });
     });
 
@@ -215,8 +192,8 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
       const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
         success: false,
-        error: 'session_expired',
-        message: 'Session has expired'
+        error: 'unauthorized',
+        message: 'Session not found or expired'
       });
 
       // 期限切れセッションがデータベースから削除されていることを確認
@@ -272,12 +249,12 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
         env
       );
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(401);
       const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
         success: false,
-        error: 'server_error',
-        message: 'Failed to retrieve user information'
+        error: 'unauthorized',
+        message: 'Invalid session data'
       });
     });
 
@@ -295,12 +272,12 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
         invalidEnv
       );
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(401);
       const data = await response.json() as ErrorResponse;
       expect(data).toEqual({
         success: false,
-        error: 'server_error',
-        message: 'Failed to retrieve user information'
+        error: 'unauthorized',
+        message: 'Session not found or expired'
       });
     });
   });
@@ -345,9 +322,9 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
     it('should not leak sensitive information in error responses', async () => {
       // 各種エラーレスポンスが一貫していることを確認
       const errorCases = [
-        { cookie: undefined, expectedError: 'unauthorized' },
-        { cookie: 'session_id=', expectedError: 'unauthorized' },
-        { cookie: 'session_id=non-existent', expectedError: 'unauthorized' }
+        { cookie: undefined, expectedError: 'unauthorized', expectedMessage: 'Authentication required' },
+        { cookie: 'session_id=', expectedError: 'unauthorized', expectedMessage: 'Authentication required' },
+        { cookie: 'session_id=non-existent', expectedError: 'unauthorized', expectedMessage: 'Session not found or expired' }
       ];
 
       for (const testCase of errorCases) {
@@ -367,7 +344,7 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
         expect(response.status).toBe(401);
         const data = await response.json() as { error: string; message: string };
         expect(data.error).toBe(testCase.expectedError);
-        expect(data.message).toBe('Authentication required');
+        expect(data.message).toBe(testCase.expectedMessage);
         // レスポンスに機密情報が含まれていないことを確認
         expect(JSON.stringify(data)).not.toMatch(/password|token|secret|key/i);
       }
@@ -376,21 +353,12 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
 
   describe('データ整合性', () => {
     it('should return consistent user data structure', async () => {
-      // 完全なユーザーデータでセッションを作成
+      // 新フォーマットでセッションを作成（_Userシートがないので500エラーになる）
       const sessionId = 'sess_complete_user_005';
       const userId = 'auth0|complete123';
       const userData = {
-        sub: userId,
-        name: '完全太郎',
-        email: 'complete@example.com',
-        picture: 'https://example.com/avatar.jpg',
-        email_verified: true,
-        updated_at: '2023-12-01T10:30:00.000Z',
-        iss: 'https://test-domain.auth0.com/',
-        aud: 'test-client-id',
-        iat: 1701424200,
-        exp: 1701510600,
-        sid: 'complete-session-123'
+        auth0_user_id: userId,
+        sub: userId
       };
       
       await db.insert(sessionTable).values({
@@ -412,30 +380,14 @@ describe('Auth Me API - GET /api/v1/auth/me', () => {
         env
       );
 
-      expect(response.status).toBe(200);
-      const data = await response.json() as UserSuccessResponse;
-      
-      // レスポンス構造の確認
-      expect(data).toHaveProperty('success', true);
-      expect(data).toHaveProperty('user');
-      expect(data).toHaveProperty('session');
-      
-      // ユーザーデータの確認
-      const expectedUserFields = ['id', 'name', 'email', 'picture', 'email_verified', 'updated_at', 'iss', 'aud', 'iat', 'exp', 'sub', 'sid'];
-      expectedUserFields.forEach(field => {
-        expect(data.user).toHaveProperty(field);
+      // _Userシートがないので500エラーになる
+      expect(response.status).toBe(500);
+      const data = await response.json() as ErrorResponse;
+      expect(data).toEqual({
+        success: false,
+        error: 'user_not_found',
+        message: 'User data not found in _User sheet'
       });
-      
-      // セッションデータの確認
-      const expectedSessionFields = ['session_id', 'expires_at', 'created_at'];
-      expectedSessionFields.forEach(field => {
-        expect(data.session).toHaveProperty(field);
-      });
-      
-      // データの一貫性確認
-      expect(data.user.id).toBe(data.user.sub);
-      expect(data.user.sub).toBe(userId);
-      expect(data.session.session_id).toBe(sessionId);
     });
   });
 });

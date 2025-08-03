@@ -1,8 +1,8 @@
 import { Hono, Context } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq } from 'drizzle-orm';
-import { sessionTable } from '@/db/schema';
+import { SessionService } from '@/services/session';
+import { ConfigService } from '@/services/config';
 import { Env } from '@/types/env';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -21,85 +21,62 @@ export const meHandler = async (c: Context<{ Bindings: Env }>) => {
       }, 401 as const);
     }
 
-    // データベース接続
+    // Initialize services
     const db = drizzle(c.env.DB);
+    if (!ConfigService.isInitialized()) {
+      await ConfigService.initialize(db);
+    }
+    if (!SessionService.isInitialized()) {
+      SessionService.initialize(db);
+    }
 
-    // セッション情報を取得
-    const sessions = await db.select()
-      .from(sessionTable)
-      .where(eq(sessionTable.session_id, sessionId))
-      .limit(1);
-
-    if (sessions.length === 0) {
+    // Validate session using SessionService
+    const sessionValidation = await SessionService.validateSession(sessionId);
+    
+    if (!sessionValidation.valid) {
       // タイミング攻撃対策: 一定時間待機
       await new Promise(resolve => setTimeout(resolve, 100));
       
       return c.json({
         success: false,
         error: 'unauthorized',
-        message: 'Authentication required'
+        message: sessionValidation.error || 'Authentication required'
       }, 401 as const);
     }
 
-    const session = sessions[0];
-
-    // セッション有効期限を確認
-    const now = new Date();
-    const expiresAt = new Date(session.expires_at);
+    // Get user data from _User sheet (required for user info)
+    const userData = await SessionService.getUserData(sessionId, c.env);
     
-    if (now >= expiresAt) {
-      // 期限切れセッションは削除
-      await db.delete(sessionTable)
-        .where(eq(sessionTable.session_id, sessionId));
-      
-      // タイミング攻撃対策: 一定時間待機
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+    if (!userData) {
+      // _User sheet data not available - this is an error for /me endpoint
       return c.json({
         success: false,
-        error: 'session_expired',
-        message: 'Session has expired'
-      }, 401 as const);
-    }
-
-    // ユーザーデータをパース
-    let userData;
-    try {
-      userData = JSON.parse(session.user_data);
-    } catch (error) {
-      console.error('Failed to parse user_data:', error);
-      
-      // タイミング攻撃対策: 一定時間待機
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      return c.json({
-        success: false,
-        error: 'server_error',
-        message: 'Failed to retrieve user information'
+        error: 'user_not_found',
+        message: 'User data not found in _User sheet'
       }, 500 as const);
     }
 
-    // Response matching MeSuccessSchema
+    // Return user data from _User sheet
     return c.json({
       success: true,
       user: {
-        id: userData.sub,
-        name: userData.name || null,
+        id: userData.id,
+        name: userData.name,
         email: userData.email,
         picture: userData.picture || null,
-        email_verified: userData.email_verified,
-        updated_at: userData.updated_at,
-        iss: userData.iss,
-        aud: userData.aud,
-        iat: userData.iat,
-        exp: userData.exp,
-        sub: userData.sub,
-        sid: userData.sid
+        email_verified: null, // Not stored in _User sheet
+        updated_at: null, // Not stored in _User sheet  
+        iss: null, // Not stored in _User sheet
+        aud: null, // Not stored in _User sheet
+        iat: null, // Not stored in _User sheet
+        exp: null, // Not stored in _User sheet
+        sub: userData.id,
+        sid: null // Not stored in _User sheet
       },
       session: {
-        session_id: session.session_id,
-        expires_at: session.expires_at,
-        created_at: session.created_at || new Date().toISOString()
+        session_id: sessionValidation.session_id!,
+        expires_at: sessionValidation.expires_at!,
+        created_at: userData.created_at || new Date().toISOString()
       }
     }, 200 as const);
 

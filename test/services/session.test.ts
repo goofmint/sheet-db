@@ -336,12 +336,11 @@ describe('SessionService', () => {
       expect(authData).toBeNull();
     });
 
-    it('should get user data (minimal auth data when no env provided)', async () => {
+    it('should return null when no env provided (cannot access _User sheet)', async () => {
       const userData = await SessionService.getUserData(testSessionId);
       
-      expect(userData).toBeDefined();
-      expect((userData as any)!.auth0_user_id).toBe('auth0|utility123');
-      expect((userData as any)!.sub).toBe('auth0|utility123');
+      // Without environment, cannot access _User sheet
+      expect(userData).toBeNull();
     });
 
     it('should return null for invalid session when getting user data', async () => {

@@ -154,14 +154,14 @@ export class SessionService {
         };
       }
 
-      // Parse user data
+      // Parse user data (new format only)
       let userData: Auth0UserData;
       try {
         const parsedData = JSON.parse(session.user_data);
         
-        // Validate parsed data structure
+        // Validate new minimal format
         if (!parsedData.auth0_user_id || !parsedData.sub) {
-          throw new Error('Invalid user data structure');
+          throw new Error('Invalid user data structure: missing required identifiers');
         }
 
         userData = {
@@ -321,36 +321,38 @@ export class SessionService {
   }
 
   /**
-   * Get user data from _User sheet based on session (convenience method)
+   * Get user data from _User sheet based on session
+   * Returns null if _User sheet data is not available
    */
-  static async getUserData(sessionId: string, env?: Env): Promise<UserRecord | Auth0UserData | null> {
+  static async getUserData(sessionId: string, env?: Env): Promise<UserRecord | null> {
     const sessionValidation = await this.validateSession(sessionId);
     if (!sessionValidation.valid || !sessionValidation.user_data) {
       return null;
     }
 
-    // If environment is provided, get user data from _User sheet
-    if (env) {
-      try {
-        const userSheet = new UserSheet(env);
-        const userResult = await userSheet.findById(sessionValidation.user_data.auth0_user_id);
-        
-        if (userResult.success && userResult.data && Array.isArray(userResult.data) && userResult.data.length > 0) {
-          const userData = userResult.data[0];
-          if (this.isUserRecord(userData)) {
-            return userData; // Return full user data from _User sheet
-          } else {
-            console.warn('Invalid user data structure from _User sheet:', userData);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to get user data from _User sheet:', error);
-        // Fall back to session data if _User sheet is unavailable
-      }
+    // Environment is required to access _User sheet
+    if (!env) {
+      return null;
     }
 
-    // Fall back to session data (minimal Auth0 identifiers)
-    return sessionValidation.user_data;
+    try {
+      const userSheet = new UserSheet(env);
+      const userResult = await userSheet.findById(sessionValidation.user_data.auth0_user_id);
+      
+      if (userResult.success && userResult.data && Array.isArray(userResult.data) && userResult.data.length > 0) {
+        const userData = userResult.data[0];
+        if (this.isUserRecord(userData)) {
+          return userData; // Return full user data from _User sheet
+        } else {
+          console.warn('Invalid user data structure from _User sheet:', userData);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get user data from _User sheet:', error);
+    }
+
+    // Return null if _User sheet data is not available
+    return null;
   }
 
   /**
@@ -360,6 +362,7 @@ export class SessionService {
     const result = await this.validateSession(sessionId);
     return result.valid ? result.user_data || null : null;
   }
+
 
   /**
    * Check if session exists and is valid (convenience method)
