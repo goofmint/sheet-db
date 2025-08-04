@@ -1,10 +1,18 @@
 // Client-side JavaScript for configuration management
-async function loadConfigs() {
+let configPassword = null;
+
+async function loadConfigsWithPassword(password) {
   try {
-    const response = await fetch('/api/v1/configs?limit=100&sort=key&order=asc');
+    const response = await fetch('/api/v1/configs?limit=100&sort=key&order=asc', {
+      headers: {
+        'Authorization': `Bearer ${password}`
+      }
+    });
 
     if (!response.ok) {
-      // Surface the HTTP error to the caller/UI
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Invalid password');
+      }
       throw new Error(`HTTP ${response.status}`);
     }
 
@@ -14,11 +22,52 @@ async function loadConfigs() {
       : await response.json();
     const configs = apiResult.data.configs;
     
+    configPassword = password;
     updateConfigTable(configs);
+    return true;
   } catch (error) {
     console.error('Failed to load configs:', error);
-    showErrorMessage('Failed to load configuration data');
+    if (error.message === 'Invalid password') {
+      showErrorMessage('Invalid password. Please try again.');
+    } else {
+      showErrorMessage('Failed to load configuration data');
+    }
+    return false;
   }
+}
+
+function handlePasswordSubmit(event) {
+  event.preventDefault();
+  const password = event.target.password.value;
+  const errorDiv = document.getElementById('error');
+  
+  if (!password) {
+    errorDiv.textContent = 'Password is required';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  errorDiv.style.display = 'none';
+  
+  loadConfigsWithPassword(password).then(success => {
+    if (success) {
+      // Hide auth form and show config container
+      document.getElementById('auth-form').style.display = 'none';
+      document.getElementById('config-container').style.display = 'block';
+    } else {
+      errorDiv.textContent = 'Invalid password';
+      errorDiv.style.display = 'block';
+    }
+  });
+}
+
+function handleLogout() {
+  // Reset password and show auth form
+  configPassword = null;
+  document.getElementById('config-container').style.display = 'none';
+  document.getElementById('auth-form').style.display = 'block';
+  document.getElementById('password-input').value = '';
+  document.getElementById('error').style.display = 'none';
 }
 
 function updateConfigTable(configs) {
@@ -64,5 +113,16 @@ function showErrorMessage(message) {
   tbody.innerHTML = `<tr><td colspan="3" class="error-message">${message}</td></tr>`;
 }
 
-// Load configurations when the page loads
-document.addEventListener('DOMContentLoaded', loadConfigs);
+// Initialize page when DOM loads
+document.addEventListener('DOMContentLoaded', function() {
+  const passwordForm = document.getElementById('password-form');
+  const logoutBtn = document.getElementById('logout-btn');
+  
+  if (passwordForm) {
+    passwordForm.addEventListener('submit', handlePasswordSubmit);
+  }
+  
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', handleLogout);
+  }
+});

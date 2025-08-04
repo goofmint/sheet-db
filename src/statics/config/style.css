@@ -7,6 +7,72 @@ body {
   color: #1d1d1f;
 }
 
+/* Authentication Form Styles */
+.auth-form {
+  max-width: 400px;
+  margin: 100px auto;
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.auth-form h1 {
+  margin: 0 0 16px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.auth-form p {
+  color: #86868b;
+  margin: 0 0 32px 0;
+}
+
+.auth-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-form input[type="password"] {
+  padding: 12px 16px;
+  border: 1px solid #d2d2d7;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.auth-form input[type="password"]:focus {
+  outline: none;
+  border-color: #007AFF;
+}
+
+.auth-form button[type="submit"] {
+  background-color: #007AFF;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.auth-form button[type="submit"]:hover {
+  background-color: #0051D5;
+}
+
+.error {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 16px;
+  font-size: 0.9rem;
+}
+
 .back-link {
   display: inline-block;
   margin-bottom: 20px;

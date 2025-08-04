@@ -1,0 +1,56 @@
+
+> sheet-db@0.0.0 dev
+> wrangler dev
+
+
+ ⛅️ wrangler 4.24.0 (update available 4.27.0)
+─────────────────────────────────────────────
+Using vars defined in .dev.vars
+Your Worker has access to the following bindings:
+Binding                                    Resource                  Mode
+env.DB (sheet-db)                          D1 Database               local
+env.ASSETS                                 Assets                    local
+env.GOOGLE_CLIENT_ID ("(hidden)")          Environment Variable      local
+env.GOOGLE_CLIENT_SECRET ("(hidden)")      Environment Variable      local
+env.AUTH0_DOMAIN ("(hidden)")              Environment Variable      local
+env.AUTH0_CLIENT_ID ("(hidden)")           Environment Variable      local
+env.AUTH0_CLIENT_SECRET ("(hidden)")       Environment Variable      local
+env.TOKEN ("(hidden)")                     Environment Variable      local
+env.AUTH0_TEST_EMAIL ("(hidden)")          Environment Variable      local
+env.AUTH0_TEST_PASSWORD ("(hidden)")       Environment Variable      local
+env.GOOGLE_DRIVE_ID ("(hidden)")           Environment Variable      local
+
+⎔ Starting local server...
+[wrangler:info] Ready on http://0.0.0.0:8787
+[wrangler:info] - http://127.0.0.1:8787
+[wrangler:info] - http://192.168.1.10:8787
+<-- GET /statics/config/client.js
+--> GET /statics/config/client.js [32m200[0m 6ms
+[wrangler:info] GET /statics/config/client.js 200 OK (29ms)
+<-- GET /config
+--> GET /config [32m200[0m 1ms
+[wrangler:info] GET /config 200 OK (5ms)
+<-- GET /api/v1/configs
+--> GET /api/v1/configs [33m401[0m 0ms
+[wrangler:info] GET /api/v1/configs 401 Unauthorized (2ms)
+<-- GET /config
+--> GET /config [32m200[0m 0ms
+[wrangler:info] GET /config 200 OK (18ms)
+<-- GET /.well-known/appspecific/com.chrome.devtools.json
+--> GET /.well-known/appspecific/com.chrome.devtools.json [33m404[0m 11ms
+[wrangler:info] GET /.well-known/appspecific/com.chrome.devtools.json 404 Not Found (39ms)
+<-- GET /statics/config/style.css
+<-- GET /statics/config/client.js
+--> GET /statics/config/client.js [32m200[0m 21ms
+--> GET /statics/config/style.css [32m200[0m 22ms
+[wrangler:info] GET /statics/config/client.js 200 OK (55ms)
+[wrangler:info] GET /statics/config/style.css 200 OK (57ms)
+<-- GET /api/v1/configs
+--> GET /api/v1/configs [32m200[0m 3ms
+[wrangler:info] GET /api/v1/configs 200 OK (5ms)
+<-- GET /api/v1/configs?limit=100&sort=key&order=asc
+--> GET /api/v1/configs?limit=100&sort=key&order=asc [32m200[0m 7ms
+[wrangler:info] GET /api/v1/configs 200 OK (15ms)
+<-- GET /api/v1/configs?limit=100&sort=key&order=asc
+--> GET /api/v1/configs?limit=100&sort=key&order=asc [32m200[0m 3ms
+[wrangler:info] GET /api/v1/configs 200 OK (4ms)

@@ -1,199 +1,128 @@
-// Track changes and update UI
-function updateChangesCount() {
-  const changedInputs = document.querySelectorAll('input[data-original]');
-  let changesCount = 0;
-  
-  changedInputs.forEach(input => {
-    const original = input.dataset.original;
-    const current = input.type === 'checkbox' ? input.checked.toString() : input.value;
-    
-    if (current !== original) {
-      changesCount++;
-      input.closest('tr').classList.add('changed');
-    } else {
-      input.closest('tr').classList.remove('changed');
-    }
-  });
-  
-  document.getElementById('changesCount').textContent = changesCount + ' changes';
-}
+// Client-side JavaScript for configuration management
+let configPassword = null;
 
-// Reset individual field
-function resetField(key) {
-  const input = document.querySelector(`input[name="${key}"]`);
-  if (input) {
-    const original = input.dataset.original;
-    if (input.type === 'checkbox') {
-      input.checked = original === 'true';
-    } else {
-      input.value = original;
-    }
-    updateChangesCount();
-  }
-}
-
-// Reset all fields
-function resetAllFields() {
-  const inputs = document.querySelectorAll('input[data-original]');
-  inputs.forEach(input => {
-    const original = input.dataset.original;
-    if (input.type === 'checkbox') {
-      input.checked = original === 'true';
-    } else {
-      input.value = original;
-    }
-  });
-  updateChangesCount();
-}
-
-// Validation function removed - direct saving without client-side validation
-function validateField(key) {
-  // No validation - removed
-}
-
-// Format the form data for API submission
-async function submitForm(e) {
-  e.preventDefault();
-  
-  // Show loading state
-  const submitBtn = document.querySelector('button[type="submit"]');
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Saving...';
-  
-  // Collect form data as flat key/value pairs
-  const formData = new FormData(e.target);
-  const config = {};
-  
-  // Convert FormData to simple key/value object
-  for (const [key, value] of formData.entries()) {
-    const input = e.target.querySelector(`input[name="${key}"]`);
-    if (input && input.type === 'checkbox') {
-      // For checkboxes, convert "on" to true
-      config[key] = true;
-    } else {
-      config[key] = value;
-    }
-  }
-  
-  // Handle all unchecked checkboxes
-  const checkboxes = e.target.querySelectorAll('input[type="checkbox"]');
-  checkboxes.forEach(checkbox => {
-    if (!formData.has(checkbox.name)) {
-      config[checkbox.name] = false;
-    }
-  });
-  
+async function loadConfigsWithPassword(password) {
   try {
-    // Get config password for Authorization header
-    const configPassword = formData.get('app.config_password') || 
-                           document.querySelector('input[name="app.config_password"]')?.value;
-    
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    
-    // Add Authorization header if config password is available
-    if (configPassword) {
-      headers['Authorization'] = `Bearer ${configPassword}`;
-    }
-    
-    const response = await fetch('/api/v1/setup', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(config),
-    });
-    
-    if (response.ok) {
-      // Reset the original values after successful save
-      const inputs = document.querySelectorAll('input[data-original]');
-      inputs.forEach(input => {
-        const current = input.type === 'checkbox' ? input.checked.toString() : input.value;
-        input.dataset.original = current;
-      });
-      updateChangesCount();
-      
-      // Show success notification
-      showNotification('Configuration saved successfully!', 'success');
-      
-      // Update button state
-      submitBtn.textContent = 'Saved!';
-      setTimeout(() => {
-        submitBtn.textContent = 'Save All';
-        submitBtn.disabled = false;
-      }, 2000);
-    } else {
-      const error = await response.json();
-      showNotification('Failed to save configuration: ' + (error.message || 'Unknown error'), 'error');
-      submitBtn.textContent = 'Save All';
-      submitBtn.disabled = false;
-    }
-  } catch (error) {
-    showNotification('Failed to save configuration: ' + error.message, 'error');
-    submitBtn.textContent = 'Save All';
-    submitBtn.disabled = false;
-  }
-}
-
-// Show notification function
-function showNotification(message, type = 'info') {
-  // Create notification element
-  const notification = document.createElement('div');
-  notification.className = `notification ${type}`;
-  notification.textContent = message;
-  
-  // Add to page
-  document.body.appendChild(notification);
-  
-  // Show with animation
-  setTimeout(() => {
-    notification.classList.add('show');
-  }, 100);
-  
-  // Auto-hide after 4 seconds
-  setTimeout(() => {
-    notification.classList.remove('show');
-    setTimeout(() => {
-      document.body.removeChild(notification);
-    }, 300);
-  }, 4000);
-}
-
-// Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-  // Track changes on all inputs and add auto-validation
-  const inputs = document.querySelectorAll('input[data-original]');
-  inputs.forEach(input => {
-    input.addEventListener('input', updateChangesCount);
-    input.addEventListener('change', updateChangesCount);
-    
-    // Auto-validation removed
-  });
-
-  // Reset button handlers
-  document.querySelectorAll('.reset-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const key = this.dataset.key;
-      resetField(key);
-    });
-  });
-
-
-  // Reset all button
-  const resetAllBtn = document.getElementById('resetAll');
-  if (resetAllBtn) {
-    resetAllBtn.addEventListener('click', function() {
-      if (confirm('Are you sure you want to reset all changes?')) {
-        resetAllFields();
+    const response = await fetch('/api/v1/configs?limit=100&sort=key&order=asc', {
+      headers: {
+        'Authorization': `Bearer ${password}`
       }
     });
-  }
 
-  // Form submission
-  const configForm = document.getElementById('configForm');
-  if (configForm) {
-    configForm.addEventListener('submit', submitForm);
-  }
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Invalid password');
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-  // Initial change count
-  updateChangesCount();
+    // 204 No-Content -> empty list
+    const apiResult = response.status === 204 
+      ? { data: { configs: [] } } 
+      : await response.json();
+    const configs = apiResult.data.configs;
+    
+    configPassword = password;
+    updateConfigTable(configs);
+    return true;
+  } catch (error) {
+    console.error('Failed to load configs:', error);
+    if (error.message === 'Invalid password') {
+      showErrorMessage('Invalid password. Please try again.');
+    } else {
+      showErrorMessage('Failed to load configuration data');
+    }
+    return false;
+  }
+}
+
+function handlePasswordSubmit(event) {
+  event.preventDefault();
+  const password = event.target.password.value;
+  const errorDiv = document.getElementById('error');
+  
+  if (!password) {
+    errorDiv.textContent = 'Password is required';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  errorDiv.style.display = 'none';
+  
+  loadConfigsWithPassword(password).then(success => {
+    if (success) {
+      // Hide auth form and show config container
+      document.getElementById('auth-form').style.display = 'none';
+      document.getElementById('config-container').style.display = 'block';
+    } else {
+      errorDiv.textContent = 'Invalid password';
+      errorDiv.style.display = 'block';
+    }
+  });
+}
+
+function handleLogout() {
+  // Reset password and show auth form
+  configPassword = null;
+  document.getElementById('config-container').style.display = 'none';
+  document.getElementById('auth-form').style.display = 'block';
+  document.getElementById('password-input').value = '';
+  document.getElementById('error').style.display = 'none';
+}
+
+function updateConfigTable(configs) {
+  const tbody = document.querySelector('#config-table tbody');
+  const rowTemplate = document.querySelector('#config-row-template');
+  
+  // Clear existing rows
+  tbody.innerHTML = '';
+  
+  configs.forEach(config => {
+    const row = rowTemplate.content.cloneNode(true);
+    
+    // Set key
+    row.querySelector('.config-key').textContent = config.key;
+    
+    // Set value
+    const valueCell = row.querySelector('.config-value');
+    if (config.type === 'boolean') {
+      const boolTemplate = document.querySelector('#config-value-boolean-template');
+      const boolElement = boolTemplate.content.cloneNode(true);
+      const checkbox = boolElement.querySelector('.config-boolean-value');
+      checkbox.checked = config.value === 'true';
+      valueCell.appendChild(boolElement);
+    } else if (config.key.includes('secret') || config.key.includes('password')) {
+      const secretTemplate = document.querySelector('#config-value-secret-template');
+      valueCell.appendChild(secretTemplate.content.cloneNode(true));
+    } else {
+      const textTemplate = document.querySelector('#config-value-text-template');
+      const textElement = textTemplate.content.cloneNode(true);
+      textElement.querySelector('.config-text-value').textContent = config.value;
+      valueCell.appendChild(textElement);
+    }
+    
+    // Set description
+    row.querySelector('.config-description').textContent = config.description || '';
+    
+    tbody.appendChild(row);
+  });
+}
+
+function showErrorMessage(message) {
+  const tbody = document.querySelector('#config-table tbody');
+  tbody.innerHTML = `<tr><td colspan="3" class="error-message">${message}</td></tr>`;
+}
+
+// Initialize page when DOM loads
+document.addEventListener('DOMContentLoaded', function() {
+  const passwordForm = document.getElementById('password-form');
+  const logoutBtn = document.getElementById('logout-btn');
+  
+  if (passwordForm) {
+    passwordForm.addEventListener('submit', handlePasswordSubmit);
+  }
+  
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', handleLogout);
+  }
 });

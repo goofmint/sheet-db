@@ -3,12 +3,9 @@ import { drizzle } from 'drizzle-orm/d1';
 import { ConfigService } from '@/services/config';
 import { Env } from '@/types/env';
 import {
-  isAuthenticated,
   generateCSRFToken,
-  setCSRFCookie,
-  getCSRFToken
+  setCSRFCookie
 } from '@/utils/security';
-import { ConfigForm } from '../templates/config/form';
 import { LoginForm } from '../templates/config/login';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -21,31 +18,12 @@ app.get('/', async (c) => {
       await ConfigService.initialize(db);
     }
 
-    // Check authentication using secure session token
-    const configPassword = ConfigService.getString('app.config_password');
-    const authenticated = await isAuthenticated(c, configPassword);
+    // Generate CSRF token
+    const csrfToken = generateCSRFToken();
+    setCSRFCookie(c, csrfToken);
 
-    if (!authenticated) {
-      // Generate CSRF token for the login form
-      const csrfToken = generateCSRFToken();
-      setCSRFCookie(c, csrfToken);
-
-      // Unauthenticated: password input form
-      return c.html(LoginForm({ csrfToken }));
-    }
-
-    // Authenticated: display configuration list
-    // Use existing CSRF token if available, otherwise generate new one
-    let csrfToken = getCSRFToken(c);
-    if (!csrfToken) {
-      csrfToken = generateCSRFToken();
-      setCSRFCookie(c, csrfToken);
-    }
-    
-    // Empty config list - data will be loaded via JavaScript
-    const configList: never[] = [];
-
-    return c.html(ConfigForm({ configList, csrfToken }));
+    // Always show password input form - authentication happens client-side
+    return c.html(LoginForm({ csrfToken }));
 
   } catch (error) {
     console.error('Config page error:', error);

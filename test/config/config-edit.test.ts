@@ -23,7 +23,7 @@ describe('Config Edit Functionality', () => {
   });
 
   describe('Config Page Access', () => {
-    it('should show login form when not authenticated', async () => {
+    it('should always show login form with client-side authentication', async () => {
       const response = await app.fetch(
         new Request('http://localhost/config', {
           method: 'GET',
@@ -36,54 +36,15 @@ describe('Config Edit Functionality', () => {
       expect(html).toContain('Configuration Management');
       expect(html).toContain('password');
       expect(html).toContain('Login');
+      expect(html).toContain('auth-form');
+      expect(html).toContain('config-container');
+      expect(html).toContain('/statics/config/client.js');
     });
 
-    it('should authenticate with correct password', async () => {
-      const response = await authenticateUser();
-
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/config');
-      expect(response.headers.get('Set-Cookie')).toContain('config_session');
-    });
-
-    it('should reject invalid password', async () => {
-      // First get CSRF token
-      const getRequest = new Request('http://localhost/config');
-      const getResponse = await app.fetch(getRequest, env);
-      const csrfToken = await extractCSRFToken(getResponse);
-      
-      const formData = new FormData();
-      formData.append('password', 'wrongpassword');
-      formData.append('csrf_token', csrfToken);
-
-      const response = await app.fetch(
-        new Request('http://localhost/config/auth', {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Cookie': extractCSRFCookie(getResponse)
-          },
-        }),
-        env
-      );
-
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/config?error=invalid_password');
-    });
-  });
-
-  describe('Config Edit Interface', () => {
-    it('should display editable config form when authenticated', async () => {
-      // First, authenticate to get a valid session token
-      const loginResponse = await authenticateUser();
-      const sessionCookie = extractSessionCookie(loginResponse);
-      
+    it('should provide client-side authentication capability via JavaScript', async () => {
       const response = await app.fetch(
         new Request('http://localhost/config', {
           method: 'GET',
-          headers: {
-            'Cookie': sessionCookie
-          },
         }),
         env
       );
@@ -91,12 +52,27 @@ describe('Config Edit Functionality', () => {
       expect(response.status).toBe(200);
       const html = await response.text();
       
-      // Check for form elements and loading state
-      expect(html).toContain('Save All');
-      expect(html).toContain('Reset All');
-      expect(html).toContain('Loading...');
+      // Check that client.js is loaded for authentication handling
+      expect(html).toContain('/statics/config/client.js');
+      expect(html).toContain('password-form');
+      expect(html).toContain('password-input');
+      expect(html).toContain('config-row-template');
+    });
+  });
+
+  describe('Config Edit Interface', () => {
+    it('should include template elements for config display', async () => {
+      const response = await app.fetch(
+        new Request('http://localhost/config', {
+          method: 'GET',
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      const html = await response.text();
       
-      // Check for template definitions
+      // Check for template definitions in the HTML
       expect(html).toContain('config-row-template');
       expect(html).toContain('config-value-text-template');
       expect(html).toContain('config-value-secret-template');
@@ -104,9 +80,11 @@ describe('Config Edit Functionality', () => {
       
       // Check for client-side JavaScript inclusion
       expect(html).toContain('/statics/config/client.js');
+      
+      // Check that config container exists but is hidden initially
+      expect(html).toContain('config-container');
+      expect(html).toContain('style="display: none;"');
     });
-
-
   });
 
   describe('Config Update via API', () => {
@@ -162,85 +140,29 @@ describe('Config Edit Functionality', () => {
     });
   });
 
-  describe('Logout Functionality', () => {
-    it('should logout and clear session', async () => {
-      // First, authenticate to get a valid session token
-      const loginResponse = await authenticateUser();
-      const sessionCookie = extractSessionCookie(loginResponse);
-      const csrfCookie = extractCSRFCookie(loginResponse);
-      
-      // Get fresh CSRF token from the config page after authentication
-      const configRequest = new Request('http://localhost/config', {
-        headers: {
-          'Cookie': `${sessionCookie}; ${csrfCookie}`
-        }
-      });
-      const configResponse = await app.fetch(configRequest, env);
-      const csrfToken = await extractCSRFToken(configResponse);
-      const freshCSRFCookie = extractCSRFCookie(configResponse);
-
-      const formData = new FormData();
-      formData.append('csrf_token', csrfToken);
-
+  describe('Client-side Authentication', () => {
+    it('should provide logout button in config container', async () => {
       const response = await app.fetch(
-        new Request('http://localhost/config/logout', {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Cookie': `${sessionCookie}; ${freshCSRFCookie || csrfCookie}`,
-          },
+        new Request('http://localhost/config', {
+          method: 'GET',
         }),
         env
       );
 
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/config');
+      expect(response.status).toBe(200);
+      const html = await response.text();
       
-      // Check that session cookie is cleared
-      const setCookie = response.headers.get('Set-Cookie');
-      expect(setCookie).toContain('config_session=');
-      expect(setCookie).toContain('Max-Age=0');
+      // Check that logout button exists in the config container
+      expect(html).toContain('logout-btn');
+      expect(html).toContain('id="logout-btn"');
+      expect(html).toContain('Logout');
     });
   });
 
-  // Helper function to authenticate a user and get session cookies
-  async function authenticateUser(): Promise<Response> {
-    // First get CSRF token
-    const getRequest = new Request('http://localhost/config');
-    const getResponse = await app.fetch(getRequest, env);
-    const csrfToken = await extractCSRFToken(getResponse);
-    
-    // Then authenticate with CSRF token
-    const formData = new FormData();
-    formData.append('password', 'testPassword123');
-    formData.append('csrf_token', csrfToken);
-    
-    const authRequest = new Request('http://localhost/config/auth', {
-      method: 'POST',
-      headers: {
-        'Cookie': extractCSRFCookie(getResponse)
-      },
-      body: formData
-    });
-    
-    return await app.fetch(authRequest, env);
-  }
-  
+  // Helper function to extract CSRF token from HTML
   async function extractCSRFToken(response: Response): Promise<string> {
     const html = await response.text();
     const match = html.match(/name="csrf_token" value="([^"]+)"/);
     return match ? match[1] : '';
-  }
-  
-  function extractCSRFCookie(response: Response): string {
-    const setCookie = response.headers.get('Set-Cookie') || '';
-    const match = setCookie.match(/csrf_token=([^;]+)/);
-    return match ? `csrf_token=${match[1]}` : '';
-  }
-  
-  function extractSessionCookie(response: Response): string {
-    const setCookie = response.headers.get('Set-Cookie') || '';
-    const match = setCookie.match(/config_session=([^;]+)/);
-    return match ? `config_session=${match[1]}` : '';
   }
 });
