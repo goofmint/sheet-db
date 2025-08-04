@@ -72,7 +72,7 @@
 - [x] POST /api/v1/configs の実装（設定項目の追加） - [詳細](./tasks/2.2.3-post-configs-api.md)
 - [x] PUT /api/v1/configs/:key の実装（設定項目の更新） - [詳細](./tasks/2.2.5-put-configs-api.md)
 - [x] DELETE /api/v1/configs/:key の実装（設定項目の削除） - [詳細](./tasks/2.2.6-delete-configs-api.md)
-- [ ] GET /api/v1/configsを利用したGET /config の実装 - [詳細](./tasks/2.2.7-config-ui-redesign.md)
+- [x] GET /api/v1/configsを利用したGET /config の実装 - [詳細](./tasks/2.2.7-config-ui-redesign.md)
 - [ ] POST /api/v1/configsを利用した/config での設定追加
 - [ ] PUT /api/v1/configs/:keyを利用した/config での設定更新
 - [ ] DELETE /api/v1/configs/:keyを利用した/config での設定削除
