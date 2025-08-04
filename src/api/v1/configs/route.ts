@@ -9,6 +9,41 @@ import { deleteConfigHandler } from './delete';
 import { configKeyParamSchema, CreateConfigRequestSchema, CreateConfigResponseSchema,
   ConfigItemResponseSchema, ConfigsListResponseSchema, configsListQuerySchema, UpdateConfigRequestSchema, UpdateConfigResponseSchema, DeleteConfigResponseSchema, ErrorResponseSchema } from './schema';
 
+// Common error responses
+const commonErrorResponses = {
+  400: {
+    content: {
+      'application/json': {
+        schema: ErrorResponseSchema
+      }
+    },
+    description: 'Bad request'
+  },
+  401: {
+    content: {
+      'application/json': {
+        schema: ErrorResponseSchema
+      }
+    },
+    description: 'Unauthorized - Authentication required'
+  },
+  404: {
+    content: {
+      'application/json': {
+        schema: ErrorResponseSchema
+      }
+    },
+    description: 'Not found'
+  },
+  500: {
+    content: {
+      'application/json': {
+        schema: ErrorResponseSchema
+      }
+    },
+    description: 'Internal server error'
+  }
+};
 
 // GET /api/v1/configs - List configurations
 export const getConfigsListRoute = createRoute({
@@ -30,30 +65,7 @@ export const getConfigsListRoute = createRoute({
       },
       description: 'Successful response'
     },
-    400: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Bad request - Invalid query parameters'
-    },
-    401: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Unauthorized - Authentication required'
-    },
-    500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Internal server error'
-    }
+    ...commonErrorResponses
   }
 });
 
@@ -77,38 +89,7 @@ export const getConfigByKeyRoute = createRoute({
       },
       description: 'Successful response'
     },
-    400: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Bad request - Invalid key format'
-    },
-    401: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Unauthorized - Authentication required'
-    },
-    404: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Configuration item not found'
-    },
-    500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Internal server error'
-    }
+    ...commonErrorResponses
   }
 });
 
@@ -138,22 +119,6 @@ export const createConfigRoute = createRoute({
       },
       description: 'Configuration created successfully'
     },
-    400: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Bad request - Invalid configuration data'
-    },
-    401: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Unauthorized - Authentication required'
-    },
     409: {
       content: {
         'application/json': {
@@ -162,14 +127,7 @@ export const createConfigRoute = createRoute({
       },
       description: 'Conflict - Configuration key already exists'
     },
-    500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Internal server error'
-    }
+    ...commonErrorResponses
   }
 });
 
@@ -200,38 +158,7 @@ export const updateConfigRoute = createRoute({
       },
       description: 'Configuration updated successfully'
     },
-    400: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Bad request - Invalid configuration data'
-    },
-    401: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Unauthorized - Authentication required'
-    },
-    404: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Configuration item not found'
-    },
-    500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Internal server error'
-    }
+    ...commonErrorResponses
   }
 });
 
@@ -255,22 +182,6 @@ export const deleteConfigRoute = createRoute({
       },
       description: 'Configuration deleted successfully'
     },
-    400: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Bad request - Invalid key format'
-    },
-    401: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Unauthorized - Authentication required'
-    },
     403: {
       content: {
         'application/json': {
@@ -279,22 +190,7 @@ export const deleteConfigRoute = createRoute({
       },
       description: 'Forbidden - Cannot delete system configuration'
     },
-    404: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Configuration item not found'
-    },
-    500: {
-      content: {
-        'application/json': {
-          schema: ErrorResponseSchema
-        }
-      },
-      description: 'Internal server error'
-    }
+    ...commonErrorResponses
   }
 });
 

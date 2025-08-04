@@ -61,17 +61,17 @@ export const meHandler = async (c: Context<{ Bindings: Env }>) => {
       success: true,
       user: {
         id: userData.id,
-        name: userData.name,
+        name: userData.name || null,
         email: userData.email,
         picture: userData.picture || null,
-        email_verified: null, // Not stored in _User sheet
-        updated_at: null, // Not stored in _User sheet  
-        iss: null, // Not stored in _User sheet
-        aud: null, // Not stored in _User sheet
-        iat: null, // Not stored in _User sheet
-        exp: null, // Not stored in _User sheet
+        email_verified: false, // Default value since not stored in _User sheet
+        updated_at: userData.last_login || new Date().toISOString(), // Use last_login as updated_at
+        iss: 'sheet-db', // Default issuer
+        aud: 'sheet-db', // Default audience
+        iat: Math.floor(Date.now() / 1000), // Current timestamp
+        exp: Math.floor(Date.parse(sessionValidation.expires_at!) / 1000), // Session expiry
         sub: userData.id,
-        sid: null // Not stored in _User sheet
+        sid: sessionValidation.session_id!
       },
       session: {
         session_id: sessionValidation.session_id!,
