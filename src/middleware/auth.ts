@@ -53,8 +53,7 @@ export function auth(options: AuthOptions = {}): MiddlewareHandler<{ Bindings: E
       if (allowMasterKey) {
         const masterKey = c.req.header('x-master-key');
         if (masterKey) {
-          // For now, we'll implement a simple check
-          // This will be replaced with ACLService.validateMasterKey when ACL is implemented
+          // TODO: Replace with ACLService.validateMasterKey when ACL is implemented
           const configuredMasterKey = c.env?.MASTER_KEY;
           if (configuredMasterKey && masterKey === configuredMasterKey) {
             authContext.isAuthenticated = true;
@@ -75,7 +74,7 @@ export function auth(options: AuthOptions = {}): MiddlewareHandler<{ Bindings: E
           authContext.userId = validationResult.auth0UserId;
           
           // Pre-fetch user roles for this request
-          // For now, we'll set an empty array - this will be implemented with ACLService
+          // TODO: Implement with ACLService.getUserRoles(userId, context)
           authContext.roles = [];
         }
       }
@@ -129,8 +128,7 @@ export function requireRoles(roles: string[]): MiddlewareHandler<{ Bindings: Env
     }
 
     // Check if user has required roles
-    // For now, we'll use the cached roles or default to empty array
-    // This will be enhanced when ACLService is implemented
+    // TODO: Enhance with ACLService role checking when implemented
     const userRoles = authContext.roles || [];
     const hasRequiredRoles = roles.every(role => userRoles.includes(role));
 
