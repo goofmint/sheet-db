@@ -90,14 +90,14 @@ export async function createConfigHandler(c: Context) {
       }, 400);
     }
 
-    if (body.type === 'json' && typeof body.value !== 'object') {
+    if (body.type === 'json' && (typeof body.value !== 'object' || body.value === null)) {
       return c.json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR' as const,
           message: 'Invalid configuration data',
           details: {
-            value: ['Value must be an object for type "json"']
+            value: ['Value must be a valid JSON object or array for type "json"']
           }
         }
       }, 400);

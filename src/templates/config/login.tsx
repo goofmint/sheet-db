@@ -35,6 +35,10 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
           <button type="button" class="logout-btn" id="logout-btn">Logout</button>
         </div>
 
+        <div class="config-actions">
+          <button type="button" class="btn btn-primary" id="add-config-btn">Add Configuration</button>
+        </div>
+
         <div class="config-table">
           <table id="config-table">
             <thead>
@@ -70,6 +74,44 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
         <template id="config-value-boolean-template">
           <input type="checkbox" class="config-boolean-value" disabled>
         </template>
+      </div>
+
+      <!-- Add Configuration Modal -->
+      <div class="modal" id="add-config-modal" style="display: none;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Add Configuration</h2>
+            <button type="button" class="modal-close" id="modal-close-btn">&times;</button>
+          </div>
+          <form id="add-config-form" class="modal-body">
+            <div class="form-group">
+              <label for="config-key">Configuration Key *</label>
+              <input type="text" id="config-key" name="key" placeholder="e.g. app.feature_enabled" required>
+            </div>
+            <div class="form-group">
+              <label for="config-type">Data Type *</label>
+              <select id="config-type" name="type" required>
+                <option value="string">String</option>
+                <option value="boolean">Boolean</option>
+                <option value="number">Number</option>
+                <option value="json">JSON</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="config-value">Value *</label>
+              <input type="text" id="config-value" name="value" placeholder="Enter configuration value" required>
+            </div>
+            <div class="form-group">
+              <label for="config-description">Description</label>
+              <textarea id="config-description" name="description" placeholder="Optional description for this configuration"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" id="cancel-btn">Cancel</button>
+              <button type="submit" class="btn btn-primary">Add</button>
+            </div>
+            <div class="modal-error" id="modal-error" style="display: none;"></div>
+          </form>
+        </div>
       </div>
 
       <script src="/statics/config/client.js"></script>

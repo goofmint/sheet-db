@@ -8,11 +8,3 @@ export interface AuthenticatedContext extends Context {
   get(key: 'auth'): AuthContext;
 }
 
-/**
- * Authentication result from SessionService
- */
-export interface SessionValidationResult {
-  success: boolean;
-  auth0UserId?: string;
-  error?: string;
-}

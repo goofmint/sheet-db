@@ -229,7 +229,7 @@ describe('POST /api/v1/configs', () => {
       const data = await response.json() as ConfigResponse;
       expect(data.success).toBe(false);
       expect(data.error?.code).toBe('VALIDATION_ERROR');
-      expect(data.error?.details?.value).toContain('Value must be an object for type "json"');
+      expect(data.error?.details?.value).toContain('Value must be a valid JSON object or array for type "json"');
     });
   });
 

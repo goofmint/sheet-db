@@ -31,7 +31,7 @@ describe('Config Management API', () => {
       const html = await response.text();
       expect(html).toContain('Configuration Management');
       expect(html).toContain('password is required');
-      expect(html).toContain('<form method="post" action="/config/auth">');
+      expect(html).toContain('<form id="password-form">'); // Client-side form
       expect(html).toContain('type="password"');
       expect(html).toContain('name="csrf_token"'); // Check for CSRF token
       
@@ -59,15 +59,14 @@ describe('Config Management API', () => {
       expect(html).toContain('Configuration Key');
       expect(html).toContain('Value');
       expect(html).toContain('Description');
-      expect(html).toContain('google.client_id');
-      expect(html).toContain('client123'); // Non-sensitive data should be visible
-      expect(html).toContain('data-field-type="sensitive"'); // Sensitive fields should have sensitive marker
-      expect(html).toContain('type="password"'); // Sensitive fields should be password type
-      expect(html).toContain('<form id="configForm"'); // Should be a form now
-      expect(html).toContain('action="/api/v1/setup"'); // Form should post to setup endpoint
+      // Note: Config data is now loaded dynamically via JavaScript
+      expect(html).toContain('<table id="config-table">');
+      expect(html).toContain('Loading...'); // Initial loading state
+      expect(html).toContain('<template id="config-row-template">');
+      expect(html).toContain('<template id="config-value-secret-template">');
     });
 
-    it('should display editable form with all required elements', async () => {
+    it('should display config add functionality', async () => {
       // First, authenticate to get a valid session token
       const loginResponse = await authenticateUser();
       const sessionCookie = extractSessionCookie(loginResponse);
@@ -82,26 +81,25 @@ describe('Config Management API', () => {
       expect(response.status).toBe(200);
       const html = await response.text();
       
-      // Check form structure
-      expect(html).toContain('<form id="configForm"');
-      expect(html).toContain('method="post"');
-      expect(html).toContain('action="/api/v1/setup"');
-      expect(html).toContain('name="csrf_token"');
+      // Check add config functionality
+      expect(html).toContain('Add Configuration');
+      expect(html).toContain('<button type="button" class="btn btn-primary" id="add-config-btn">');
+      expect(html).toContain('<div class="modal" id="add-config-modal"');
+      expect(html).toContain('<form id="add-config-form"');
       
-      // Check form controls
-      expect(html).toContain('Save All');
-      expect(html).toContain('Reset All');
-      expect(html).toContain('0 changes');
+      // Check modal form fields
+      expect(html).toContain('Configuration Key');
+      expect(html).toContain('Data Type');
+      expect(html).toContain('name="key"');
+      expect(html).toContain('name="type"');
+      expect(html).toContain('name="value"');
+      expect(html).toContain('name="description"');
       
-      // Check reset buttons (for non-sensitive fields)
-      expect(html).toContain('reset-btn');
-      
-      // Check data attributes for change tracking
-      expect(html).toContain('data-original');
-      expect(html).toContain('data-field-type');
+      // Check JavaScript inclusion
+      expect(html).toContain('<script src="/statics/config/client.js">');
     });
 
-    it('should have proper input types for different field types', async () => {
+    it('should have proper templates for different value types', async () => {
       // First, authenticate to get a valid session token
       const loginResponse = await authenticateUser();
       const sessionCookie = extractSessionCookie(loginResponse);
@@ -116,18 +114,22 @@ describe('Config Management API', () => {
       expect(response.status).toBe(200);
       const html = await response.text();
       
-      // Sensitive fields should be password type
-      expect(html).toContain('name="google.client_secret"');
-      expect(html).toContain('type="password"');
-      expect(html).toContain('name="app.config_password"');
+      // Check templates for different value types
+      expect(html).toContain('<template id="config-value-text-template">');
+      expect(html).toContain('<template id="config-value-secret-template">');
+      expect(html).toContain('<template id="config-value-boolean-template">');
       
-      // Non-sensitive fields should be text type
-      expect(html).toContain('name="google.client_id"');
-      expect(html).toContain('type="text"');
+      // Check type selection in add form
+      expect(html).toContain('<option value="string">String</option>');
+      expect(html).toContain('<option value="boolean">Boolean</option>');
+      expect(html).toContain('<option value="number">Number</option>');
+      expect(html).toContain('<option value="json">JSON</option>');
       
-      // Boolean fields should be checkboxes
-      expect(html).toContain('name="app.setup_completed"');
-      expect(html).toContain('type="checkbox"');
+      // Check for secret value masking
+      expect(html).toContain('*****');
+      
+      // Check for disabled checkbox in boolean template
+      expect(html).toContain('disabled>');
     });
   });
 

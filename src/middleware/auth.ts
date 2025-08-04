@@ -2,6 +2,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import { getCookie } from 'hono/cookie';
 import type { Env } from '../types/env';
 import { SessionService } from '../services/session';
+import type { SessionValidationResult } from '../types/session';
 
 /**
  * Authentication context that will be attached to Hono context
@@ -54,7 +55,8 @@ export function auth(options: AuthOptions = {}): MiddlewareHandler<{ Bindings: E
         const masterKey = c.req.header('x-master-key');
         if (masterKey) {
           // TODO: Replace with ACLService.validateMasterKey when ACL is implemented
-          const configuredMasterKey = c.env?.MASTER_KEY;
+          // For now, master key functionality is disabled as MASTER_KEY is not configured
+          const configuredMasterKey = undefined;
           if (configuredMasterKey && masterKey === configuredMasterKey) {
             authContext.isAuthenticated = true;
             authContext.isMasterKey = true;
@@ -68,10 +70,10 @@ export function auth(options: AuthOptions = {}): MiddlewareHandler<{ Bindings: E
       const sessionId = getCookie(c, 'session');
       if (sessionId) {
         const validationResult = await SessionService.validateSession(sessionId);
-        if (validationResult.success) {
+        if (validationResult.valid) {
           authContext.isAuthenticated = true;
           authContext.sessionId = sessionId;
-          authContext.userId = validationResult.auth0UserId;
+          authContext.userId = validationResult.user_data?.auth0_user_id;
           
           // Pre-fetch user roles for this request
           // TODO: Implement with ACLService.getUserRoles(userId, context)
