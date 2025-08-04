@@ -73,6 +73,7 @@
 - [x] PUT /api/v1/configs/:key の実装（設定項目の更新） - [詳細](./tasks/2.2.5-put-configs-api.md)
 - [x] DELETE /api/v1/configs/:key の実装（設定項目の削除） - [詳細](./tasks/2.2.6-delete-configs-api.md)
 - [x] GET /api/v1/configsを利用したGET /config の実装 - [詳細](./tasks/2.2.7-config-ui-redesign.md)
+- [x] テストエラーとTypeScriptエラーの修正 - [詳細](./tasks/2.2.8-test-typescript-fixes.md)
 - [ ] POST /api/v1/configsを利用した/config での設定追加
 - [ ] PUT /api/v1/configs/:keyを利用した/config での設定更新
 - [ ] DELETE /api/v1/configs/:keyを利用した/config での設定削除
