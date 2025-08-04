@@ -177,6 +177,10 @@ function convertValueByType(value, type) {
         throw new Error('Invalid boolean value. Use true/false or 1/0.');
       }
     case 'number':
+      // Validate that the entire string is a valid number
+      if (!/^-?\d+(\.\d+)?$/.test(trimmedValue)) {
+        throw new Error('Invalid number format. Only integers and decimals are allowed.');
+      }
       const num = parseFloat(trimmedValue);
       if (isNaN(num)) throw new Error('Invalid number value.');
       return num;

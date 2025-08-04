@@ -249,6 +249,42 @@ describe('Config Add Functionality', () => {
       expect(addedConfig?.type).toBe('json');
     });
 
+    it('should accept valid number formats', async () => {
+      const validNumbers = [
+        { value: 123, description: 'positive integer' },
+        { value: -456, description: 'negative integer' },
+        { value: 12.34, description: 'positive decimal' },
+        { value: -56.78, description: 'negative decimal' },
+        { value: 0, description: 'zero' },
+        { value: 0.0, description: 'zero decimal' }
+      ];
+
+      for (const [index, { value: testValue, description }] of validNumbers.entries()) {
+        const configData = {
+          key: `test.valid.number.${index}.${String(testValue).replace(/[^a-zA-Z0-9]/g, '_')}`,
+          value: testValue,
+          type: 'number',
+          description: `Test valid number: ${description}`
+        };
+
+        const response = await app.fetch(
+          new Request('http://localhost/api/v1/configs', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer testPassword123'
+            },
+            body: JSON.stringify(configData),
+          }),
+          env
+        );
+
+        expect(response.status).toBe(201);
+        const result = await response.json() as { success: boolean };
+        expect(result.success).toBe(true);
+      }
+    });
+
     it('should reject duplicate configuration keys', async () => {
       // First, add a config
       await ConfigService.upsert('test.duplicate.key', 'original value', 'string');
@@ -352,6 +388,27 @@ describe('Config Add Functionality', () => {
       expect(cssContent).toContain('.btn-secondary');
       expect(cssContent).toContain('.success-message');
       expect(cssContent).toContain('.modal-error');
+    });
+  });
+
+  describe('Client-side Validation', () => {
+    it('should validate number format correctly', async () => {
+      const response = await app.fetch(
+        new Request('http://localhost/statics/config/client.js', {
+          method: 'GET',
+        }),
+        env
+      );
+
+      expect(response.status).toBe(200);
+      const jsContent = await response.text();
+      
+      // Check that the convertValueByType function includes proper number validation
+      expect(jsContent).toContain('Invalid number format');
+      expect(jsContent).toContain('/^-?\\d+(\\.\\d+)?$/');
+      
+      // The function should reject invalid number formats like "100---1"
+      expect(jsContent).toContain('Only integers and decimals are allowed');
     });
   });
 });
