@@ -169,6 +169,8 @@ body {
 
 .config-text-value {
   color: #1d1d1f;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .config-secret-value {

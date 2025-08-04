@@ -97,7 +97,21 @@ function updateConfigTable(configs) {
     } else {
       const textTemplate = document.querySelector('#config-value-text-template');
       const textElement = textTemplate.content.cloneNode(true);
-      textElement.querySelector('.config-text-value').textContent = config.value;
+      
+      // Format value based on type
+      let displayValue = config.value;
+      if (config.type === 'json') {
+        // For JSON type, format the value nicely
+        try {
+          const parsed = typeof config.value === 'string' ? JSON.parse(config.value) : config.value;
+          displayValue = JSON.stringify(parsed, null, 2);
+        } catch {
+          // If parsing fails, show as-is
+          displayValue = config.value;
+        }
+      }
+      
+      textElement.querySelector('.config-text-value').textContent = displayValue;
       valueCell.appendChild(textElement);
     }
     
