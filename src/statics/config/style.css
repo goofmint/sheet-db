@@ -277,6 +277,17 @@ template {
   .btn {
     width: 100%;
   }
+  
+  .modal-content {
+    width: 95%;
+    margin: 20px auto;
+    max-height: calc(100vh - 40px);
+  }
+  
+  .modal-header,
+  .modal-body {
+    padding: 16px;
+  }
 }
 
 /* Config actions */
@@ -304,6 +315,8 @@ template {
   width: 90%;
   max-width: 500px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 
 .modal-header {
@@ -356,6 +369,7 @@ template {
   border-radius: 6px;
   font-size: 1rem;
   transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 
 .form-group input:focus,
