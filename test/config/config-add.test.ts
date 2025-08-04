@@ -187,6 +187,68 @@ describe('Config Add Functionality', () => {
       expect(addedConfig?.type).toBe('json');
     });
 
+    it('should successfully add a JSON array configuration', async () => {
+      const configData = {
+        key: 'test.json.array.config',
+        value: [],
+        type: 'json',
+        description: 'Test JSON array configuration'
+      };
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/configs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer testPassword123'
+          },
+          body: JSON.stringify(configData),
+        }),
+        env
+      );
+
+      expect(response.status).toBe(201);
+      const result = await response.json() as { success: boolean };
+      expect(result.success).toBe(true);
+
+      // Verify the config was added
+      const addedConfig = ConfigService.findByKey('test.json.array.config');
+      expect(addedConfig).toBeDefined();
+      expect(addedConfig?.value).toBe('[]'); // JSON.stringify format
+      expect(addedConfig?.type).toBe('json');
+    });
+
+    it('should successfully add a JSON array with items configuration', async () => {
+      const configData = {
+        key: 'test.json.array.items.config',
+        value: ["item1", "item2", 42],
+        type: 'json',
+        description: 'Test JSON array with items configuration'
+      };
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/configs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer testPassword123'
+          },
+          body: JSON.stringify(configData),
+        }),
+        env
+      );
+
+      expect(response.status).toBe(201);
+      const result = await response.json() as { success: boolean };
+      expect(result.success).toBe(true);
+
+      // Verify the config was added
+      const addedConfig = ConfigService.findByKey('test.json.array.items.config');
+      expect(addedConfig).toBeDefined();
+      expect(addedConfig?.value).toBe('["item1","item2",42]'); // JSON.stringify format
+      expect(addedConfig?.type).toBe('json');
+    });
+
     it('should reject duplicate configuration keys', async () => {
       // First, add a config
       await ConfigService.upsert('test.duplicate.key', 'original value', 'string');

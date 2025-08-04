@@ -4,7 +4,7 @@ import { z } from 'zod';
 const ConfigItemSchema = z.object({
   id: z.string().openapi({ example: 'd7f3c6e1-3e6b-46cf-a07c-e4d4ac9b7c1d' }),
   key: z.string().openapi({ example: 'google.client_id' }),
-  value: z.union([z.string(), z.number(), z.boolean(), z.object({}).passthrough()]).openapi({ example: '12345-abcdef.apps.googleusercontent.com' }),
+  value: z.union([z.string(), z.number(), z.boolean(), z.object({}).passthrough(), z.array(z.any())]).openapi({ example: '12345-abcdef.apps.googleusercontent.com' }),
   type: z.enum(['string', 'boolean', 'number', 'json']),
   description: z.string().nullable(),
   system_config: z.boolean(),
@@ -52,7 +52,8 @@ const CreateConfigRequestSchema = z.object({
     z.string(),
     z.number(),
     z.boolean(),
-    z.object({}).passthrough()
+    z.object({}).passthrough(),
+    z.array(z.any())
   ]).openapi({ 
     example: 'sk-abc123',
     description: 'Configuration value'
@@ -92,7 +93,8 @@ const UpdateConfigRequestSchema = z.object({
     z.string(),
     z.number(),
     z.boolean(),
-    z.object({}).passthrough()
+    z.object({}).passthrough(),
+    z.array(z.any())
   ]).openapi({ 
     example: 'sk-updated-key-456',
     description: 'Configuration value'
