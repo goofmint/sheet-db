@@ -156,20 +156,20 @@ function convertValueByType(value, type) {
     case 'boolean':
       const lowerValue = trimmedValue.toLowerCase();
       if (lowerValue === 'true' || lowerValue === '1') {
-        return 'true';
+        return true;
       } else if (lowerValue === 'false' || lowerValue === '0') {
-        return 'false';
+        return false;
       } else {
         throw new Error('Invalid boolean value. Use true/false or 1/0.');
       }
     case 'number':
       const num = parseFloat(trimmedValue);
       if (isNaN(num)) throw new Error('Invalid number value.');
-      return num.toString();
+      return num;
     case 'json':
       try {
         const parsed = JSON.parse(trimmedValue);
-        return JSON.stringify(parsed); // Return as JSON string
+        return parsed; // Return as parsed object
       } catch {
         throw new Error('Invalid JSON format.');
       }
