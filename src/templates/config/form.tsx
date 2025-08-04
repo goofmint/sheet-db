@@ -39,7 +39,7 @@ export function ConfigForm({ configList, csrfToken }: ConfigFormProps) {
         <input type="hidden" name="csrf_token" value="${csrfToken}">
         
         <div class="config-table">
-          <table>
+          <table id="config-table">
             <thead>
               <tr>
                 <th>Configuration Key</th>
@@ -48,41 +48,31 @@ export function ConfigForm({ configList, csrfToken }: ConfigFormProps) {
               </tr>
             </thead>
             <tbody>
-              ${configList.map((config) => html`
-                <tr>
-                  <td class="key-column">${config.key}</td>
-                  <td class="value-column">
-                    ${config.type === 'boolean' ? html`
-                      <input 
-                        type="checkbox" 
-                        name="${config.key}" 
-                        ${config.value === 'true' ? 'checked' : ''}
-                        data-original="${config.value}"
-                      >
-                    ` : html`
-                      <div class="input-group">
-                        <input 
-                          type="${config.isSensitive ? 'password' : 'text'}" 
-                          name="${config.key}"
-                          value="${config.value}" 
-                          data-original="${config.value}"
-                          data-field-type="${config.isSensitive ? 'sensitive' : 'normal'}"
-                          class="config-input"
-                        >
-                        <button type="button" class="reset-btn" title="Reset to original value" data-key="${config.key}">↺</button>
-                      </div>
-                    `}
-                    <div class="validation-status" id="validation-${config.key}"></div>
-                    ${config.isSensitive ? html`
-                      <div class="sensitive-note">Sensitive information</div>
-                    ` : ''}
-                  </td>
-                  <td class="description-column">${config.description}</td>
-                </tr>
-              `)}
+              <tr><td colspan="3">Loading...</td></tr>
             </tbody>
           </table>
         </div>
+        
+        <!-- Template definitions -->
+        <template id="config-row-template">
+          <tr>
+            <td class="config-key"></td>
+            <td class="config-value"></td>
+            <td class="config-description"></td>
+          </tr>
+        </template>
+
+        <template id="config-value-text-template">
+          <span class="config-text-value"></span>
+        </template>
+
+        <template id="config-value-secret-template">
+          <span class="config-secret-value">*****</span>
+        </template>
+
+        <template id="config-value-boolean-template">
+          <input type="checkbox" class="config-boolean-value" disabled>
+        </template>
         
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Save All</button>

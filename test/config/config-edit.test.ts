@@ -91,16 +91,19 @@ describe('Config Edit Functionality', () => {
       expect(response.status).toBe(200);
       const html = await response.text();
       
-      // Check for editable form elements
+      // Check for form elements and loading state
       expect(html).toContain('Save All');
       expect(html).toContain('Reset All');
-      expect(html).toContain('data-original=');
-      expect(html).toContain('type="password"');
+      expect(html).toContain('Loading...');
       
-      // Check for config values
-      expect(html).toContain('google.client_id');
-      expect(html).toContain('auth0.domain');
-      expect(html).toContain('app.config_password');
+      // Check for template definitions
+      expect(html).toContain('config-row-template');
+      expect(html).toContain('config-value-text-template');
+      expect(html).toContain('config-value-secret-template');
+      expect(html).toContain('config-value-boolean-template');
+      
+      // Check for client-side JavaScript inclusion
+      expect(html).toContain('/statics/config/client.js');
     });
 
 

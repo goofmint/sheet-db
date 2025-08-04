@@ -1,0 +1,214 @@
+/* Configuration Management Styles */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f7;
+  color: #1d1d1f;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: #007AFF;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #d2d2d7;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.header p {
+  margin: 8px 0 0 0;
+  color: #86868b;
+}
+
+.logout-form {
+  margin: 0;
+}
+
+.logout-btn {
+  background-color: #ff3b30;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logout-btn:hover {
+  background-color: #d70015;
+}
+
+.config-table {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+#config-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#config-table th {
+  background-color: #f6f6f6;
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid #d2d2d7;
+}
+
+#config-table td {
+  padding: 16px;
+  border-bottom: 1px solid #f6f6f6;
+  vertical-align: top;
+}
+
+#config-table tr:last-child td {
+  border-bottom: none;
+}
+
+.config-key {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+  font-size: 0.9rem;
+  color: #007AFF;
+  font-weight: 500;
+}
+
+.config-value {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+  font-size: 0.9rem;
+}
+
+.config-text-value {
+  color: #1d1d1f;
+}
+
+.config-secret-value {
+  color: #86868b;
+  background-color: #f6f6f6;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.config-boolean-value {
+  margin: 0;
+}
+
+.config-description {
+  color: #86868b;
+  font-size: 0.9rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background-color: #007AFF;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #0051D5;
+}
+
+.btn-secondary {
+  background-color: #f6f6f6;
+  color: #1d1d1f;
+}
+
+.btn-secondary:hover {
+  background-color: #e5e5ea;
+}
+
+.changes-indicator {
+  color: #86868b;
+  font-size: 0.9rem;
+  margin-left: 16px;
+}
+
+.error-message {
+  color: #ff3b30;
+  font-weight: 500;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Loading state */
+tbody tr:first-child td {
+  text-align: center;
+  color: #86868b;
+  font-style: italic;
+}
+
+/* Template elements are hidden */
+template {
+  display: none;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  body {
+    padding: 16px;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .header h1 {
+    font-size: 1.5rem;
+  }
+  
+  #config-table th,
+  #config-table td {
+    padding: 12px;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .btn {
+    width: 100%;
+  }
+}
