@@ -83,7 +83,9 @@
       "Bash(gh pr close:*)",
       "Bash(git branch:*)",
       "Bash(diff:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(npx wrangler deploy:*)",
+      "WebFetch(domain:127.0.0.1)"
     ],
     "deny": []
   }
