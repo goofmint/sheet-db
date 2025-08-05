@@ -2,6 +2,7 @@
 let configPassword = null;
 let modalMode = 'add'; // 'add' or 'edit'
 let editingConfig = null; // Stores the config being edited
+let deletingConfig = null; // Stores the config being deleted
 
 async function loadConfigsWithPassword(password) {
   try {
@@ -122,18 +123,29 @@ function updateConfigTable(configs) {
     // Set description
     row.querySelector('.config-description').textContent = config.description || '';
     
-    // Add edit button to actions cell
+    // Add edit and delete buttons to actions cell
     const actionsCell = row.querySelector('.config-actions');
     console.log('actionsCell:', actionsCell); // Debug log
     if (actionsCell) {
       // Clear any existing content in actions cell
       actionsCell.innerHTML = '';
       
+      // Edit button
       const editBtn = document.createElement('button');
       editBtn.className = 'btn btn-sm btn-edit';
       editBtn.textContent = 'Edit';
       editBtn.onclick = () => showEditConfigModal(config);
       actionsCell.appendChild(editBtn);
+      
+      // Space between buttons
+      actionsCell.appendChild(document.createTextNode(' '));
+      
+      // Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'btn btn-sm btn-delete';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.onclick = () => showDeleteConfirmModal(config);
+      actionsCell.appendChild(deleteBtn);
     } else {
       console.error('actionsCell not found for config:', config.key);
     }
@@ -155,7 +167,7 @@ function showAddConfigModal() {
   // Update modal for add mode
   document.querySelector('.modal-header h2').textContent = 'Add Configuration';
   document.querySelector('#add-config-form button[type="submit"]').textContent = 'Add';
-  document.getElementById('config-key').disabled = false;
+  document.getElementById('config-key').readOnly = false;
   
   // Reset form
   document.getElementById('add-config-form').reset();
@@ -198,7 +210,74 @@ function hideAddConfigModal() {
   editingConfig = null;
   
   // Reset to add mode
-  document.getElementById('config-key').disabled = false;
+  document.getElementById('config-key').readOnly = false;
+}
+
+// Delete confirmation modal functions
+function showDeleteConfirmModal(config) {
+  deletingConfig = config;
+  
+  // Set key name in modal
+  document.getElementById('delete-config-key').textContent = config.key;
+  
+  // Show modal
+  document.getElementById('delete-confirm-modal').style.display = 'block';
+  
+  // Focus on Cancel button for safety
+  document.getElementById('delete-cancel-btn').focus();
+  
+  // Clear any previous error messages
+  document.getElementById('delete-modal-error').style.display = 'none';
+}
+
+function hideDeleteConfirmModal() {
+  document.getElementById('delete-confirm-modal').style.display = 'none';
+  deletingConfig = null;
+}
+
+// Show error in delete modal
+function showDeleteErrorInModal(message) {
+  const errorDiv = document.getElementById('delete-modal-error');
+  errorDiv.textContent = message;
+  errorDiv.style.display = 'block';
+}
+
+// Delete configuration
+async function deleteConfig() {
+  if (!deletingConfig) return;
+  
+  const deleteBtn = document.getElementById('delete-confirm-btn');
+  deleteBtn.disabled = true;
+  deleteBtn.textContent = 'Deleting...';
+  
+  try {
+    const response = await fetch(`/api/v1/configs/${encodeURIComponent(deletingConfig.key)}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${configPassword}`
+      }
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error?.message || `HTTP ${response.status}`);
+    }
+    
+    // Success
+    const deletedKey = deletingConfig.key; // preserve before reset
+    hideDeleteConfirmModal();
+    showSuccessMessage(`Configuration '${deletedKey}' deleted successfully.`);
+    
+    // Reload configs
+    await loadConfigsWithPassword(configPassword);
+    
+  } catch (error) {
+    console.error('Failed to delete config:', error);
+    showDeleteErrorInModal(error.message);
+  } finally {
+    deleteBtn.disabled = false;
+    deleteBtn.textContent = 'Delete';
+  }
 }
 
 // Show error in modal
@@ -457,6 +536,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // Delete modal event listeners
+  const deleteModalCloseBtn = document.getElementById('delete-modal-close-btn');
+  const deleteCancelBtn = document.getElementById('delete-cancel-btn');
+  const deleteConfirmBtn = document.getElementById('delete-confirm-btn');
+  const deleteModal = document.getElementById('delete-confirm-modal');
+  
+  if (deleteModalCloseBtn) {
+    deleteModalCloseBtn.addEventListener('click', hideDeleteConfirmModal);
+  }
+  
+  if (deleteCancelBtn) {
+    deleteCancelBtn.addEventListener('click', hideDeleteConfirmModal);
+  }
+  
+  if (deleteConfirmBtn) {
+    deleteConfirmBtn.addEventListener('click', deleteConfig);
+  }
+  
+  // Close delete modal on outside click
+  if (deleteModal) {
+    window.addEventListener('click', function(event) {
+      if (event.target === deleteModal) {
+        hideDeleteConfirmModal();
+      }
+    });
+  }
+  
   // Close modal on Escape key (but not during IME composition)
   let isComposing = false;
   
@@ -470,9 +576,13 @@ document.addEventListener('DOMContentLoaded', function() {
   
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape' && !isComposing) {
-      const modal = document.getElementById('add-config-modal');
-      if (modal && modal.style.display === 'block') {
+      const addModal = document.getElementById('add-config-modal');
+      const deleteModal = document.getElementById('delete-confirm-modal');
+      
+      if (addModal && addModal.style.display === 'block') {
         hideAddConfigModal();
+      } else if (deleteModal && deleteModal.style.display === 'block') {
+        hideDeleteConfirmModal();
       }
     }
   });

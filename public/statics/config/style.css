@@ -239,6 +239,24 @@ body {
   background-color: #28a745;
 }
 
+.btn-delete {
+  background-color: #ff3b30;
+  color: white;
+}
+
+.btn-delete:hover {
+  background-color: #d70015;
+}
+
+.btn-danger {
+  background-color: #ff3b30;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #d70015;
+}
+
 .changes-indicator {
   color: #86868b;
   font-size: 0.9rem;
@@ -420,4 +438,25 @@ template {
   border-radius: 6px;
   margin-top: 16px;
   border: 1px solid #ffcdd2;
+}
+
+/* Delete confirmation modal specific styles */
+.modal-footer {
+  padding: 20px;
+  border-top: 1px solid #d2d2d7;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.delete-confirm-message {
+  font-size: 1rem;
+  color: #1d1d1f;
+  margin: 0;
+}
+
+#delete-config-key {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+  font-weight: 600;
+  color: #007AFF;
 }

@@ -53,7 +53,7 @@ test.describe('Config Edit Functionality', () => {
     
     // モーダルが表示されることを確認
     await expect(page.locator('#add-config-modal')).toBeVisible();
-    await expect(page.locator('.modal-header h2')).toHaveText('Edit Configuration');
+    await expect(page.locator('#add-config-modal .modal-header h2')).toHaveText('Edit Configuration');
     
     // フォームフィールドが表示されることを確認
     await expect(page.locator('#config-key')).toBeVisible();
@@ -94,11 +94,11 @@ test.describe('Config Edit Functionality', () => {
     await expect(page.locator('#add-config-modal')).toBeVisible();
     
     // Validation Rules フィールドが存在することを確認
-    await expect(page.locator('#config-validation')).toBeVisible();
-    await expect(page.locator('label[for="config-validation"]')).toHaveText('Validation Rules (JSON)');
+    await expect(page.locator('#add-config-modal #config-validation')).toBeVisible();
+    await expect(page.locator('#add-config-modal label[for="config-validation"]')).toHaveText('Validation Rules (JSON)');
     
     // ヘルプテキストが表示されることを確認
-    await expect(page.locator('.form-help')).toHaveText('JSON format validation rules. Leave empty for no validation.');
+    await expect(page.locator('#add-config-modal .form-help')).toHaveText('JSON format validation rules. Leave empty for no validation.');
   });
 
   test('should allow empty values when validation rules permit', async ({ page }) => {
@@ -130,11 +130,11 @@ test.describe('Config Edit Functionality', () => {
         return !modal || modal.style.display === 'none';
       }, { timeout: 5000 }).catch(() => {}),
       // 失敗の場合：エラーメッセージが表示される
-      page.waitForSelector('#modal-error:visible', { timeout: 5000 }).catch(() => {})
+      page.waitForSelector('#add-config-modal #modal-error:visible', { timeout: 5000 }).catch(() => {})
     ]);
     
     // エラーメッセージを確認
-    const errorDiv = page.locator('#modal-error');
+    const errorDiv = page.locator('#add-config-modal #modal-error');
     if (await errorDiv.isVisible()) {
       const errorText = await errorDiv.textContent();
       expect(errorText).not.toContain('required');
@@ -165,11 +165,11 @@ test.describe('Config Edit Functionality', () => {
     // エラーメッセージまたは成功のいずれかを待つ
     try {
       // エラーメッセージが表示されることを確認
-      await expect(page.locator('#modal-error')).toBeVisible({ timeout: 3000 });
-      await expect(page.locator('#modal-error')).toContainText('This field is required');
+      await expect(page.locator('#add-config-modal #modal-error')).toBeVisible({ timeout: 3000 });
+      await expect(page.locator('#add-config-modal #modal-error')).toContainText('This field is required');
     } catch {
       // バリデーションが動作しない場合は、機能の存在だけを確認
-      await expect(page.locator('#config-validation')).toBeVisible();
+      await expect(page.locator('#add-config-modal #config-validation')).toBeVisible();
       console.log('Validation test: Field validation may not be fully implemented yet');
     }
   });
@@ -192,8 +192,8 @@ test.describe('Config Edit Functionality', () => {
     await page.click('#add-config-form button[type="submit"]');
     
     // minLengthエラーメッセージが表示されることを確認
-    await expect(page.locator('#modal-error')).toBeVisible();
-    await expect(page.locator('#modal-error')).toContainText('Minimum length is 5 characters');
+    await expect(page.locator('#add-config-modal #modal-error')).toBeVisible();
+    await expect(page.locator('#add-config-modal #modal-error')).toContainText('Minimum length is 5 characters');
     
     // 有効な長さの値を入力
     await page.fill('#config-value', 'validLength');
@@ -201,7 +201,7 @@ test.describe('Config Edit Functionality', () => {
     
     // エラーが解消されることを確認（モーダルが閉じるかエラーが消える）
     await page.waitForTimeout(1000);
-    const errorDiv = page.locator('#modal-error');
+    const errorDiv = page.locator('#add-config-modal #modal-error');
     if (await errorDiv.isVisible()) {
       const errorText = await errorDiv.textContent();
       expect(errorText).not.toContain('Minimum length');
@@ -226,8 +226,8 @@ test.describe('Config Edit Functionality', () => {
     await page.click('#add-config-form button[type="submit"]');
     
     // JSONフォーマットエラーメッセージが表示されることを確認
-    await expect(page.locator('#modal-error')).toBeVisible();
-    await expect(page.locator('#modal-error')).toContainText('Invalid validation rules JSON format');
+    await expect(page.locator('#add-config-modal #modal-error')).toBeVisible();
+    await expect(page.locator('#add-config-modal #modal-error')).toContainText('Invalid validation rules JSON format');
   });
 
   test('should close modal when cancel button is clicked', async ({ page }) => {
@@ -286,14 +286,14 @@ test.describe('Config Edit Functionality', () => {
           return !modal || modal.style.display === 'none';
         }, { timeout: 5000 }),
         // 失敗の場合：エラーメッセージが表示される
-        page.waitForSelector('#modal-error:visible', { timeout: 5000 })
+        page.waitForSelector('#add-config-modal #modal-error:visible', { timeout: 5000 })
       ]).catch(() => {
         // タイムアウトした場合、少なくともモーダルが開いていることを確認
         console.log('Update test: Modal may still be open, checking for validation field presence');
       });
       
       // バリデーション機能の存在を確認
-      await expect(page.locator('#config-validation')).toBeVisible();
+      await expect(page.locator('#add-config-modal #config-validation')).toBeVisible();
     } else {
       // ui.themeが存在しない場合は、Edit機能の基本的な存在を確認
       const firstEditButton = page.locator('.config-actions button.btn-edit').first();
