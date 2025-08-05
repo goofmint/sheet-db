@@ -5,6 +5,7 @@ import { ConfigRepository } from '../../../repositories/config';
 import { checkConfigAuthentication } from '../../../utils/auth';
 import type { ConfigType } from '../../../db/schema';
 import { CreateConfigRequestSchema } from './schema';
+import { normalizeConfigValue } from './validation';
 import type { Env } from '../../../types/env';
 
 // POST /api/v1/configs - Create new configuration item
@@ -48,6 +49,16 @@ export async function createConfigHandler(c: Context) {
 
     const body = validationResult.data;
 
+    // Normalize and validate configuration values
+    const { value: normalizedValue, error: normalizationError } = normalizeConfigValue(body.type, body.value);
+    if (normalizationError) {
+      return c.json({
+        success: false,
+        error: normalizationError
+      }, 400);
+    }
+    body.value = normalizedValue;
+
     // Additional value size validation (max 64KB)
     const valueString = body.type === 'json' ? JSON.stringify(body.value) : String(body.value);
     if (new TextEncoder().encode(valueString).length > 65536) {
@@ -63,45 +74,6 @@ export async function createConfigHandler(c: Context) {
       }, 400);
     }
 
-    // Validate value type consistency
-    if (body.type === 'number' && typeof body.value !== 'number') {
-      return c.json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR' as const,
-          message: 'Invalid configuration data',
-          details: {
-            value: ['Value must be a number for type "number"']
-          }
-        }
-      }, 400);
-    }
-
-    if (body.type === 'boolean' && typeof body.value !== 'boolean') {
-      return c.json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR' as const,
-          message: 'Invalid configuration data',
-          details: {
-            value: ['Value must be a boolean for type "boolean"']
-          }
-        }
-      }, 400);
-    }
-
-    if (body.type === 'json' && (typeof body.value !== 'object' || body.value === null)) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR' as const,
-          message: 'Invalid configuration data',
-          details: {
-            value: ['Value must be a valid JSON object or array for type "json"']
-          }
-        }
-      }, 400);
-    }
 
     // Validate validation rules against type
     if (body.validation) {
@@ -256,6 +228,25 @@ export async function createConfigHandler(c: Context) {
             message: 'Configuration key already exists'
           }
         }, 409);
+      }
+      
+      // Check if it's a validation error from ConfigValidator
+      if (error instanceof Error && (
+        error.message.includes('must be a boolean for type') ||
+        error.message.includes('must be a number for type') ||
+        error.message.includes('must be a valid JSON') ||
+        error.message.includes('Config value must be a string')
+      )) {
+        return c.json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR' as const,
+            message: 'Invalid configuration data',
+            details: {
+              value: [error.message]
+            }
+          }
+        }, 400);
       }
       
       console.error('Config creation error:', error);

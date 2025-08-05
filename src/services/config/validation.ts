@@ -64,19 +64,19 @@ export class ConfigValidator {
     switch (type) {
       case 'number':
         if (isNaN(Number(value))) {
-          throw new Error(`Value "${value}" is not a valid number`);
+          throw new Error(`Value must be a number for type "number"`);
         }
         break;
       case 'boolean':
         if (!['true', 'false'].includes(value.toLowerCase())) {
-          throw new Error(`Value "${value}" is not a valid boolean (true/false)`);
+          throw new Error(`Value must be a boolean for type "boolean"`);
         }
         break;
       case 'json':
         try {
           JSON.parse(value);
         } catch {
-          throw new Error(`Value "${value}" is not valid JSON`);
+          throw new Error(`Value must be a valid JSON object or array for type "json"`);
         }
         break;
       // 'string' type requires no additional validation

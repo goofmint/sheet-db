@@ -56,7 +56,7 @@ const CreateConfigRequestSchema = z.object({
     z.array(z.any())
   ]).openapi({ 
     example: 'sk-abc123',
-    description: 'Configuration value'
+    description: 'Configuration value - validated based on type field'
   }),
   type: z.enum(['string', 'number', 'boolean', 'json']).openapi({ 
     example: 'string',
@@ -78,7 +78,7 @@ const CreateConfigRequestSchema = z.object({
     pattern: z.string().optional(),
     enum: z.array(z.union([z.string(), z.number(), z.boolean()])).optional(),
     required: z.boolean().optional()
-  }).optional().openapi({ 
+  }).nullable().optional().openapi({ 
     description: 'Validation rules for the configuration value'
   })
 }).openapi('CreateConfigRequest');
@@ -97,7 +97,7 @@ const UpdateConfigRequestSchema = z.object({
     z.array(z.any())
   ]).openapi({ 
     example: 'sk-updated-key-456',
-    description: 'Configuration value'
+    description: 'Configuration value - validated based on type field'
   }),
   type: z.enum(['string', 'number', 'boolean', 'json']).openapi({ 
     example: 'string',
@@ -119,7 +119,7 @@ const UpdateConfigRequestSchema = z.object({
     pattern: z.string().optional(),
     enum: z.array(z.union([z.string(), z.number(), z.boolean()])).optional(),
     required: z.boolean().optional()
-  }).optional().openapi({ 
+  }).nullable().optional().openapi({ 
     description: 'Validation rules for the configuration value'
   })
 }).openapi('UpdateConfigRequest');

@@ -74,8 +74,8 @@
 - [x] DELETE /api/v1/configs/:key の実装（設定項目の削除） - [詳細](./tasks/2.2.6-delete-configs-api.md)
 - [x] GET /api/v1/configsを利用したGET /config の実装 - [詳細](./tasks/2.2.7-config-ui-redesign.md)
 - [x] POST /api/v1/configsを利用した/config での設定追加 - [詳細](./tasks/2.2.9-config-add-ui-integration.md)
-- [ ] PUT /api/v1/configs/:keyを利用した/config での設定更新
-- [ ] DELETE /api/v1/configs/:keyを利用した/config での設定削除
+- [x] PUT /api/v1/configs/:keyを利用した/config での設定更新 - [詳細](./tasks/2.2.10-config-update-ui-integration.md)
+- [ ] DELETE /api/v1/configs/:keyを利用した/config での設定削除 - [詳細](./tasks/2.2.11-config-delete-ui-integration.md)
 
 ### 2.3 セッション管理
 - [x] src/services/session.tsの作成（セッション管理） - [詳細](./tasks/2.3.1-session-service.md)

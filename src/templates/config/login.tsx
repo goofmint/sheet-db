@@ -121,6 +121,27 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
         </div>
       </div>
 
+      <!-- Delete Configuration Confirmation Modal -->
+      <div class="modal" id="delete-confirm-modal" style="display: none;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Delete Configuration</h2>
+            <button type="button" class="modal-close" id="delete-modal-close-btn">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="delete-confirm-message">
+              Are you sure you want to delete '<span id="delete-config-key"></span>'? 
+              This action cannot be undone.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="delete-cancel-btn">Cancel</button>
+            <button type="button" class="btn btn-danger" id="delete-confirm-btn">Delete</button>
+          </div>
+          <div class="modal-error" id="delete-modal-error" style="display: none;"></div>
+        </div>
+      </div>
+
       <script src="/statics/config/client.js"></script>
     </body>
     </html>

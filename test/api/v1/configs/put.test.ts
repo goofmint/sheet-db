@@ -523,6 +523,69 @@ describe('PUT /api/v1/configs/:key', () => {
     });
   });
 
+  describe('String boolean conversion', () => {
+    it('should accept string "true" for boolean type', async () => {
+      const request = new Request(`${baseUrl}/api/v1/configs/test_boolean_key`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin123'
+        },
+        body: JSON.stringify({
+          value: "true", // String instead of boolean
+          type: 'boolean',
+          description: 'String true test'
+        })
+      });
+
+      const response = await app.fetch(request, env);
+      expect(response.status).toBe(200);
+      const data = await response.json() as ConfigResponse;
+      expect(data.success).toBe(true);
+    });
+
+    it('should accept string "false" for boolean type', async () => {
+      const request = new Request(`${baseUrl}/api/v1/configs/test_boolean_key`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin123'
+        },
+        body: JSON.stringify({
+          value: "false", // String instead of boolean
+          type: 'boolean',
+          description: 'String false test'
+        })
+      });
+
+      const response = await app.fetch(request, env);
+      expect(response.status).toBe(200);
+      const data = await response.json() as ConfigResponse;
+      expect(data.success).toBe(true);
+    });
+
+    it('should accept string "true" with validation null for boolean type', async () => {
+      const request = new Request(`${baseUrl}/api/v1/configs/test_boolean_key`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer admin123'
+        },
+        body: JSON.stringify({
+          value: "true", // String instead of boolean
+          type: 'boolean',
+          description: 'String true test',
+          validation: null  // This is what E2E test sends
+        })
+      });
+
+      const response = await app.fetch(request, env);
+      expect(response.status).toBe(200);
+      const data = await response.json() as ConfigResponse;
+      expect(data.success).toBe(true);
+    });
+  });
+
   describe('Data consistency', () => {
     it('should preserve created_at and update updated_at', async () => {
       // First, get the original config to check created_at
