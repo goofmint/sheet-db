@@ -75,31 +75,23 @@
 - [x] GET /api/v1/configsを利用したGET /config の実装 - [詳細](./tasks/2.2.7-config-ui-redesign.md)
 - [x] POST /api/v1/configsを利用した/config での設定追加 - [詳細](./tasks/2.2.9-config-add-ui-integration.md)
 - [x] PUT /api/v1/configs/:keyを利用した/config での設定更新 - [詳細](./tasks/2.2.10-config-update-ui-integration.md)
-- [ ] DELETE /api/v1/configs/:keyを利用した/config での設定削除 - [詳細](./tasks/2.2.11-config-delete-ui-integration.md)
+- [x] DELETE /api/v1/configs/:keyを利用した/config での設定削除 - [詳細](./tasks/2.2.11-config-delete-ui-integration.md)
 
 ### 2.3 セッション管理
 - [x] src/services/session.tsの作成（セッション管理） - [詳細](./tasks/2.3.1-session-service.md)
 - [x] src/middleware/auth.tsの作成（認証ミドルウェア） - [詳細](./tasks/2.3.2-auth-middleware.md)
-- [ ] JWTトークン検証の実装
-- [ ] セッションの有効期限管理
+- [ ] JWTトークン検証の実装 - [詳細](./tasks/2.3.3-jwt-token-validation.md)
 - [ ] リフレッシュトークンの実装
 
-### 2.4 ACL実装
+### 2.4 ACL実装 🔄 **部分完了**
 - [ ] src/services/acl.tsの作成（アクセス制御サービス） - [詳細](./tasks/2.4.1-acl-service.md)
-- [ ] src/middleware/authorization.tsの作成（認可ミドルウェア）
-- [ ] 公開データアクセスの実装
-- [ ] ユーザーベースアクセス制御
-- [ ] ロールベースアクセス制御
-- [ ] マスターキー認証の実装
+- [x] src/middleware/authorization.tsの作成（認可ミドルウェア） - auth.tsに統合実装済み
+- [x] 公開データアクセスの実装 - SheetACL型定義で実装済み（public_read/write）
+- [x] ユーザーベースアクセス制御 - SheetACL型定義で実装済み（user_read/write）
+- [x] ロールベースアクセス制御 - 基本構造実装済み（requireRoles()、_Roleシート）
+- [x] マスターキー認証の実装 - 基本構造実装済み（現在無効化状態）
 
 ## Phase 3: Google Sheets統合
-
-### 3.1 Google Sheets API連携
-- [ ] src/services/google-auth.tsの作成（Google認証）
-- [ ] src/services/google-sheets.tsの作成（Sheets API）
-- [ ] Google OAuth2フローの実装
-- [ ] アクセストークン管理（複数アカウント対応）
-- [ ] APIレート制限対策の実装
 
 ### 3.2 データ読み書き機能
 - [ ] src/api/sheets/get.tsの作成（シート一覧）
@@ -140,19 +132,17 @@
 
 ### 4.3 パフォーマンス最適化
 - [ ] インデックスの最適化
-- [ ] バッチ処理の実装
 - [ ] 部分読み込みの実装
-- [ ] 大量データ対応（ストリーミング）
 
 ## Phase 5: 拡張機能
 
 ### 5.1 ファイルアップロード（R2/Google Drive） 🔄 **部分完了**
 - [x] src/api/v1/storages/route.tsの作成（アップロード）
 - [ ] ファイルアップロード設定のConfig化（サイズ制限、許可タイプ）
-- [ ] src/api/files/$fileId/get.tsの作成（ダウンロード）
 - [ ] src/api/files/$fileId/delete.tsの作成（削除）
 - [x] src/services/storage/r2.tsの作成（R2ストレージ）
 - [x] src/services/storage/google-drive.tsの作成（Driveストレージ）
+- [ ] _Fileシートのセットアップ時の初期作成
 - [ ] _Fileシートのメタデータ管理
 
 ### 5.2 セキュリティ強化 ✅ **完了**
@@ -163,26 +153,7 @@
 - [x] 型安全性向上（TypeScriptインターフェース追加）
 - [x] ファイルアップロード検証（サイズ・タイプ制限）
 
-### 5.3 OpenAPI仕様書生成
-- [ ] src/api/docs/get.tsの作成（OpenAPIドキュメント）
-- [ ] src/utils/openapi-generator.tsの作成
-- [ ] 各APIエンドポイントのスキーマ定義
-- [ ] Swagger UIの統合
-
-### 5.4 Playground UI
-- [ ] templates/playground.htmlの改善
-- [ ] APIテストインターフェースの実装
-- [ ] リアルタイムレスポンス表示
-- [ ] 認証状態の表示
-
 ## テストとドキュメント
-
-### テスト実装
-- [ ] 各APIエンドポイントの統合テスト
-- [ ] 認証・認可のテスト
-- [ ] キャッシュ機能のテスト
-- [ ] Google Sheets連携のテスト
-- [ ] エラーハンドリングのテスト
 
 ### ドキュメント作成
 - [ ] README.mdの更新
@@ -193,10 +164,7 @@
 ## デプロイメント
 
 ### CI/CD設定
-- [ ] GitHub Actionsワークフローの作成
-- [ ] 自動テストの設定
-- [ ] 型チェックとリントの設定
-- [ ] Cloudflare Workersへの自動デプロイ
+- [ ] 自動テストの設定（Playwright）
 
 ### 本番環境準備
 - [ ] 環境変数の設定
