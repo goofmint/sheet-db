@@ -107,6 +107,11 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
               <label for="config-description">Description</label>
               <textarea id="config-description" name="description" placeholder="Optional description for this configuration"></textarea>
             </div>
+            <div class="form-group">
+              <label for="config-validation">Validation Rules (JSON)</label>
+              <textarea id="config-validation" name="validation" placeholder='{"required": true, "minLength": 1, "maxLength": 100}'></textarea>
+              <small class="form-help">JSON format validation rules. Leave empty for no validation.</small>
+            </div>
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" id="cancel-btn">Cancel</button>
               <button type="submit" class="btn btn-primary">Add</button>

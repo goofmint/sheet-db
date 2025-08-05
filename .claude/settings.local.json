@@ -85,8 +85,32 @@
       "Bash(diff:*)",
       "Bash(sed:*)",
       "Bash(npx wrangler deploy:*)",
-      "WebFetch(domain:127.0.0.1)"
+      "WebFetch(domain:127.0.0.1)",
+      "mcp__serena__find_symbol",
+      "mcp__serena__search_for_pattern",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_snapshot",
+      "Bash(npx playwright:*)",
+      "Bash(timeout 30s npx playwright test config-auth.spec.ts --project=chromium --headed)",
+      "Bash(timeout 60s npx playwright test config-auth.spec.ts --project=chromium)",
+      "Bash(timeout 30s npx playwright test config-auth.spec.ts --project=chromium)",
+      "Bash(timeout 60s npx playwright test config-edit.spec.ts --project=chromium --max-failures=3)",
+      "Bash(timeout 45s npx playwright test --project=chromium)",
+      "Bash(timeout 60s npx playwright test config-auth.spec.ts:6 --project=chromium)",
+      "Bash(timeout 90s npx playwright test config-auth.spec.ts:6 --project=chromium)",
+      "Bash(timeout 60s npx playwright test --project=chromium)",
+      "Bash(timeout 30s npx playwright test --project=chromium)",
+      "mcp__serena__replace_regex"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "playwright"
+  ]
 }
