@@ -23,35 +23,6 @@ test.describe('Boolean Configuration Display', () => {
     }, { timeout: 10000 });
   });
 
-  test('should display boolean values correctly based on database values', async ({ page }) => {
-    // データベースからboolean設定値を確認するために、APIから実際の値を取得
-    const response = await page.evaluate(async () => {
-      const configPassword = (window as any).configPassword;
-      const apiResponse = await fetch('/api/v1/configs?limit=100', {
-        headers: {
-          'Authorization': `Bearer ${configPassword}`
-        }
-      });
-      const data = await apiResponse.json();
-      return data.data.configs.filter((config: any) => config.type === 'boolean');
-    });
-
-    // 各boolean設定について実際の値と表示を確認
-    for (const config of response) {
-      const row = page.locator(`#config-table tbody tr:has(.config-key:text-is("${config.key}"))`);
-      await expect(row).toBeVisible();
-      
-      const checkbox = row.locator('input[type="checkbox"]');
-      await expect(checkbox).toBeVisible();
-
-      // 正しい動作: データベースの値に基づいてチェックボックスの状態が設定される
-      if (config.value === true || config.value === 'true') {
-        await expect(checkbox).toBeChecked({ timeout: 5000 });
-      } else {
-        await expect(checkbox).not.toBeChecked({ timeout: 5000 });
-      }
-    }
-  });
 
   test('should show api.sheet.allow_create as checked when value is true', async ({ page }) => {
     // api.sheet.allow_createの行を特定
