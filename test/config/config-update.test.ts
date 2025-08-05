@@ -108,85 +108,190 @@ describe('Config Update UI Tests', () => {
     expect(result.data.type).toBe('string');
   });
 
-  it('should update config with different types', async () => {
-    // Create configs with different types
-    const configs = [
-      { key: 'test.bool.' + Date.now(), value: true, type: 'boolean' },
-      { key: 'test.number.' + Date.now(), value: 42, type: 'number' },
-      { key: 'test.json.' + Date.now(), value: { foo: 'bar' }, type: 'json' },
-    ];
-
-    for (const config of configs) {
-      // Create config
-      const createResponse = await app.fetch(
-        new Request('http://localhost/api/v1/configs', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${configPassword}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...config,
-            description: 'Initial description',
-          }),
+  it('should update config with boolean type', async () => {
+    const config = { key: 'test.bool.' + Date.now(), value: true, type: 'boolean' };
+    
+    // Create config
+    const createResponse = await app.fetch(
+      new Request('http://localhost/api/v1/configs', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...config,
+          description: 'Initial description',
         }),
-        env
-      );
-      expect(createResponse.status).toBe(201);
+      }),
+      env
+    );
+    expect(createResponse.status).toBe(201);
 
-      // Update config
-      let newValue;
-      switch (config.type) {
-        case 'boolean':
-          newValue = false;
-          break;
-        case 'number':
-          newValue = 123.45;
-          break;
-        case 'json':
-          newValue = { updated: true, nested: { value: 'test' } };
-          break;
-      }
-
-      const updateResponse = await app.fetch(
-        new Request(`http://localhost/api/v1/configs/${encodeURIComponent(config.key)}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${configPassword}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            value: newValue,
-            type: config.type,
-            description: 'Updated description',
-          }),
+    // Update config
+    const newValue = false;
+    const updateResponse = await app.fetch(
+      new Request(`http://localhost/api/v1/configs/${encodeURIComponent(config.key)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          value: newValue,
+          type: config.type,
+          description: 'Updated description',
         }),
-        env
-      );
+      }),
+      env
+    );
 
-      expect(updateResponse.status).toBe(200);
-      const result = await updateResponse.json() as { 
-        success: boolean; 
-        data: { 
-          value: any; 
-          description: string;
-        } 
-      };
-      
-      expect(result.data.value).toEqual(newValue);
-      expect(result.data.description).toBe('Updated description');
+    expect(updateResponse.status).toBe(200);
+    const result = await updateResponse.json() as { 
+      success: boolean; 
+      data: { 
+        value: boolean; 
+        description: string;
+      } 
+    };
+    
+    expect(result.data.value).toBe(false);
+    expect(result.data.description).toBe('Updated description');
 
-      // Clean up
-      await app.fetch(
-        new Request(`http://localhost/api/v1/configs/${encodeURIComponent(config.key)}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${configPassword}`,
-          },
+    // Clean up
+    await app.fetch(
+      new Request(`http://localhost/api/v1/configs/${encodeURIComponent(config.key)}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+        },
+      }),
+      env
+    );
+  });
+
+  it('should update config with number type', async () => {
+    const config = { key: 'test.number.' + Date.now(), value: 42, type: 'number' };
+    
+    // Create config
+    const createResponse = await app.fetch(
+      new Request('http://localhost/api/v1/configs', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...config,
+          description: 'Initial description',
         }),
-        env
-      );
-    }
+      }),
+      env
+    );
+    expect(createResponse.status).toBe(201);
+
+    // Update config
+    const newValue = 123.45;
+    const updateResponse = await app.fetch(
+      new Request(`http://localhost/api/v1/configs/${encodeURIComponent(config.key)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          value: newValue,
+          type: config.type,
+          description: 'Updated description',
+        }),
+      }),
+      env
+    );
+
+    expect(updateResponse.status).toBe(200);
+    const result = await updateResponse.json() as { 
+      success: boolean; 
+      data: { 
+        value: number; 
+        description: string;
+      } 
+    };
+    
+    expect(result.data.value).toBe(123.45);
+    expect(result.data.description).toBe('Updated description');
+
+    // Clean up
+    await app.fetch(
+      new Request(`http://localhost/api/v1/configs/${encodeURIComponent(config.key)}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+        },
+      }),
+      env
+    );
+  });
+
+  it('should update config with json type', async () => {
+    const config = { key: 'test.json.' + Date.now(), value: { foo: 'bar' }, type: 'json' };
+    
+    // Create config
+    const createResponse = await app.fetch(
+      new Request('http://localhost/api/v1/configs', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...config,
+          description: 'Initial description',
+        }),
+      }),
+      env
+    );
+    expect(createResponse.status).toBe(201);
+
+    // Update config
+    const newValue = { updated: true, nested: { value: 'test' } };
+    const updateResponse = await app.fetch(
+      new Request(`http://localhost/api/v1/configs/${encodeURIComponent(config.key)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          value: newValue,
+          type: config.type,
+          description: 'Updated description',
+        }),
+      }),
+      env
+    );
+
+    expect(updateResponse.status).toBe(200);
+    const result = await updateResponse.json() as { 
+      success: boolean; 
+      data: { 
+        value: object; 
+        description: string;
+      } 
+    };
+    
+    expect(result.data.value).toEqual({ updated: true, nested: { value: 'test' } });
+    expect(result.data.description).toBe('Updated description');
+
+    // Clean up
+    await app.fetch(
+      new Request(`http://localhost/api/v1/configs/${encodeURIComponent(config.key)}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+        },
+      }),
+      env
+    );
   });
 
   it('should return 404 for non-existent config', async () => {
