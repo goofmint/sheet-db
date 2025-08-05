@@ -4,6 +4,7 @@ import { checkConfigAuthentication } from '../../../utils/auth';
 import type { ConfigType } from '../../../db/schema';
 import { UpdateConfigRequestSchema } from './schema';
 import { convertConfigValue } from './utils';
+import { normalizeConfigValue } from './validation';
 
 // PUT /api/v1/configs/:key - Update existing configuration item
 export async function updateConfigHandler(c: Context) {
@@ -60,26 +61,15 @@ export async function updateConfigHandler(c: Context) {
 
     const body = validationResult.data;
 
-    // Convert string boolean values to actual booleans if type is boolean
-    if (body.type === 'boolean' && typeof body.value === 'string') {
-      const lowerValue = body.value.toLowerCase().trim();
-      if (lowerValue === 'true') {
-        body.value = true;
-      } else if (lowerValue === 'false') {
-        body.value = false;
-      } else {
-        return c.json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR' as const,
-            message: 'Invalid configuration data',
-            details: {
-              value: ['Boolean value must be true, false, "true", or "false"']
-            }
-          }
-        }, 400);
-      }
+    // Normalize and validate configuration values
+    const { value: normalizedValue, error: normalizationError } = normalizeConfigValue(body.type, body.value);
+    if (normalizationError) {
+      return c.json({
+        success: false,
+        error: normalizationError
+      }, 400);
     }
+    body.value = normalizedValue;
 
     // Additional value size validation (max 64KB)
     const valueString = body.type === 'json' ? JSON.stringify(body.value) : String(body.value);
@@ -96,39 +86,6 @@ export async function updateConfigHandler(c: Context) {
       }, 400);
     }
 
-    // Additional type validation for JSON
-    if (body.type === 'json' && typeof body.value === 'string') {
-      try {
-        // Try to parse to validate it's proper JSON
-        const parsed = JSON.parse(body.value);
-        // JSON type should be object or array, not primitive strings
-        if (typeof parsed === 'string') {
-          return c.json({
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR' as const,
-              message: 'Invalid configuration data',
-              details: {
-                value: ['JSON type value must be an object or array, not a string']
-              }
-            }
-          }, 400);
-        }
-        // Replace the string value with parsed object
-        body.value = parsed;
-      } catch {
-        return c.json({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR' as const,
-            message: 'Invalid configuration data',
-            details: {
-              value: ['Value must be valid JSON for type "json"']
-            }
-          }
-        }, 400);
-      }
-    }
 
     // Validate validation rules against type
     if (body.validation) {
