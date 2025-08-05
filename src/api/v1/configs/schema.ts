@@ -48,15 +48,9 @@ const CreateConfigRequestSchema = z.object({
     example: 'api_key',
     description: 'Unique configuration key'
   }),
-  value: z.union([
-    z.string(),
-    z.number(),
-    z.boolean(),
-    z.object({}).passthrough(),
-    z.array(z.any())
-  ]).openapi({ 
+  value: z.any().openapi({ 
     example: 'sk-abc123',
-    description: 'Configuration value'
+    description: 'Configuration value (any type)'
   }),
   type: z.enum(['string', 'number', 'boolean', 'json']).openapi({ 
     example: 'string',
@@ -78,7 +72,7 @@ const CreateConfigRequestSchema = z.object({
     pattern: z.string().optional(),
     enum: z.array(z.union([z.string(), z.number(), z.boolean()])).optional(),
     required: z.boolean().optional()
-  }).optional().openapi({ 
+  }).nullable().optional().openapi({ 
     description: 'Validation rules for the configuration value'
   })
 }).openapi('CreateConfigRequest');
@@ -89,15 +83,9 @@ const CreateConfigResponseSchema = z.object({
 }).openapi('CreateConfigResponse');
 
 const UpdateConfigRequestSchema = z.object({
-  value: z.union([
-    z.string(),
-    z.number(),
-    z.boolean(),
-    z.object({}).passthrough(),
-    z.array(z.any())
-  ]).openapi({ 
+  value: z.any().openapi({ 
     example: 'sk-updated-key-456',
-    description: 'Configuration value'
+    description: 'Configuration value (any type)'
   }),
   type: z.enum(['string', 'number', 'boolean', 'json']).openapi({ 
     example: 'string',
@@ -119,7 +107,7 @@ const UpdateConfigRequestSchema = z.object({
     pattern: z.string().optional(),
     enum: z.array(z.union([z.string(), z.number(), z.boolean()])).optional(),
     required: z.boolean().optional()
-  }).optional().openapi({ 
+  }).nullable().optional().openapi({ 
     description: 'Validation rules for the configuration value'
   })
 }).openapi('UpdateConfigRequest');

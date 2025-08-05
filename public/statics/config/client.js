@@ -130,20 +130,36 @@ function updateConfigTable(configs) {
       // Clear any existing content in actions cell
       actionsCell.innerHTML = '';
       
-      // Edit button
+      // Edit button with pencil icon
       const editBtn = document.createElement('button');
       editBtn.className = 'btn btn-sm btn-edit';
-      editBtn.textContent = 'Edit';
+      editBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+      `;
+      editBtn.title = 'Edit';
+      editBtn.setAttribute('aria-label', 'Edit configuration');
       editBtn.onclick = () => showEditConfigModal(config);
       actionsCell.appendChild(editBtn);
       
       // Space between buttons
       actionsCell.appendChild(document.createTextNode(' '));
       
-      // Delete button
+      // Delete button with trash icon
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'btn btn-sm btn-delete';
-      deleteBtn.textContent = 'Delete';
+      deleteBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3,6 5,6 21,6"></polyline>
+          <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+          <line x1="10" y1="11" x2="10" y2="17"></line>
+          <line x1="14" y1="11" x2="14" y2="17"></line>
+        </svg>
+      `;
+      deleteBtn.title = 'Delete';
+      deleteBtn.setAttribute('aria-label', 'Delete configuration');
       deleteBtn.onclick = () => showDeleteConfirmModal(config);
       actionsCell.appendChild(deleteBtn);
     } else {
@@ -195,6 +211,9 @@ function showEditConfigModal(config) {
   let displayValue = config.value;
   if (config.type === 'json' && typeof config.value === 'object') {
     displayValue = JSON.stringify(config.value, null, 2);
+  } else if (config.type === 'boolean') {
+    // Convert boolean values to string representation
+    displayValue = String(config.value);
   }
   document.getElementById('config-value').value = displayValue;
   
@@ -407,6 +426,11 @@ async function handleAddConfig(event) {
   try {
     let value = convertValueByType(rawValue, type);
     
+    // For boolean type, convert to string for API compatibility
+    if (type === 'boolean') {
+      value = String(value).toLowerCase(); // Send as "true" or "false" string
+    }
+    
     const submitBtn = event.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     
@@ -452,11 +476,19 @@ async function handleAddConfig(event) {
         return;
       }
       
+      // For boolean type, ensure it's converted to string for API compatibility
+      let updateValue = value;
+      if (type === 'boolean') {
+        updateValue = String(value).toLowerCase(); // Send as "true" or "false" string
+      }
+      
       const updateData = {
-        value: value,
+        value: updateValue,
+        type: type,
         description: formData.get('description') || '',
         validation: validationRules || null
       };
+      
       
       response = await fetch(`/api/v1/configs/${encodeURIComponent(editingConfig.key)}`, {
         method: 'PUT',

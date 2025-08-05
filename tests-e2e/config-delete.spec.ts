@@ -46,11 +46,15 @@ test.describe('Config Delete Functionality', () => {
   });
 
   test('should have correct styling for Delete buttons', async ({ page }) => {
-    // Check that Delete buttons have correct CSS classes
+    // Check that Delete buttons have correct CSS classes and attributes
     const firstDeleteButton = page.locator('.config-actions button.btn-delete').first();
     await expect(firstDeleteButton).toHaveClass(/btn-delete/);
     await expect(firstDeleteButton).toHaveClass(/btn-sm/);
-    await expect(firstDeleteButton).toHaveText('Delete');
+    await expect(firstDeleteButton).toHaveAttribute('title', 'Delete');
+    await expect(firstDeleteButton).toHaveAttribute('aria-label', 'Delete configuration');
+    
+    // Check that it contains SVG icon
+    await expect(firstDeleteButton.locator('svg')).toBeVisible();
   });
 
   test('should open delete confirmation modal when Delete button is clicked', async ({ page }) => {
@@ -203,9 +207,9 @@ test.describe('Config Delete Functionality', () => {
       return;
     }
     
-    // Verify delete button is visible and has correct text
+    // Verify delete button is visible and has correct attributes
     await expect(firstDeleteButton).toBeVisible();
-    await expect(firstDeleteButton).toHaveText('Delete');
+    await expect(firstDeleteButton).toHaveAttribute('title', 'Delete');
     
     // Click delete button to open modal
     await firstDeleteButton.click();

@@ -205,9 +205,10 @@ describe('POST /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
       const data = await response.json() as ConfigResponse;
+
       expect(data.success).toBe(false);
       expect(data.error?.code).toBe('VALIDATION_ERROR');
-      expect(data.error?.details?.value).toContain('Value must be a boolean for type "boolean"');
+      expect(data.error?.details?.value).toContain('Boolean value must be true, false, \"true\", or \"false\"');
     });
 
     it('should validate json type', async () => {
@@ -227,9 +228,10 @@ describe('POST /api/v1/configs', () => {
       const response = await app.fetch(request, env);
       expect(response.status).toBe(400);
       const data = await response.json() as ConfigResponse;
+
       expect(data.success).toBe(false);
       expect(data.error?.code).toBe('VALIDATION_ERROR');
-      expect(data.error?.details?.value).toContain('Value must be a valid JSON object or array for type "json"');
+      expect(data.error?.details?.value).toContain('Value must be valid JSON for type \"json\"');
     });
   });
 

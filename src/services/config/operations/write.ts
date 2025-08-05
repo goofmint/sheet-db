@@ -98,6 +98,7 @@ export class ConfigWriter {
     if (params.type === 'json') {
       stringValue = JSON.stringify(params.value);
     } else {
+      // For all other types including boolean, just convert to string
       stringValue = String(params.value);
     }
     

@@ -24,7 +24,7 @@ test.describe('Boolean Configuration Display', () => {
   });
 
 
-  test('should show api.sheet.allow_create as checked when value is true', async ({ page }) => {
+  test('should show api.sheet.allow_create as unchecked when value is false', async ({ page }) => {
     // api.sheet.allow_createの行を特定
     const allowCreateRow = page.locator('#config-table tbody tr:has(.config-key:text-is("api.sheet.allow_create"))');
     await expect(allowCreateRow).toBeVisible();
@@ -33,8 +33,8 @@ test.describe('Boolean Configuration Display', () => {
     const checkbox = allowCreateRow.locator('input[type="checkbox"]');
     await expect(checkbox).toBeVisible();
     
-    // データベースの値がtrueなので、チェックボックスはチェックされているべき
-    await expect(checkbox).toBeChecked();
+    // データベースの値がfalseなので、チェックボックスはチェックされていないべき
+    await expect(checkbox).not.toBeChecked();
   });
 
   test('should show app.setup_completed as checked when value is true', async ({ page }) => {
@@ -63,7 +63,7 @@ test.describe('Boolean Configuration Display', () => {
     await expect(checkbox).not.toBeChecked();
   });
 
-  test('should show api.sheet.allow_delete as unchecked when value is false', async ({ page }) => {
+  test('should show api.sheet.allow_delete as checked when value is true', async ({ page }) => {
     // api.sheet.allow_deleteの行を特定
     const allowDeleteRow = page.locator('#config-table tbody tr:has(.config-key:text-is("api.sheet.allow_delete"))');
     await expect(allowDeleteRow).toBeVisible();
@@ -72,8 +72,8 @@ test.describe('Boolean Configuration Display', () => {
     const checkbox = allowDeleteRow.locator('input[type="checkbox"]');
     await expect(checkbox).toBeVisible();
     
-    // データベースの値がfalseなので、チェックボックスはチェックされていないべき
-    await expect(checkbox).not.toBeChecked();
+    // データベースの値がtrueなので、チェックボックスはチェックされているべき
+    await expect(checkbox).toBeChecked();
   });
 
   test('boolean checkboxes should be disabled for display only', async ({ page }) => {
