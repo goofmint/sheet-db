@@ -61,6 +61,7 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
             <td class="config-key"></td>
             <td class="config-value"></td>
             <td class="config-description"></td>
+            <td class="config-actions"></td>
           </tr>
         </template>
 

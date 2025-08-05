@@ -120,15 +120,13 @@ function updateConfigTable(configs) {
     // Set description
     row.querySelector('.config-description').textContent = config.description || '';
     
-    // Add edit button
-    const actionsCell = document.createElement('td');
-    actionsCell.className = 'config-actions-cell';
+    // Add edit button to actions cell
+    const actionsCell = row.querySelector('.config-actions');
     const editBtn = document.createElement('button');
     editBtn.className = 'btn btn-sm btn-edit';
     editBtn.textContent = 'Edit';
     editBtn.onclick = () => showEditConfigModal(config);
     actionsCell.appendChild(editBtn);
-    row.querySelector('tr').appendChild(actionsCell);
     
     tbody.appendChild(row);
   });
