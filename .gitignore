@@ -175,3 +175,8 @@ dev.log
 # Test auth cache
 .test-auth-cache.json
 line.sh
+
+# Playwright test results
+test-results/
+playwright-report/
+.serena

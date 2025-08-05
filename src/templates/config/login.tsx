@@ -46,10 +46,11 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
                 <th>Configuration Key</th>
                 <th>Value</th>
                 <th>Description</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="3">Loading...</td></tr>
+              <tr><td colspan="4">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -60,6 +61,7 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
             <td class="config-key"></td>
             <td class="config-value"></td>
             <td class="config-description"></td>
+            <td class="config-actions"></td>
           </tr>
         </template>
 
@@ -104,6 +106,11 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
             <div class="form-group">
               <label for="config-description">Description</label>
               <textarea id="config-description" name="description" placeholder="Optional description for this configuration"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="config-validation">Validation Rules (JSON)</label>
+              <textarea id="config-validation" name="validation" placeholder='{"required": true, "minLength": 1, "maxLength": 100}'></textarea>
+              <small class="form-help">JSON format validation rules. Leave empty for no validation.</small>
             </div>
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" id="cancel-btn">Cancel</button>
