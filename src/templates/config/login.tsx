@@ -46,10 +46,11 @@ export function LoginForm({ csrfToken }: LoginFormProps) {
                 <th>Configuration Key</th>
                 <th>Value</th>
                 <th>Description</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td colspan="3">Loading...</td></tr>
+              <tr><td colspan="4">Loading...</td></tr>
             </tbody>
           </table>
         </div>

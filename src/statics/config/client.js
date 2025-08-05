@@ -1,5 +1,7 @@
 // Client-side JavaScript for configuration management
 let configPassword = null;
+let modalMode = 'add'; // 'add' or 'edit'
+let editingConfig = null; // Stores the config being edited
 
 async function loadConfigsWithPassword(password) {
   try {
@@ -118,17 +120,64 @@ function updateConfigTable(configs) {
     // Set description
     row.querySelector('.config-description').textContent = config.description || '';
     
+    // Add edit button
+    const actionsCell = document.createElement('td');
+    actionsCell.className = 'config-actions-cell';
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-sm btn-edit';
+    editBtn.textContent = 'Edit';
+    editBtn.onclick = () => showEditConfigModal(config);
+    actionsCell.appendChild(editBtn);
+    row.querySelector('tr').appendChild(actionsCell);
+    
     tbody.appendChild(row);
   });
 }
 
 function showErrorMessage(message) {
   const tbody = document.querySelector('#config-table tbody');
-  tbody.innerHTML = `<tr><td colspan="3" class="error-message">${message}</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="4" class="error-message">${message}</td></tr>`;
 }
 
 // Modal functions
 function showAddConfigModal() {
+  modalMode = 'add';
+  editingConfig = null;
+  
+  // Update modal for add mode
+  document.querySelector('.modal-header h2').textContent = 'Add Configuration';
+  document.querySelector('#add-config-form button[type="submit"]').textContent = 'Add';
+  document.getElementById('config-key').disabled = false;
+  
+  // Reset form
+  document.getElementById('add-config-form').reset();
+  document.getElementById('modal-error').style.display = 'none';
+  
+  document.getElementById('add-config-modal').style.display = 'block';
+}
+
+function showEditConfigModal(config) {
+  modalMode = 'edit';
+  editingConfig = config;
+  
+  // Update modal for edit mode
+  document.querySelector('.modal-header h2').textContent = 'Edit Configuration';
+  document.querySelector('#add-config-form button[type="submit"]').textContent = 'Update';
+  document.getElementById('config-key').disabled = true;
+  
+  // Fill form with current values
+  document.getElementById('config-key').value = config.key;
+  document.getElementById('config-type').value = config.type;
+  document.getElementById('config-description').value = config.description || '';
+  
+  // Set value based on type
+  let displayValue = config.value;
+  if (config.type === 'json' && typeof config.value === 'object') {
+    displayValue = JSON.stringify(config.value, null, 2);
+  }
+  document.getElementById('config-value').value = displayValue;
+  
+  document.getElementById('modal-error').style.display = 'none';
   document.getElementById('add-config-modal').style.display = 'block';
 }
 
@@ -136,6 +185,11 @@ function hideAddConfigModal() {
   document.getElementById('add-config-modal').style.display = 'none';
   document.getElementById('add-config-form').reset();
   document.getElementById('modal-error').style.display = 'none';
+  modalMode = 'add';
+  editingConfig = null;
+  
+  // Reset to add mode
+  document.getElementById('config-key').disabled = false;
 }
 
 // Show error in modal
@@ -196,7 +250,7 @@ function convertValueByType(value, type) {
   }
 }
 
-// Handle add config form submission
+// Handle add/edit config form submission
 async function handleAddConfig(event) {
   event.preventDefault();
   
@@ -212,25 +266,66 @@ async function handleAddConfig(event) {
   }
   
   try {
-    const configData = {
-      key: rawKey.trim(),
-      value: convertValueByType(rawValue, type),
-      type: type,
-      description: formData.get('description') || ''
-    };
+    let value = convertValueByType(rawValue, type);
     
     const submitBtn = event.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Adding...';
     
-    const response = await fetch('/api/v1/configs', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${configPassword}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(configData)
-    });
+    let response;
+    if (modalMode === 'add') {
+      // Add new config
+      submitBtn.textContent = 'Adding...';
+      
+      const configData = {
+        key: rawKey.trim(),
+        value: value,
+        type: type,
+        description: formData.get('description') || ''
+      };
+      
+      response = await fetch('/api/v1/configs', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(configData)
+      });
+    } else {
+      // Update existing config
+      submitBtn.textContent = 'Updating...';
+      
+      // Check if value has changed
+      let currentValue = editingConfig.value;
+      if (editingConfig.type === 'json' && typeof currentValue === 'object') {
+        currentValue = JSON.stringify(currentValue);
+      }
+      let newValue = value;
+      if (type === 'json' && typeof newValue === 'object') {
+        newValue = JSON.stringify(newValue);
+      }
+      
+      if (String(currentValue) === String(newValue) && 
+          editingConfig.description === (formData.get('description') || '')) {
+        hideAddConfigModal();
+        showSuccessMessage('No changes to update.');
+        return;
+      }
+      
+      const updateData = {
+        value: value,
+        description: formData.get('description') || ''
+      };
+      
+      response = await fetch(`/api/v1/configs/${encodeURIComponent(editingConfig.key)}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${configPassword}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+    }
     
     if (!response.ok) {
       const error = await response.json();
@@ -239,18 +334,18 @@ async function handleAddConfig(event) {
     
     // Success
     hideAddConfigModal();
-    showSuccessMessage('Configuration added successfully.');
+    showSuccessMessage(modalMode === 'add' ? 'Configuration added successfully.' : 'Configuration updated successfully.');
     
     // Reload configs
     await loadConfigsWithPassword(configPassword);
     
   } catch (error) {
-    console.error('Failed to add config:', error);
+    console.error(`Failed to ${modalMode} config:`, error);
     showErrorInModal(error.message);
   } finally {
     const submitBtn = event.target.querySelector('button[type="submit"]');
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Add';
+    submitBtn.textContent = modalMode === 'add' ? 'Add' : 'Update';
   }
 }
 
