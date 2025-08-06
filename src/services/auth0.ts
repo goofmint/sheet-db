@@ -8,6 +8,7 @@ import {
   RefreshTokenRequest,
   Auth0ErrorResponse,
   JWTPayload,
+  JWTVerifyOptions,
   JWKS,
   JWK
 } from '../types/auth';
@@ -161,9 +162,9 @@ export class Auth0Service {
   }
 
   /**
-   * Verify JWT token
+   * Verify JWT token with comprehensive validation
    */
-  async verifyToken(token: string): Promise<JWTPayload> {
+  async verifyToken(token: string, options?: Partial<JWTVerifyOptions>): Promise<JWTPayload> {
     const [header, payload, signature] = token.split('.');
     
     if (!header || !payload || !signature) {
@@ -181,38 +182,56 @@ export class Auth0Service {
     // Decode and validate payload first (before expensive operations)
     const decodedPayload = JSON.parse(atob(payload)) as JWTPayload;
     
-    // Validate expiration first
-    if (decodedPayload.exp * 1000 < Date.now()) {
+    // Get configuration and set defaults
+    const config = await this.getConfig();
+    const clockTolerance = options?.clockTolerance || 5;
+    const now = Math.floor(Date.now() / 1000);
+    
+    // Enhanced time validations
+    
+    // 1. Validate expiration with clock tolerance
+    if (decodedPayload.exp <= now - clockTolerance) {
       throw new Error('Token expired');
     }
+    
+    // 2. Validate issued time (iat) - token should not be issued in the future
+    if (decodedPayload.iat && decodedPayload.iat > now + clockTolerance) {
+      throw new Error('Token issued in the future');
+    }
+    
+    // 3. Validate not-before time (nbf) - token should be valid by now
+    if (decodedPayload.nbf && !options?.ignoreNotBefore && decodedPayload.nbf > now + clockTolerance) {
+      throw new Error('Token not yet valid');
+    }
 
-    // Validate issuer
-    const config = await this.getConfig();
-    if (decodedPayload.iss !== `https://${config.domain}/`) {
+    // 4. Validate issuer
+    const expectedIssuer = options?.issuer || `https://${config.domain}/`;
+    if (decodedPayload.iss !== expectedIssuer) {
       throw new Error('Invalid token issuer');
     }
 
-    // Validate audience if configured
-    if (config.audience) {
+    // 5. Validate audience
+    const expectedAudience = options?.audience || config.audience;
+    if (expectedAudience) {
       const aud = Array.isArray(decodedPayload.aud) ? decodedPayload.aud : [decodedPayload.aud];
-      if (!aud.includes(config.audience)) {
+      if (!aud.includes(expectedAudience)) {
         throw new Error('Invalid token audience');
       }
     }
 
-    // Get signing key
+    // 6. Get signing key and verify signature
     const key = await this.getSigningKey(kid);
-    
-    // Import the key
     const publicKey = await this.importKey(key);
     
-    // Verify signature
     const encoder = new TextEncoder();
     const data = encoder.encode(`${header}.${payload}`);
     const sig = this.base64UrlToArrayBuffer(signature);
     
+    const algorithmName = options?.algorithms?.[0] || 'RS256';
+    const algorithm = algorithmName === 'RS256' ? 'RSASSA-PKCS1-v1_5' : algorithmName;
+    
     const valid = await crypto.subtle.verify(
-      'RS256',
+      algorithm,
       publicKey,
       sig,
       data

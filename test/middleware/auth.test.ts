@@ -36,6 +36,95 @@ describe('Authentication Middleware', () => {
   });
 
   describe('auth middleware', () => {
+    it('should allow access with valid JWT Bearer token', async () => {
+      // Mock Auth0Service.verifyToken to return a valid payload
+      const originalAuth0Service = (await import('../../src/services/auth0')).Auth0Service;
+      const mockVerifyToken = async () => ({
+        sub: 'auth0|jwt123',
+        iss: `https://${env.AUTH0_DOMAIN}/`,
+        aud: env.AUTH0_CLIENT_ID,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000) - 60,
+        email: 'user@example.com',
+        roles: ['user']
+      });
+      originalAuth0Service.prototype.verifyToken = mockVerifyToken;
+
+      app.use('/protected', auth());
+      app.get('/protected', (c) => {
+        const authContext = c.get('auth') as AuthContext;
+        return c.json({
+          isAuthenticated: authContext.isAuthenticated,
+          userId: authContext.userId,
+          roles: authContext.roles
+        });
+      });
+
+      const response = await app.request('/protected', {
+        headers: {
+          'Authorization': 'Bearer valid-jwt-token'
+        }
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json() as Record<string, unknown>;
+      expect(data.isAuthenticated).toBe(true);
+      expect(data.userId).toBe('auth0|jwt123');
+      expect(data.roles).toEqual(['user']);
+    });
+
+    it('should reject invalid JWT Bearer token', async () => {
+      app.use('/protected', auth());
+      app.get('/protected', (c) => c.json({ message: 'success' }));
+
+      const response = await app.request('/protected', {
+        headers: {
+          'Authorization': 'Bearer invalid-jwt-token'
+        }
+      });
+
+      expect(response.status).toBe(401);
+      const data = await response.json() as Record<string, unknown>;
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('unauthorized');
+      expect(data.message).toBe('Invalid JWT token');
+    });
+
+    it('should not fall back to session auth when JWT verification fails', async () => {
+      // Mock SessionService.validateSession to return success
+      const originalValidateSession = SessionService.validateSession;
+      SessionService.validateSession = async () => ({
+        valid: true,
+        user_data: { auth0_user_id: 'auth0|session123', sub: 'auth0|session123' }
+      });
+
+      app.use('/protected', auth());
+      app.get('/protected', (c) => {
+        const authContext = c.get('auth') as AuthContext;
+        return c.json({
+          isAuthenticated: authContext.isAuthenticated,
+          userId: authContext.userId
+        });
+      });
+
+      // Send both invalid JWT and valid session - should still fail
+      const response = await app.request('/protected', {
+        headers: {
+          'Authorization': 'Bearer invalid-jwt-token',
+          'Cookie': 'session=valid-session-id'
+        }
+      });
+
+      expect(response.status).toBe(401);
+      const data = await response.json() as Record<string, unknown>;
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('unauthorized');
+      expect(data.message).toBe('Invalid JWT token');
+
+      // Restore original method
+      SessionService.validateSession = originalValidateSession;
+    });
+
     it('should allow access with valid session cookie', async () => {
       // Mock SessionService.validateSession to return success
       const originalValidateSession = SessionService.validateSession;

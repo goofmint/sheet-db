@@ -63,9 +63,21 @@ export interface JWTPayload {
   aud: string | string[];
   iat: number;
   exp: number;
+  nbf?: number;
   azp?: string;
+  jti?: string;
   scope?: string;
   email?: string;
   email_verified?: boolean;
   name?: string;
+  roles?: string[];
+}
+
+// JWT verification options
+export interface JWTVerifyOptions {
+  issuer: string;
+  audience: string;
+  algorithms?: string[];
+  clockTolerance?: number;
+  ignoreNotBefore?: boolean;
 }
