@@ -39,6 +39,7 @@ describe('Authentication Middleware', () => {
     it('should allow access with valid JWT Bearer token', async () => {
       // Mock Auth0Service.verifyToken to return a valid payload
       const originalAuth0Service = (await import('../../src/services/auth0')).Auth0Service;
+      const originalVerifyToken = originalAuth0Service.prototype.verifyToken;
       const mockVerifyToken = async () => ({
         sub: 'auth0|jwt123',
         iss: `https://${env.AUTH0_DOMAIN}/`,
@@ -71,6 +72,9 @@ describe('Authentication Middleware', () => {
       expect(data.isAuthenticated).toBe(true);
       expect(data.userId).toBe('auth0|jwt123');
       expect(data.roles).toEqual(['user']);
+
+      // Restore original method
+      originalAuth0Service.prototype.verifyToken = originalVerifyToken;
     });
 
     it('should reject invalid JWT Bearer token', async () => {
@@ -91,6 +95,9 @@ describe('Authentication Middleware', () => {
     });
 
     it('should not fall back to session auth when JWT verification fails', async () => {
+      // Ensure Auth0Service is not mocked from previous tests
+      const originalAuth0Service = (await import('../../src/services/auth0')).Auth0Service;
+      
       // Mock SessionService.validateSession to return success
       const originalValidateSession = SessionService.validateSession;
       SessionService.validateSession = async () => ({
