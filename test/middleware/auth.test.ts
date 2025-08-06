@@ -6,7 +6,7 @@ import { auth, requireRoles, getAuth, type AuthContext } from '../../src/middlew
 import { SessionService } from '../../src/services/session';
 import { ConfigService } from '../../src/services/config';
 import type { Env } from '../../src/types/env';
-import { setupConfigDatabase, setupSessionDatabase } from '../utils/database-setup';
+import { setupConfigDatabase, setupSessionDatabase, setupRefreshTokenDatabase, setupTokenAuditLogDatabase } from '../utils/database-setup';
 
 describe('Authentication Middleware', () => {
   let app: Hono<{ Bindings: Env; Variables: { auth: AuthContext } }>;
@@ -16,6 +16,8 @@ describe('Authentication Middleware', () => {
     // Setup database tables
     await setupConfigDatabase(db);
     await setupSessionDatabase(db);
+    await setupRefreshTokenDatabase(db);
+    await setupTokenAuditLogDatabase(db);
     
     // Initialize ConfigService
     await ConfigService.initialize(db);
@@ -414,6 +416,246 @@ describe('Authentication Middleware', () => {
       });
 
       expect(response.status).toBe(401);
+    });
+  });
+
+  describe('JWT token auto-refresh', () => {
+    beforeEach(async () => {
+      // Setup Auth0 configuration for JWT testing
+      await ConfigService.upsert('auth0.domain', 'test-domain.auth0.com', 'string', 'Test Auth0 domain');
+      await ConfigService.upsert('auth0.client_id', 'test-client-id', 'string', 'Test client ID');
+      await ConfigService.upsert('auth0.client_secret', 'test-client-secret', 'string', 'Test client secret');
+    });
+
+    it('should attempt token refresh when JWT is expired', async () => {
+      // Create a mock session and refresh token
+      const sessionResult = await SessionService.createSession({
+        auth0_user_id: 'test-user',
+        sub: 'test-user'
+      });
+      expect(sessionResult.success).toBe(true);
+
+      const refreshTokenResult = await SessionService.storeRefreshToken(
+        'test-user',
+        'test-auth0-refresh-token'
+      );
+      expect(refreshTokenResult.success).toBe(true);
+
+      // Mock Auth0Service methods
+      const originalVerifyToken = (await import('../../src/services/auth0')).Auth0Service.prototype.verifyToken;
+      const originalRefreshAccessToken = (await import('../../src/services/auth0')).Auth0Service.prototype.refreshAccessToken;
+      
+      let verifyCallCount = 0;
+      (await import('../../src/services/auth0')).Auth0Service.prototype.verifyToken = async (token: string) => {
+        verifyCallCount++;
+        if (verifyCallCount === 1) {
+          // First call fails with expired token
+          throw new Error('Token expired');
+        } else {
+          // Second call (with refreshed token) succeeds
+          return {
+            sub: 'test-user',
+            iss: 'https://test-domain.auth0.com/',
+            aud: 'test-audience',
+            exp: Math.floor(Date.now() / 1000) + 3600,
+            iat: Math.floor(Date.now() / 1000),
+            roles: ['user']
+          };
+        }
+      };
+
+      (await import('../../src/services/auth0')).Auth0Service.prototype.refreshAccessToken = async () => ({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+        expiresIn: 3600,
+        tokenType: 'Bearer' as const,
+        scope: 'openid profile email'
+      });
+
+      app.use('/protected', auth());
+      app.get('/protected', (c) => {
+        const authContext = c.get('auth') as AuthContext;
+        return c.json({
+          isAuthenticated: authContext.isAuthenticated,
+          userId: authContext.userId
+        });
+      });
+
+      const response = await app.request('/protected', {
+        headers: {
+          'Authorization': 'Bearer expired-jwt-token',
+          'Cookie': `session=${sessionResult.session_id}; refresh_token_id=${refreshTokenResult.token_id}`
+        }
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json() as Record<string, unknown>;
+      expect(data.isAuthenticated).toBe(true);
+      expect(data.userId).toBe('test-user');
+
+      // Check that new access token is provided in response header
+      expect(response.headers.get('X-New-Access-Token')).toBe('new-access-token');
+
+      // Restore original methods
+      (await import('../../src/services/auth0')).Auth0Service.prototype.verifyToken = originalVerifyToken;
+      (await import('../../src/services/auth0')).Auth0Service.prototype.refreshAccessToken = originalRefreshAccessToken;
+    });
+
+    it('should fail authentication when refresh token is not available', async () => {
+      // Mock Auth0Service.verifyToken to return expired token error
+      const originalVerifyToken = (await import('../../src/services/auth0')).Auth0Service.prototype.verifyToken;
+      (await import('../../src/services/auth0')).Auth0Service.prototype.verifyToken = async () => {
+        throw new Error('Token expired');
+      };
+
+      app.use('/protected', auth());
+      app.get('/protected', (c) => c.json({ message: 'success' }));
+
+      // Request with expired JWT but no refresh token
+      const response = await app.request('/protected', {
+        headers: {
+          'Authorization': 'Bearer expired-jwt-token'
+          // No session or refresh token cookies
+        }
+      });
+
+      expect(response.status).toBe(401);
+      const data = await response.json() as Record<string, unknown>;
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('unauthorized');
+
+      // Restore original method
+      (await import('../../src/services/auth0')).Auth0Service.prototype.verifyToken = originalVerifyToken;
+    });
+
+    it('should fail authentication when token refresh fails', async () => {
+      // Create session and refresh token
+      const sessionResult = await SessionService.createSession({
+        auth0_user_id: 'test-user',
+        sub: 'test-user'
+      });
+      expect(sessionResult.success).toBe(true);
+
+      const refreshTokenResult = await SessionService.storeRefreshToken(
+        'test-user',
+        'test-auth0-refresh-token'
+      );
+      expect(refreshTokenResult.success).toBe(true);
+
+      // Mock Auth0Service methods
+      const originalVerifyToken = (await import('../../src/services/auth0')).Auth0Service.prototype.verifyToken;
+      const originalRefreshAccessToken = (await import('../../src/services/auth0')).Auth0Service.prototype.refreshAccessToken;
+      
+      (await import('../../src/services/auth0')).Auth0Service.prototype.verifyToken = async () => {
+        throw new Error('Token expired');
+      };
+
+      // Mock refresh to fail
+      (await import('../../src/services/auth0')).Auth0Service.prototype.refreshAccessToken = async () => {
+        throw new Error('Refresh token invalid');
+      };
+
+      app.use('/protected', auth());
+      app.get('/protected', (c) => c.json({ message: 'success' }));
+
+      const response = await app.request('/protected', {
+        headers: {
+          'Authorization': 'Bearer expired-jwt-token',
+          'Cookie': `session=${sessionResult.session_id}; refresh_token_id=${refreshTokenResult.token_id}`
+        }
+      });
+
+      expect(response.status).toBe(401);
+      const data = await response.json() as Record<string, unknown>;
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('unauthorized');
+
+      // Restore original methods
+      (await import('../../src/services/auth0')).Auth0Service.prototype.verifyToken = originalVerifyToken;
+      (await import('../../src/services/auth0')).Auth0Service.prototype.refreshAccessToken = originalRefreshAccessToken;
+    });
+
+    it('should not fall back to session auth when JWT verification fails', async () => {
+      // Ensure Auth0Service is not mocked from previous tests
+      const originalAuth0Service = (await import('../../src/services/auth0')).Auth0Service;
+      
+      // Mock SessionService.validateSession to return success
+      const originalValidateSession = SessionService.validateSession;
+      SessionService.validateSession = async () => ({
+        valid: true,
+        user_data: { auth0_user_id: 'session-user', sub: 'session-user' }
+      });
+
+      // Mock Auth0Service.verifyToken to fail (non-expired error)
+      originalAuth0Service.prototype.verifyToken = async () => {
+        throw new Error('Invalid token signature'); // Not an expiration error
+      };
+
+      app.use('/protected', auth());
+      app.get('/protected', (c) => {
+        const authContext = c.get('auth') as AuthContext;
+        return c.json({
+          isAuthenticated: authContext.isAuthenticated,
+          userId: authContext.userId
+        });
+      });
+
+      const response = await app.request('/protected', {
+        headers: {
+          'Authorization': 'Bearer invalid-jwt-token',
+          'Cookie': 'session=valid-session-id'
+        }
+      });
+
+      // Should fail with 401, not fall back to session authentication
+      expect(response.status).toBe(401);
+      const data = await response.json() as Record<string, unknown>;
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('unauthorized');
+
+      // Restore original methods
+      SessionService.validateSession = originalValidateSession;
+    });
+
+    it('should handle JWT verification with valid token normally', async () => {
+      // Mock Auth0Service.verifyToken to return valid payload
+      const originalAuth0Service = (await import('../../src/services/auth0')).Auth0Service;
+      const originalVerifyToken = originalAuth0Service.prototype.verifyToken;
+      const mockVerifyToken = async () => ({
+        sub: 'auth0|jwt123',
+        iss: `https://${env.AUTH0_DOMAIN}/`,
+        aud: env.AUTH0_AUDIENCE,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: Math.floor(Date.now() / 1000),
+        roles: ['user']
+      });
+
+      originalAuth0Service.prototype.verifyToken = mockVerifyToken;
+
+      app.use('/protected', auth());
+      app.get('/protected', (c) => {
+        const authContext = c.get('auth') as AuthContext;
+        return c.json({
+          isAuthenticated: authContext.isAuthenticated,
+          userId: authContext.userId,
+          roles: authContext.roles
+        });
+      });
+
+      const response = await app.request('/protected', {
+        headers: {
+          'Authorization': 'Bearer valid-jwt-token'
+        }
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json() as Record<string, unknown>;
+      expect(data.isAuthenticated).toBe(true);
+      expect(data.userId).toBe('auth0|jwt123');
+      expect(data.roles).toEqual(['user']);
+
+      // Restore original method
+      originalAuth0Service.prototype.verifyToken = originalVerifyToken;
     });
   });
 });

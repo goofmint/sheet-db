@@ -8,7 +8,10 @@ import {
   LogoutSuccessSchema,
   LogoutErrorSchema,
   MeSuccessSchema,
-  MeErrorSchema
+  MeErrorSchema,
+  RefreshTokenRequestSchema,
+  RefreshTokenSuccessSchema,
+  RefreshTokenErrorSchema
 } from './types';
 
 /**
@@ -182,6 +185,78 @@ export const meRoute = createRoute({
   }
 });
 
-// Future route definitions
-// export const refreshRoute = createRoute({ ... }); // Token refresh endpoint
-// export const revokeRoute = createRoute({ ... }); // Token revocation endpoint
+/**
+ * OpenAPI route definition for refresh token endpoint
+ */
+export const refreshRoute = createRoute({
+  method: 'post',
+  path: '/api/v1/auth/refresh',
+  tags: ['Authentication'],
+  summary: 'Refresh Access Token',
+  description: 'Refresh access token using HTTP-only refresh token with CSRF protection and token rotation',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: RefreshTokenRequestSchema
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: RefreshTokenSuccessSchema
+        }
+      },
+      description: 'Token refresh successful',
+      headers: {
+        'X-CSRF-Token': {
+          schema: {
+            type: 'string',
+            description: 'New CSRF token for continued protection'
+          }
+        },
+        'Set-Cookie': {
+          schema: {
+            type: 'string',
+            description: 'Updated HTTP-only cookies with new refresh token'
+          }
+        }
+      }
+    },
+    401: {
+      content: {
+        'application/json': {
+          schema: RefreshTokenErrorSchema
+        }
+      },
+      description: 'Unauthorized - invalid or expired refresh token'
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: RefreshTokenErrorSchema
+        }
+      },
+      description: 'Forbidden - CSRF validation failed or token reuse detected'
+    },
+    429: {
+      content: {
+        'application/json': {
+          schema: RefreshTokenErrorSchema
+        }
+      },
+      description: 'Too many requests - rate limit exceeded'
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: RefreshTokenErrorSchema
+        }
+      },
+      description: 'Internal server error - token refresh failed'
+    }
+  }
+});

@@ -261,6 +261,55 @@ export const MeErrorSchema = z.object({
   })
 });
 
+/**
+ * Refresh token request schema
+ */
+export const RefreshTokenRequestSchema = z.object({
+  csrf_token: z.string().optional().openapi({
+    description: 'CSRF protection token',
+    example: 'uuid-csrf-token'
+  })
+});
+
+/**
+ * Refresh token success response schema
+ */
+export const RefreshTokenSuccessSchema = z.object({
+  success: z.literal(true),
+  access_token: z.string().openapi({
+    description: 'New access token',
+    example: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
+  }),
+  expires_in: z.number().openapi({
+    description: 'Token expiry time in seconds',
+    example: 3600
+  }),
+  token_type: z.literal('Bearer').openapi({
+    description: 'Token type',
+    example: 'Bearer'
+  })
+});
+
+/**
+ * Refresh token error response schema
+ */
+export const RefreshTokenErrorSchema = z.object({
+  success: z.literal(false),
+  error: z.enum([
+    'unauthorized',
+    'forbidden', 
+    'security_violation',
+    'internal_server_error'
+  ]).openapi({
+    description: 'Error type',
+    example: 'unauthorized'
+  }),
+  message: z.string().openapi({
+    description: 'Human readable error message',
+    example: 'No refresh token provided'
+  })
+});
+
 // TypeScript types derived from schemas
 export type LoginRedirectResponse = z.infer<typeof LoginRedirectSchema>;
 export type LoginErrorResponse = z.infer<typeof LoginErrorSchema>;
@@ -272,3 +321,6 @@ export type LogoutSuccessResponse = z.infer<typeof LogoutSuccessSchema>;
 export type LogoutErrorResponse = z.infer<typeof LogoutErrorSchema>;
 export type MeSuccessResponse = z.infer<typeof MeSuccessSchema>;
 export type MeErrorResponse = z.infer<typeof MeErrorSchema>;
+export type RefreshTokenRequest = z.infer<typeof RefreshTokenRequestSchema>;
+export type RefreshTokenSuccessResponse = z.infer<typeof RefreshTokenSuccessSchema>;
+export type RefreshTokenErrorResponse = z.infer<typeof RefreshTokenErrorSchema>;

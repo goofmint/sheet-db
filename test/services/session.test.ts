@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import { env } from 'cloudflare:test';
 import { SessionService } from '../../src/services/session';
 import { ConfigService } from '../../src/services/config';
-import { setupConfigDatabase, setupSessionDatabase } from '../utils/database-setup';
+import { setupConfigDatabase, setupSessionDatabase, setupRefreshTokenDatabase, setupTokenAuditLogDatabase } from '../utils/database-setup';
 import { sessionTable } from '../../src/db/schema';
 import type { Auth0UserData } from '../../src/types/session';
 
@@ -14,6 +14,8 @@ describe('SessionService', () => {
     // Setup database tables
     await setupConfigDatabase(db);
     await setupSessionDatabase(db);
+    await setupRefreshTokenDatabase(db);
+    await setupTokenAuditLogDatabase(db);
     
     // Initialize ConfigService
     await ConfigService.initialize(db);
@@ -422,6 +424,258 @@ describe('SessionService', () => {
       // The session creation should fail due to UserSheet error
       expect(result.success).toBe(false);
       expect(result.error).toContain('Failed to update user data in _User sheet');
+    });
+  });
+
+  describe('Refresh Token Management', () => {
+    const testUserId = 'test-refresh-user';
+    const testRefreshToken = 'test-refresh-token-value';
+    const testIpAddress = '192.168.1.100';
+    const testUserAgent = 'Test Refresh Agent';
+
+    describe('storeRefreshToken', () => {
+      it('should store refresh token successfully', async () => {
+        const result = await SessionService.storeRefreshToken(
+          testUserId,
+          testRefreshToken,
+          testIpAddress,
+          testUserAgent
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.token_id).toBeDefined();
+        expect(typeof result.token_id).toBe('string');
+      });
+
+      it('should store refresh token without optional metadata', async () => {
+        const result = await SessionService.storeRefreshToken(
+          testUserId,
+          testRefreshToken
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.token_id).toBeDefined();
+      });
+    });
+
+    describe('validateRefreshToken', () => {
+      it('should validate unused refresh token', async () => {
+        const storeResult = await SessionService.storeRefreshToken(
+          testUserId,
+          testRefreshToken,
+          testIpAddress,
+          testUserAgent
+        );
+        expect(storeResult.success).toBe(true);
+        expect(storeResult.token_id).toBeDefined();
+
+        const validateResult = await SessionService.validateRefreshToken(
+          storeResult.token_id!,
+          testIpAddress,
+          testUserAgent
+        );
+
+        expect(validateResult.valid).toBe(true);
+        expect(validateResult.token_data).toBeDefined();
+        expect(validateResult.token_data?.user_id).toBe(testUserId);
+        expect(validateResult.token_data?.refresh_token).toBe(testRefreshToken);
+        expect(validateResult.is_reused).toBeUndefined();
+      });
+
+      it('should detect token reuse', async () => {
+        const storeResult = await SessionService.storeRefreshToken(
+          testUserId,
+          testRefreshToken
+        );
+        expect(storeResult.success).toBe(true);
+        expect(storeResult.token_id).toBeDefined();
+
+        // First use should succeed
+        const firstUse = await SessionService.validateRefreshToken(storeResult.token_id!);
+        expect(firstUse.valid).toBe(true);
+
+        // Second use should detect reuse
+        const secondUse = await SessionService.validateRefreshToken(storeResult.token_id!);
+        expect(secondUse.valid).toBe(false);
+        expect(secondUse.is_reused).toBe(true);
+        expect(secondUse.error).toContain('Token reuse detected');
+      });
+
+      it('should return invalid for non-existent token', async () => {
+        const result = await SessionService.validateRefreshToken('non-existent-token');
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('Refresh token not found or expired');
+      });
+    });
+
+    describe('revokeRefreshToken', () => {
+      it('should revoke refresh token', async () => {
+        const storeResult = await SessionService.storeRefreshToken(testUserId, testRefreshToken);
+        expect(storeResult.success).toBe(true);
+        expect(storeResult.token_id).toBeDefined();
+
+        const revokeResult = await SessionService.revokeRefreshToken(
+          storeResult.token_id!,
+          testIpAddress,
+          testUserAgent
+        );
+
+        expect(revokeResult.success).toBe(true);
+        expect(revokeResult.revoked_count).toBe(1);
+
+        // Verify token is no longer valid
+        const validateResult = await SessionService.validateRefreshToken(storeResult.token_id!);
+        expect(validateResult.valid).toBe(false);
+      });
+
+      it('should handle non-existent token gracefully', async () => {
+        const result = await SessionService.revokeRefreshToken('non-existent');
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Token not found');
+      });
+    });
+
+    describe('revokeAllRefreshTokensForUser', () => {
+      it('should revoke all tokens for a user', async () => {
+        // Create multiple tokens for the same user
+        const tokens = [];
+        for (let i = 0; i < 3; i++) {
+          const storeResult = await SessionService.storeRefreshToken(
+            testUserId,
+            `${testRefreshToken}-${i}`
+          );
+          expect(storeResult.success).toBe(true);
+          tokens.push(storeResult.token_id!);
+        }
+
+        // Create token for different user (should not be affected)
+        const otherUserResult = await SessionService.storeRefreshToken(
+          'other-user',
+          'other-refresh-token'
+        );
+        expect(otherUserResult.success).toBe(true);
+
+        // Revoke all tokens for test user
+        const revokeResult = await SessionService.revokeAllRefreshTokensForUser(testUserId);
+        expect(revokeResult.success).toBe(true);
+        expect(revokeResult.revoked_count).toBe(3);
+
+        // Verify all test user tokens are invalid
+        for (const tokenId of tokens) {
+          const validateResult = await SessionService.validateRefreshToken(tokenId);
+          expect(validateResult.valid).toBe(false);
+        }
+
+        // Verify other user's token is still valid
+        const otherValidateResult = await SessionService.validateRefreshToken(otherUserResult.token_id!);
+        expect(otherValidateResult.valid).toBe(true);
+      });
+    });
+
+    describe('getTokenAuditLog', () => {
+      it('should retrieve audit logs for user', async () => {
+        const storeResult = await SessionService.storeRefreshToken(
+          testUserId,
+          testRefreshToken,
+          testIpAddress,
+          testUserAgent
+        );
+        expect(storeResult.success).toBe(true);
+        expect(storeResult.token_id).toBeDefined();
+
+        // Use the token to create more audit entries
+        const validateResult = await SessionService.validateRefreshToken(
+          storeResult.token_id!,
+          testIpAddress,
+          testUserAgent
+        );
+        expect(validateResult.valid).toBe(true);
+
+        // Get audit logs
+        const auditLogs = await SessionService.getTokenAuditLog(testUserId, 10);
+        
+        expect(auditLogs.length).toBeGreaterThan(0);
+        expect(auditLogs.every(log => log.user_id === testUserId)).toBe(true);
+        
+        // Should have at least created and used events
+        const eventTypes = auditLogs.map(log => log.event_type);
+        expect(eventTypes).toContain('created');
+        expect(eventTypes).toContain('used');
+      });
+
+      it('should respect limit parameter', async () => {
+        // Create multiple audit entries
+        for (let i = 0; i < 5; i++) {
+          await SessionService.storeRefreshToken(testUserId, `token-${i}`);
+        }
+
+        const auditLogs = await SessionService.getTokenAuditLog(testUserId, 3);
+        expect(auditLogs.length).toBeLessThanOrEqual(3);
+      });
+    });
+
+    describe('getRefreshTokenStats', () => {
+      beforeEach(async () => {
+        // Create diverse token states for testing
+        const tokens = [
+          'stats-active-1',
+          'stats-active-2', 
+          'stats-to-use',
+          'stats-to-revoke'
+        ];
+
+        for (const token of tokens) {
+          await SessionService.storeRefreshToken(testUserId, token);
+        }
+
+        // Get token IDs for manipulation
+        const auditLogs = await SessionService.getTokenAuditLog(testUserId, 10);
+        const createdLogs = auditLogs.filter(log => log.event_type === 'created');
+        
+        if (createdLogs.length >= 4) {
+          // Use one token
+          await SessionService.validateRefreshToken(createdLogs[2].token_id);
+          
+          // Revoke one token
+          await SessionService.revokeRefreshToken(createdLogs[3].token_id);
+        }
+      });
+
+      it('should get stats for specific user', async () => {
+        const stats = await SessionService.getRefreshTokenStats(testUserId);
+        
+        expect(stats.total).toBeGreaterThan(0);
+        expect(stats.active).toBeGreaterThanOrEqual(0);
+        expect(stats.used).toBeGreaterThanOrEqual(0);
+        expect(stats.revoked).toBeGreaterThanOrEqual(0);
+        
+        // Total should equal sum of all states
+        expect(stats.total).toBe(stats.active + stats.used + stats.revoked);
+      });
+
+      it('should get global stats', async () => {
+        const stats = await SessionService.getRefreshTokenStats();
+        
+        expect(typeof stats.total).toBe('number');
+        expect(typeof stats.active).toBe('number');
+        expect(typeof stats.used).toBe('number');
+        expect(typeof stats.revoked).toBe('number');
+      });
+    });
+
+    describe('cleanupExpiredRefreshTokens', () => {
+      it('should clean up old tokens', async () => {
+        // Create and immediately revoke a token
+        const storeResult = await SessionService.storeRefreshToken(testUserId, testRefreshToken);
+        expect(storeResult.success).toBe(true);
+        
+        await SessionService.revokeRefreshToken(storeResult.token_id!);
+
+        // Cleanup should work without errors (exact count depends on DB state)
+        const cleanedCount = await SessionService.cleanupExpiredRefreshTokens(0); // 0 days = clean all old tokens
+        expect(typeof cleanedCount).toBe('number');
+        expect(cleanedCount).toBeGreaterThanOrEqual(0);
+      });
     });
   });
 });

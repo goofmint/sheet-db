@@ -9,6 +9,8 @@ export async function dropAllTables(db: DrizzleD1Database): Promise<void> {
   await db.run(sql`DROP TABLE IF EXISTS Config`);
   await db.run(sql`DROP TABLE IF EXISTS Cache`);
   await db.run(sql`DROP TABLE IF EXISTS Session`);
+  await db.run(sql`DROP TABLE IF EXISTS RefreshToken`);
+  await db.run(sql`DROP TABLE IF EXISTS TokenAuditLog`);
 }
 
 /**
@@ -84,6 +86,54 @@ export async function createSessionTable(db: DrizzleD1Database): Promise<void> {
 }
 
 /**
+ * Create RefreshToken table with indexes
+ */
+export async function createRefreshTokenTable(db: DrizzleD1Database): Promise<void> {
+  await db.run(sql`
+    CREATE TABLE RefreshToken (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token_id TEXT NOT NULL UNIQUE,
+        user_id TEXT NOT NULL,
+        refresh_token TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        used_at TEXT,
+        is_revoked INTEGER DEFAULT 0 NOT NULL CHECK (is_revoked IN (0, 1)),
+        ip_address TEXT,
+        user_agent TEXT
+    )
+  `);
+
+  // Create indexes
+  await db.run(sql`CREATE INDEX idx_refresh_token_id ON RefreshToken(token_id)`);
+  await db.run(sql`CREATE INDEX idx_refresh_user_id ON RefreshToken(user_id)`);
+  await db.run(sql`CREATE INDEX idx_refresh_is_revoked ON RefreshToken(is_revoked)`);
+}
+
+/**
+ * Create TokenAuditLog table with indexes
+ */
+export async function createTokenAuditLogTable(db: DrizzleD1Database): Promise<void> {
+  await db.run(sql`
+    CREATE TABLE TokenAuditLog (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        event_type TEXT NOT NULL CHECK (event_type IN ('created', 'used', 'reused', 'revoked')),
+        ip_address TEXT,
+        user_agent TEXT,
+        timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+        details TEXT
+    )
+  `);
+
+  // Create indexes
+  await db.run(sql`CREATE INDEX idx_audit_token_id ON TokenAuditLog(token_id)`);
+  await db.run(sql`CREATE INDEX idx_audit_user_id ON TokenAuditLog(user_id)`);
+  await db.run(sql`CREATE INDEX idx_audit_event_type ON TokenAuditLog(event_type)`);
+  await db.run(sql`CREATE INDEX idx_audit_timestamp ON TokenAuditLog(timestamp)`);
+}
+
+/**
  * Setup Config database - drops and recreates Config table
  */
 export async function setupConfigDatabase(db: DrizzleD1Database): Promise<void> {
@@ -108,6 +158,22 @@ export async function setupSessionDatabase(db: DrizzleD1Database): Promise<void>
 }
 
 /**
+ * Setup RefreshToken database - drops and recreates RefreshToken table
+ */
+export async function setupRefreshTokenDatabase(db: DrizzleD1Database): Promise<void> {
+  await db.run(sql`DROP TABLE IF EXISTS RefreshToken`);
+  await createRefreshTokenTable(db);
+}
+
+/**
+ * Setup TokenAuditLog database - drops and recreates TokenAuditLog table
+ */
+export async function setupTokenAuditLogDatabase(db: DrizzleD1Database): Promise<void> {
+  await db.run(sql`DROP TABLE IF EXISTS TokenAuditLog`);
+  await createTokenAuditLogTable(db);
+}
+
+/**
  * Initialize test database with all tables
  * Drops existing tables and creates fresh ones
  */
@@ -116,6 +182,8 @@ export async function setupTestDatabase(db: DrizzleD1Database): Promise<void> {
   await setupConfigDatabase(db);
   await setupCacheDatabase(db);
   await setupSessionDatabase(db);
+  await setupRefreshTokenDatabase(db);
+  await setupTokenAuditLogDatabase(db);
 }
 
 /**
