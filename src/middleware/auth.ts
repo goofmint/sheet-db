@@ -96,7 +96,7 @@ export function auth(options: AuthOptions = {}): MiddlewareHandler<{ Bindings: E
                   c.res.headers.set('X-New-Access-Token', refreshResult.newAccessToken);
                   
                   // Verify the new token
-                  const auth0 = new Auth0Service();
+                  const auth0 = new Auth0Service(c.env);
                   const newPayload = await auth0.verifyToken(refreshResult.newAccessToken);
                   
                   authContext.isAuthenticated = true;

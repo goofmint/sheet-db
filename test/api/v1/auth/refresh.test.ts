@@ -3,14 +3,13 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import app from '@/index';
 import { drizzle } from 'drizzle-orm/d1';
 import { env } from 'cloudflare:test';
 import { ConfigService } from '../../../../src/services/config';
 import { SessionService } from '../../../../src/services/session';
 import { Auth0Service } from '../../../../src/services/auth0';
-import refreshHandler from '../../../../src/api/v1/auth/refresh/post';
 import { setupConfigDatabase, setupSessionDatabase, setupRefreshTokenDatabase, setupTokenAuditLogDatabase } from '../../../utils/database-setup';
-import { refreshTokenTable, tokenAuditLogTable } from '../../../../src/db/schema';
 
 describe('POST /api/v1/auth/refresh', () => {
   const db = drizzle(env.DB);
@@ -48,7 +47,7 @@ describe('POST /api/v1/auth/refresh', () => {
     testRefreshTokenId = storeResult.token_id!;
   });
 
-  const createMockRequest = (options: {
+  const createTestRequest = (options: {
     refreshTokenId?: string;
     csrfTokenCookie?: string;
     csrfTokenBody?: string;
@@ -89,39 +88,9 @@ describe('POST /api/v1/auth/refresh', () => {
     });
   };
 
-  const createMockContext = (request: Request) => ({
-    req: {
-      header: (name: string) => {
-        if (name === 'CF-Connecting-IP') return '192.168.1.1';
-        if (name === 'X-Forwarded-For') return '192.168.1.1';
-        if (name === 'X-Real-IP') return '192.168.1.1';
-        if (name === 'User-Agent') return 'Test Agent';
-        return request.headers.get(name);
-      },
-      json: async () => {
-        const text = await request.text();
-        return text ? JSON.parse(text) : {};
-      }
-    },
-    json: (data: unknown, status = 200, headers?: Record<string, string>) => 
-      new Response(JSON.stringify(data), {
-        status,
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers
-        }
-      }),
-    env
-  });
-
-  const getCookieValue = (cookieString: string, name: string): string | null => {
-    const match = cookieString.match(new RegExp(`${name}=([^;]+)`));
-    return match ? match[1] : null;
-  };
-
   describe('Success cases', () => {
     it('should refresh token with valid refresh token and CSRF', async () => {
-      // Mock Auth0Service to return successful refresh
+      // Mock Auth0Service to return successful refresh (no other choice for external service)
       const originalRefreshAccessToken = Auth0Service.prototype.refreshAccessToken;
       Auth0Service.prototype.refreshAccessToken = async () => ({
         accessToken: 'new-access-token',
@@ -131,10 +100,8 @@ describe('POST /api/v1/auth/refresh', () => {
         scope: 'openid profile email'
       });
 
-      const request = createMockRequest();
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const request = createTestRequest();
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
       expect(response.status).toBe(200);
@@ -155,10 +122,8 @@ describe('POST /api/v1/auth/refresh', () => {
 
   describe('Authentication errors', () => {
     it('should return 401 when no refresh token cookie provided', async () => {
-      const request = createMockRequest({ refreshTokenId: '' });
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const request = createTestRequest({ refreshTokenId: '' });
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
       expect(response.status).toBe(401);
@@ -168,10 +133,8 @@ describe('POST /api/v1/auth/refresh', () => {
     });
 
     it('should return 401 with invalid refresh token', async () => {
-      const request = createMockRequest({ refreshTokenId: 'invalid-token-id' });
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const request = createTestRequest({ refreshTokenId: 'invalid-token-id' });
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
       expect(response.status).toBe(401);
@@ -179,27 +142,26 @@ describe('POST /api/v1/auth/refresh', () => {
       expect(responseData.error).toBe('unauthorized');
     });
 
-    it('should return 401 with used refresh token', async () => {
-      // Use the token first
+    it('should return 403 with used refresh token (reuse detection)', async () => {
+      // Use the token first to mark it as used
       await SessionService.validateRefreshToken(testRefreshTokenId);
       
-      const request = createMockRequest();
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      // Try to use it again - should trigger reuse detection
+      const request = createTestRequest();
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(403);
       expect(responseData.success).toBe(false);
+      expect(responseData.error).toBe('security_violation');
+      expect(responseData.message).toContain('Token reuse detected');
     });
   });
 
   describe('CSRF protection', () => {
     it('should return 403 when CSRF token missing from cookie', async () => {
-      const request = createMockRequest({ csrfTokenCookie: '' });
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const request = createTestRequest({ csrfTokenCookie: '' });
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
       expect(response.status).toBe(403);
@@ -209,10 +171,8 @@ describe('POST /api/v1/auth/refresh', () => {
     });
 
     it('should return 403 when CSRF token missing from body', async () => {
-      const request = createMockRequest({ csrfTokenBody: '' });
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const request = createTestRequest({ csrfTokenBody: '' });
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
       expect(response.status).toBe(403);
@@ -222,13 +182,11 @@ describe('POST /api/v1/auth/refresh', () => {
     });
 
     it('should return 403 when CSRF tokens do not match', async () => {
-      const request = createMockRequest({ 
+      const request = createTestRequest({ 
         csrfTokenCookie: 'cookie-token',
         csrfTokenBody: 'body-token' 
       });
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
       expect(response.status).toBe(403);
@@ -243,10 +201,8 @@ describe('POST /api/v1/auth/refresh', () => {
       await SessionService.validateRefreshToken(testRefreshTokenId);
       
       // Try to use it again - should trigger reuse detection
-      const request = createMockRequest();
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const request = createTestRequest();
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
       expect(response.status).toBe(403);
@@ -264,10 +220,8 @@ describe('POST /api/v1/auth/refresh', () => {
         throw new Error('Auth0 refresh failed: invalid_grant');
       };
 
-      const request = createMockRequest();
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const request = createTestRequest();
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
       expect(response.status).toBe(500);
@@ -291,10 +245,8 @@ describe('POST /api/v1/auth/refresh', () => {
         scope: 'openid profile email'
       });
 
-      const request = createMockRequest();
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const request = createTestRequest();
+      const response = await app.fetch(request, env);
       
       expect(response.status).toBe(200);
       
@@ -321,10 +273,8 @@ describe('POST /api/v1/auth/refresh', () => {
         scope: 'openid profile email'
       });
 
-      const request = createMockRequest();
-      const context = createMockContext(request);
-      
-      const response = await refreshHandler(context as any);
+      const request = createTestRequest();
+      const response = await app.fetch(request, env);
 
       // Check no-cache headers
       expect(response.headers.get('Cache-Control')).toBe('no-store');
@@ -349,9 +299,8 @@ describe('POST /api/v1/auth/refresh', () => {
         },
         body: 'invalid json'
       });
-      const context = createMockContext(request);
       
-      const response = await refreshHandler(context as any);
+      const response = await app.fetch(request, env);
       const responseData = await response.json();
 
       expect(response.status).toBe(403); // CSRF validation should fail with empty body
