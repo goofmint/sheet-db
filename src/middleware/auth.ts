@@ -2,6 +2,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import { getCookie } from 'hono/cookie';
 import type { Env } from '../types/env';
 import { SessionService } from '../services/session';
+import { Auth0Service } from '../services/auth0';
 import type { SessionValidationResult } from '../types/session';
 
 /**
@@ -62,11 +63,37 @@ export function auth(options: AuthOptions = {}): MiddlewareHandler<{ Bindings: E
             authContext.isMasterKey = true;
             return await next();
           }
-          // Invalid master key - continue to session auth
+          // Invalid master key - continue to other auth methods
         }
       }
 
-      // 2. Check session cookie authentication
+      // 2. Check JWT Bearer token authentication
+      const authHeader = c.req.header('Authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        
+        try {
+          const auth0Service = new Auth0Service(c.env);
+          const payload = await auth0Service.verifyToken(token);
+          
+          // Set authentication context from JWT payload
+          authContext.isAuthenticated = true;
+          authContext.userId = payload.sub;
+          authContext.roles = payload.roles || [];
+          
+          return await next();
+        } catch (error) {
+          // JWT verification failed - do NOT fall back to session auth for security
+          console.error('JWT verification failed:', error);
+          return c.json({
+            success: false,
+            error: 'unauthorized',
+            message: 'Invalid JWT token'
+          }, 401);
+        }
+      }
+
+      // 3. Check session cookie authentication
       const sessionId = getCookie(c, 'session');
       if (sessionId) {
         const validationResult = await SessionService.validateSession(sessionId);
@@ -81,7 +108,7 @@ export function auth(options: AuthOptions = {}): MiddlewareHandler<{ Bindings: E
         }
       }
 
-      // 3. Check if authentication is required
+      // 4. Check if authentication is required
       if (required && !authContext.isAuthenticated) {
         return defaultErrorResponse(c);
       }

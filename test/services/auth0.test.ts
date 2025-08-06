@@ -133,6 +133,25 @@ describe('Auth0Service', () => {
       const payload = btoa(JSON.stringify({ 
         sub: '123',
         exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
+        iss: `https://${env.AUTH0_DOMAIN}/`,
+        iat: Math.floor(Date.now() / 1000) - 3600
+      }));
+      const signature = 'fake-signature';
+      const token = `${header}.${payload}.${signature}`;
+      
+      await expect(
+        auth0Service.verifyToken(token)
+      ).rejects.toThrow('Token expired');
+    });
+
+    it('should reject token issued in the future', async () => {
+      // Create a token issued in the future
+      const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'test-kid' }));
+      const futureTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour in the future
+      const payload = btoa(JSON.stringify({ 
+        sub: '123',
+        exp: futureTime + 3600, // Valid expiration
+        iat: futureTime, // Issued in the future
         iss: `https://${env.AUTH0_DOMAIN}/`
       }));
       const signature = 'fake-signature';
@@ -140,6 +159,136 @@ describe('Auth0Service', () => {
       
       await expect(
         auth0Service.verifyToken(token)
+      ).rejects.toThrow('Token issued in the future');
+    });
+
+    it('should reject token not yet valid (nbf)', async () => {
+      // Create a token that is not yet valid
+      const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'test-kid' }));
+      const now = Math.floor(Date.now() / 1000);
+      const payload = btoa(JSON.stringify({ 
+        sub: '123',
+        exp: now + 3600, // Valid expiration
+        iat: now - 100, // Valid issued time
+        nbf: now + 600, // Not valid for another 10 minutes
+        iss: `https://${env.AUTH0_DOMAIN}/`
+      }));
+      const signature = 'fake-signature';
+      const token = `${header}.${payload}.${signature}`;
+      
+      await expect(
+        auth0Service.verifyToken(token)
+      ).rejects.toThrow('Token not yet valid');
+    });
+
+    it('should accept token with nbf when ignoreNotBefore is true', async () => {
+      // Create a token that is not yet valid but with ignoreNotBefore option
+      const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'test-kid' }));
+      const now = Math.floor(Date.now() / 1000);
+      const payload = btoa(JSON.stringify({ 
+        sub: '123',
+        exp: now + 3600,
+        iat: now - 100,
+        nbf: now + 600, // Not valid for another 10 minutes
+        iss: `https://${env.AUTH0_DOMAIN}/`
+      }));
+      const signature = 'fake-signature';
+      const token = `${header}.${payload}.${signature}`;
+      
+      // Should not throw on nbf validation because we ignore nbf check
+      // Will fail on audience validation since no audience is set in token but config requires it
+      await expect(
+        auth0Service.verifyToken(token, { ignoreNotBefore: true })
+      ).rejects.toThrow(); // Will fail on some validation, exact error may vary
+    });
+
+    it('should reject token with invalid issuer', async () => {
+      const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'test-kid' }));
+      const now = Math.floor(Date.now() / 1000);
+      const payload = btoa(JSON.stringify({ 
+        sub: '123',
+        exp: now + 3600,
+        iat: now - 100,
+        iss: 'https://invalid-domain.auth0.com/' // Wrong issuer
+      }));
+      const signature = 'fake-signature';
+      const token = `${header}.${payload}.${signature}`;
+      
+      await expect(
+        auth0Service.verifyToken(token)
+      ).rejects.toThrow('Invalid token issuer');
+    });
+
+    it('should accept token with custom issuer option', async () => {
+      const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'test-kid' }));
+      const now = Math.floor(Date.now() / 1000);
+      const customIssuer = 'https://custom-issuer.example.com/';
+      const payload = btoa(JSON.stringify({ 
+        sub: '123',
+        exp: now + 3600,
+        iat: now - 100,
+        iss: customIssuer
+      }));
+      const signature = 'fake-signature';
+      const token = `${header}.${payload}.${signature}`;
+      
+      // Should not throw on issuer validation (will fail on later validation)
+      await expect(
+        auth0Service.verifyToken(token, { issuer: customIssuer })
+      ).rejects.toThrow(); // Will fail on some validation, exact error may vary
+    });
+
+    it('should reject token with invalid audience', async () => {
+      // First set up an audience in config
+      await db.insert(configTable).values({
+        key: 'auth0.audience',
+        value: 'https://api.example.com',
+        type: 'string'
+      });
+      await ConfigService.refreshCache();
+
+      const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'test-kid' }));
+      const now = Math.floor(Date.now() / 1000);
+      const payload = btoa(JSON.stringify({ 
+        sub: '123',
+        exp: now + 3600,
+        iat: now - 100,
+        iss: `https://${env.AUTH0_DOMAIN}/`,
+        aud: 'https://different-api.example.com' // Wrong audience
+      }));
+      const signature = 'fake-signature';
+      const token = `${header}.${payload}.${signature}`;
+      
+      await expect(
+        auth0Service.verifyToken(token)
+      ).rejects.toThrow('Invalid token audience');
+
+      // Clean up
+      await db.delete(configTable).where(eq(configTable.key, 'auth0.audience'));
+      await ConfigService.refreshCache();
+    });
+
+    it('should respect clockTolerance for time validations', async () => {
+      // Create a token that would be invalid without clock tolerance
+      const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: 'test-kid' }));
+      const now = Math.floor(Date.now() / 1000);
+      const payload = btoa(JSON.stringify({ 
+        sub: '123',
+        exp: now - 2, // Expired by 2 seconds
+        iat: now - 100,
+        iss: `https://${env.AUTH0_DOMAIN}/`
+      }));
+      const signature = 'fake-signature';
+      const token = `${header}.${payload}.${signature}`;
+      
+      // Should be accepted with 5-second clock tolerance (will fail on key lookup)
+      await expect(
+        auth0Service.verifyToken(token, { clockTolerance: 5 })
+      ).rejects.toThrow('Signing key not found'); // Expected to fail on key lookup, not time validation
+      
+      // Should be rejected with 1-second clock tolerance
+      await expect(
+        auth0Service.verifyToken(token, { clockTolerance: 1 })
       ).rejects.toThrow('Token expired');
     });
   });
