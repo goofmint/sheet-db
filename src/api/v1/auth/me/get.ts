@@ -1,7 +1,7 @@
 import { Hono, Context } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { drizzle } from 'drizzle-orm/d1';
-import { SessionService } from '@/services/session';
+import { SessionService } from '@/services/sessions';
 import { ConfigService } from '@/services/config';
 import { Env } from '@/types/env';
 

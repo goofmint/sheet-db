@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import { env } from 'cloudflare:test';
 import { auth, requireRoles, getAuth, type AuthContext } from '../../src/middleware/auth';
-import { SessionService } from '../../src/services/session';
+import { SessionService } from '../../src/services/sessions';
 import { ConfigService } from '../../src/services/config';
 import type { Env } from '../../src/types/env';
 import { setupConfigDatabase, setupSessionDatabase, setupRefreshTokenDatabase, setupTokenAuditLogDatabase } from '../utils/database-setup';

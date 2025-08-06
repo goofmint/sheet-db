@@ -8,7 +8,7 @@ import { api } from './api';
 import { setupHandler } from './setup';
 import playgroundRouter from './playground/route';
 import { googleCallbackHandler } from './google/callback/get';
-import configRouter from './config';
+import configRouter from './config/route';
 import { sheetInitializeHandler } from './sheet/initialize/get';
 import { sheetSelectHandler } from './sheet/select/get';
 import type { Env } from './types/env';

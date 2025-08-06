@@ -171,10 +171,9 @@ test.describe('Config Delete Functionality', () => {
     const firstRow = page.locator('#config-table tbody tr').first();
     const firstDeleteButton = firstRow.locator('.config-actions button.btn-delete');
     
-    // Skip test if no configs exist
+    // Fail test if no configs exist
     if (await firstDeleteButton.count() === 0) {
-      test.skip('No configurations available to test delete functionality');
-      return;
+      throw new Error('Test environment error: No configurations available to test delete functionality. Test requires at least one config to be present.');
     }
     
     // Get the config key for verification
@@ -203,8 +202,7 @@ test.describe('Config Delete Functionality', () => {
     const firstDeleteButton = firstRow.locator('.config-actions button.btn-delete');
     
     if (await firstDeleteButton.count() === 0) {
-      test.skip('No configurations available to test');
-      return;
+      throw new Error('Test environment error: No configurations available to test. Test requires at least one config to be present.');
     }
     
     // Verify delete button is visible and has correct attributes
@@ -229,8 +227,7 @@ test.describe('Config Delete Functionality', () => {
     const firstDeleteButton = page.locator('.config-actions button.btn-delete').first();
     
     if (await firstDeleteButton.count() === 0) {
-      test.skip('No configurations available to test');
-      return;
+      throw new Error('Test environment error: No configurations available to test. Test requires at least one config to be present.');
     }
     
     await firstDeleteButton.click();

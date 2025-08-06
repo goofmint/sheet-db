@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import app from '../../../../src/index';
+import { env } from 'cloudflare:test';
 
 describe('Storage API - /api/v1/storages', () => {
 
@@ -10,7 +11,7 @@ describe('Storage API - /api/v1/storages', () => {
       const response = await app.fetch(new Request('http://localhost/api/v1/storages', {
         method: 'POST',
         body: formData
-      }));
+      }), env);
 
       // Should fail due to DB initialization error, but that's expected in test environment
       expect([400, 500]).toContain(response.status);
@@ -26,7 +27,7 @@ describe('Storage API - /api/v1/storages', () => {
       const response = await app.fetch(new Request('http://localhost/api/v1/storages', {
         method: 'POST',
         body: formData
-      }));
+      }), env);
 
       // Should return an error due to missing configuration
       expect([400, 500, 503]).toContain(response.status);
@@ -39,7 +40,7 @@ describe('Storage API - /api/v1/storages', () => {
     it('should handle missing file ID', async () => {
       const response = await app.fetch(new Request('http://localhost/api/v1/storages/', {
         method: 'DELETE'
-      }));
+      }), env);
 
       // Should fail due to DB initialization error, but that's expected in test environment
       expect([404, 500]).toContain(response.status);
@@ -48,7 +49,7 @@ describe('Storage API - /api/v1/storages', () => {
     it('should handle missing configuration gracefully', async () => {
       const response = await app.fetch(new Request('http://localhost/api/v1/storages/test-file-id', {
         method: 'DELETE'
-      }));
+      }), env);
 
       // Should return an error due to missing configuration
       expect([400, 500]).toContain(response.status);
@@ -67,7 +68,7 @@ describe('Storage API - /api/v1/storages', () => {
         headers: {
           'Origin': 'https://example.com'
         }
-      }));
+      }), env);
 
       // CORS headers should be present (may be null in test environment)
       const corsOrigin = response.headers.get('Access-Control-Allow-Origin');

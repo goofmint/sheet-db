@@ -18,7 +18,7 @@ export const loginHandler = async (c: Context<{ Bindings: Env }>) => {
     // Get current host and validate redirect URI
     const currentHost = new URL(c.req.url).origin;
     const allowedRedirectBases = JSON.parse(
-      ConfigService.getString('allowedRedirectBases', '[]')
+      ConfigService.getString('auth.allowed_redirect_bases', '[]')
     ) as string[];
     
     const allowedBase = allowedRedirectBases.find(base => base === currentHost);

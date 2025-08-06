@@ -48,8 +48,9 @@
 		/* Skip type checking all .d.ts files. */
 		"skipLibCheck": true,
 		"types": [
-			"./worker-configuration.d.ts"
+			"./worker-configuration.d.ts",
+			"node"
 		]
 	},
-	"include": ["worker-configuration.d.ts", "src/**/*.ts", "src/**/*.tsx", "src/**/*.html", "test/**/*.ts"]
+	"include": ["worker-configuration.d.ts", "src/**/*.ts", "src/**/*.tsx", "src/**/*.html", "test/**/*.ts", "tests-e2e/**/*.ts"]
 }

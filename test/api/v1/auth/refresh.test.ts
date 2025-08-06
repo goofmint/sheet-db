@@ -7,7 +7,7 @@ import app from '@/index';
 import { drizzle } from 'drizzle-orm/d1';
 import { env } from 'cloudflare:test';
 import { ConfigService } from '../../../../src/services/config';
-import { SessionService } from '../../../../src/services/session';
+import { SessionService } from '../../../../src/services/sessions';
 import { Auth0Service } from '../../../../src/services/auth0';
 import { setupConfigDatabase, setupSessionDatabase, setupRefreshTokenDatabase, setupTokenAuditLogDatabase } from '../../../utils/database-setup';
 
@@ -102,7 +102,7 @@ describe('POST /api/v1/auth/refresh', () => {
 
       const request = createTestRequest();
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(200);
       expect(responseData.success).toBe(true);
@@ -124,7 +124,7 @@ describe('POST /api/v1/auth/refresh', () => {
     it('should return 401 when no refresh token cookie provided', async () => {
       const request = createTestRequest({ refreshTokenId: '' });
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(401);
       expect(responseData.success).toBe(false);
@@ -135,7 +135,7 @@ describe('POST /api/v1/auth/refresh', () => {
     it('should return 401 with invalid refresh token', async () => {
       const request = createTestRequest({ refreshTokenId: 'invalid-token-id' });
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(401);
       expect(responseData.success).toBe(false);
@@ -149,7 +149,7 @@ describe('POST /api/v1/auth/refresh', () => {
       // Try to use it again - should trigger reuse detection
       const request = createTestRequest();
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(403);
       expect(responseData.success).toBe(false);
@@ -162,7 +162,7 @@ describe('POST /api/v1/auth/refresh', () => {
     it('should return 403 when CSRF token missing from cookie', async () => {
       const request = createTestRequest({ csrfTokenCookie: '' });
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(403);
       expect(responseData.success).toBe(false);
@@ -173,7 +173,7 @@ describe('POST /api/v1/auth/refresh', () => {
     it('should return 403 when CSRF token missing from body', async () => {
       const request = createTestRequest({ csrfTokenBody: '' });
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(403);
       expect(responseData.success).toBe(false);
@@ -187,7 +187,7 @@ describe('POST /api/v1/auth/refresh', () => {
         csrfTokenBody: 'body-token' 
       });
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(403);
       expect(responseData.success).toBe(false);
@@ -203,7 +203,7 @@ describe('POST /api/v1/auth/refresh', () => {
       // Try to use it again - should trigger reuse detection
       const request = createTestRequest();
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(403);
       expect(responseData.success).toBe(false);
@@ -222,7 +222,7 @@ describe('POST /api/v1/auth/refresh', () => {
 
       const request = createTestRequest();
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(500);
       expect(responseData.success).toBe(false);
@@ -301,7 +301,7 @@ describe('POST /api/v1/auth/refresh', () => {
       });
       
       const response = await app.fetch(request, env);
-      const responseData = await response.json();
+      const responseData = await response.json() as Record<string, unknown>;
 
       expect(response.status).toBe(403); // CSRF validation should fail with empty body
       expect(responseData.success).toBe(false);

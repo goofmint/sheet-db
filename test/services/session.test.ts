@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { env } from 'cloudflare:test';
-import { SessionService } from '../../src/services/session';
+import { SessionService } from '../../src/services/sessions';
 import { ConfigService } from '../../src/services/config';
 import { setupConfigDatabase, setupSessionDatabase, setupRefreshTokenDatabase, setupTokenAuditLogDatabase } from '../utils/database-setup';
 import { sessionTable } from '../../src/db/schema';
@@ -43,12 +43,18 @@ describe('SessionService', () => {
     });
 
     it('should throw error when using uninitialized service', () => {
-      // Create a fresh instance without initialization
-      const uninitializedService = Object.create(SessionService);
-      uninitializedService.initialized = false;
+      // Store the current initialized state
+      const originalInitialized = SessionService.isInitialized();
+      
+      // Temporarily uninitialize the services by creating new services that aren't initialized
+      const uninitializedSessionService = class extends SessionService {
+        static isInitialized(): boolean {
+          return false;
+        }
+      };
       
       expect(() => {
-        uninitializedService.ensureInitialized();
+        uninitializedSessionService.ensureInitialized();
       }).toThrow('SessionService must be initialized before use');
     });
   });
