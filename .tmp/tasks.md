@@ -80,7 +80,7 @@
 ### 2.3 セッション管理
 - [x] src/services/session.tsの作成（セッション管理） - [詳細](./tasks/2.3.1-session-service.md)
 - [x] src/middleware/auth.tsの作成（認証ミドルウェア） - [詳細](./tasks/2.3.2-auth-middleware.md)
-- [ ] JWTトークン検証の実装 - [詳細](./tasks/2.3.3-jwt-token-validation.md)
+- [x] JWTトークン検証の実装 - [詳細](./tasks/2.3.3-jwt-token-validation.md)
 - [ ] リフレッシュトークンの実装
 
 ### 2.4 ACL実装 🔄 **部分完了**

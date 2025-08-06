@@ -46,7 +46,7 @@ export class Auth0Service {
       clientId: auth0ClientId,
       clientSecret: auth0ClientSecret,
       audience: auth0Audience || undefined,
-      scope: auth0Scope || 'openid profile email'
+      scope: auth0Scope || 'openid profile email offline_access'
     };
   }
 

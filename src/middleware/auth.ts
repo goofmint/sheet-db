@@ -67,7 +67,7 @@ export function auth(options: AuthOptions = {}): MiddlewareHandler<{ Bindings: E
         }
       }
 
-      // 2. Check JWT Bearer token authentication
+      // 2. Check JWT Bearer token authentication with auto-refresh
       const authHeader = c.req.header('Authorization');
       if (authHeader?.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
@@ -83,6 +83,35 @@ export function auth(options: AuthOptions = {}): MiddlewareHandler<{ Bindings: E
           
           return await next();
         } catch (error) {
+          // Check if token is expired and attempt auto-refresh
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('expired')) {
+            // Attempt to refresh token using session-stored refresh token
+            const sessionId = getCookie(c, 'session');
+            if (sessionId) {
+              try {
+                const refreshResult = await attemptTokenRefresh(c, sessionId);
+                if (refreshResult.success && refreshResult.newAccessToken) {
+                  // Set new token in response header for client to update
+                  c.res.headers.set('X-New-Access-Token', refreshResult.newAccessToken);
+                  
+                  // Verify the new token
+                  const auth0 = new Auth0Service(c.env);
+                  const newPayload = await auth0.verifyToken(refreshResult.newAccessToken);
+                  
+                  authContext.isAuthenticated = true;
+                  authContext.userId = newPayload.sub;
+                  authContext.roles = newPayload.roles || [];
+                  
+                  return await next();
+                }
+              } catch (refreshError) {
+                console.error('Token refresh failed:', refreshError);
+                // Fall through to normal error handling
+              }
+            }
+          }
+          
           // JWT verification failed - do NOT fall back to session auth for security
           console.error('JWT verification failed:', error);
           return c.json({
@@ -180,4 +209,82 @@ export function getAuth(c: Context): AuthContext {
   const ctx = c.get('auth');
   if (!ctx) throw new Error('Auth context missing – did you forget to mount auth() middleware?');
   return ctx;
+}
+
+/**
+ * Helper function to attempt token refresh
+ */
+async function attemptTokenRefresh(c: Context, sessionId: string): Promise<{
+  success: boolean;
+  newAccessToken?: string;
+  newRefreshToken?: string;
+  error?: string;
+}> {
+  try {
+    // Get client information for security logging
+    const ipAddress = c.req.header('CF-Connecting-IP') || 
+                     c.req.header('X-Forwarded-For') || 
+                     c.req.header('X-Real-IP');
+    const userAgent = c.req.header('User-Agent');
+
+    // Get session data to find associated refresh token
+    const sessionValidation = await SessionService.validateSession(sessionId);
+    if (!sessionValidation.valid || !sessionValidation.user_data) {
+      return {
+        success: false,
+        error: 'Invalid session'
+      };
+    }
+
+    // For security, we need to get the refresh token from our secure storage
+    // rather than from the session cookie or client
+    const refreshTokenId = getCookie(c, 'refresh_token_id');
+    if (!refreshTokenId) {
+      return {
+        success: false,
+        error: 'No refresh token available'
+      };
+    }
+
+    // Validate and use the refresh token
+    const tokenValidation = await SessionService.validateRefreshToken(
+      refreshTokenId,
+      ipAddress,
+      userAgent
+    );
+
+    if (!tokenValidation.valid || !tokenValidation.token_data) {
+      return {
+        success: false,
+        error: 'Invalid or expired refresh token'
+      };
+    }
+
+    // Use Auth0Service to refresh the access token
+    const auth0Service = new Auth0Service(c.env);
+    const newTokens = await auth0Service.refreshAccessToken(tokenValidation.token_data.refresh_token);
+
+    // Store the new refresh token if provided (token rotation)
+    if (newTokens.refreshToken) {
+      await SessionService.storeRefreshToken(
+        sessionValidation.user_data.auth0_user_id,
+        newTokens.refreshToken,
+        ipAddress,
+        userAgent
+      );
+    }
+
+    return {
+      success: true,
+      newAccessToken: newTokens.accessToken,
+      newRefreshToken: newTokens.refreshToken
+    };
+
+  } catch (error) {
+    console.error('Token refresh attempt failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Token refresh failed'
+    };
+  }
 }

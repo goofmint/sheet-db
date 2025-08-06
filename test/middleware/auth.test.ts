@@ -6,7 +6,7 @@ import { auth, requireRoles, getAuth, type AuthContext } from '../../src/middlew
 import { SessionService } from '../../src/services/session';
 import { ConfigService } from '../../src/services/config';
 import type { Env } from '../../src/types/env';
-import { setupConfigDatabase, setupSessionDatabase } from '../utils/database-setup';
+import { setupConfigDatabase, setupSessionDatabase, setupRefreshTokenDatabase, setupTokenAuditLogDatabase } from '../utils/database-setup';
 
 describe('Authentication Middleware', () => {
   let app: Hono<{ Bindings: Env; Variables: { auth: AuthContext } }>;
@@ -16,6 +16,8 @@ describe('Authentication Middleware', () => {
     // Setup database tables
     await setupConfigDatabase(db);
     await setupSessionDatabase(db);
+    await setupRefreshTokenDatabase(db);
+    await setupTokenAuditLogDatabase(db);
     
     // Initialize ConfigService
     await ConfigService.initialize(db);
@@ -416,4 +418,7 @@ describe('Authentication Middleware', () => {
       expect(response.status).toBe(401);
     });
   });
+
+  // JWT token auto-refresh tests removed: would require mocking Auth0Service which violates no-mocking requirement
+  // The automatic token refresh functionality is tested via the refresh endpoint integration tests
 });

@@ -15,6 +15,13 @@
       "when": 1754029363800,
       "tag": "0001_true_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1754457038389,
+      "tag": "0002_square_human_cannonball",
+      "breakpoints": true
     }
   ]
 }
