@@ -21,16 +21,22 @@ export class SheetApiClient {
   }
 
   /**
-   * Get authentication headers
+   * Get authentication headers with automatic token refresh
    */
-  private getAuthHeaders(): Record<string, string> {
-    if (!this.config.accessToken) {
-      throw new Error('Access token not available');
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const { GoogleOAuthService } = await import('../google-oauth');
+    const oauthService = new GoogleOAuthService();
+    
+    try {
+      const validToken = await oauthService.getValidAccessToken();
+      return {
+        'Authorization': 'Bearer ' + validToken,
+        'Content-Type': 'application/json'
+      };
+    } catch (error) {
+      console.error('Failed to get valid access token:', error);
+      throw new Error(`Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    return {
-      'Authorization': 'Bearer ' + this.config.accessToken,
-      'Content-Type': 'application/json'
-    };
   }
 
   /**
@@ -42,7 +48,7 @@ export class SheetApiClient {
     }
 
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}`, {
-      headers: this.getAuthHeaders()
+      headers: await this.getAuthHeaders()
     });
 
     if (!response.ok) {
@@ -64,7 +70,7 @@ export class SheetApiClient {
     const fullRange = range ? `${escapedSheetName}!${range}` : escapedSheetName;
     
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${fullRange}`, {
-      headers: this.getAuthHeaders()
+      headers: await this.getAuthHeaders()
     });
 
     if (!response.ok) {
@@ -92,7 +98,7 @@ export class SheetApiClient {
     
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${fullRange}?valueInputOption=RAW`, {
       method: 'PUT',
-      headers: this.getAuthHeaders(),
+      headers: await this.getAuthHeaders(),
       body: JSON.stringify({
         values: data
       } as ValuesUpdateRequest)
@@ -116,7 +122,7 @@ export class SheetApiClient {
     
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${escapedSheetName}:append?valueInputOption=RAW`, {
       method: 'POST',
-      headers: this.getAuthHeaders(),
+      headers: await this.getAuthHeaders(),
       body: JSON.stringify({
         values: data
       } as ValuesUpdateRequest)
@@ -138,7 +144,7 @@ export class SheetApiClient {
 
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}:batchUpdate`, {
       method: 'POST',
-      headers: this.getAuthHeaders(),
+      headers: await this.getAuthHeaders(),
       body: JSON.stringify(requests)
     });
 

@@ -105,10 +105,33 @@ export async function getSheetsHandler(c: Context<{ Bindings: Env }>): Promise<R
 
     // Initialize sheet service
     const sheetService = SheetService.getInstance();
-    await sheetService.initialize();
+    
+    try {
+      await sheetService.initialize();
+    } catch (initError) {
+      console.error('SheetService initialization failed:', initError);
+      return c.json({
+        success: false,
+        error: 'service_not_configured',
+        message: 'Google Sheets service is not properly configured. Please complete the setup first.'
+      }, 503); // Service Unavailable
+    }
 
     // Get spreadsheet metadata
-    const metadata = await sheetService.getSpreadsheetMetadata();
+    let metadata;
+    try {
+      metadata = await sheetService.getSpreadsheetMetadata();
+    } catch (metadataError) {
+      console.error('Failed to get spreadsheet metadata:', metadataError);
+      if (metadataError instanceof Error && metadataError.message.includes('Unauthorized')) {
+        return c.json({
+          success: false,
+          error: 'authentication_failed',
+          message: 'Google Sheets authentication failed. Please check your access token configuration.'
+        }, 401);
+      }
+      throw metadataError; // Re-throw other errors
+    }
 
     // Process each sheet to get column information
     const allSheets: Array<{ name: string; columns: ColumnInfo[] }> = [];
