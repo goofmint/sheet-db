@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { env } from 'cloudflare:test';
+import app from '../../../../src/index';
 import type { SheetsListResponse, SheetErrorResponse } from '../../../../src/api/v1/sheets/types';
-
-const SERVER_URL = 'http://localhost:8787';
 
 // Type guards for response validation
 function isSuccessResponse(data: unknown): data is SheetsListResponse {
@@ -22,27 +22,18 @@ function isErrorResponse(data: unknown): data is SheetErrorResponse {
 
 type ApiResponse = SheetsListResponse | SheetErrorResponse;
 
-describe('Sheets API - Live Server Tests', () => {
-  beforeAll(async () => {
-    // Verify server is running
-    try {
-      const healthResponse = await fetch(`${SERVER_URL}/api/v1/health`);
-      if (!healthResponse.ok) {
-        throw new Error(`Server not healthy: ${healthResponse.status}`);
-      }
-    } catch (error) {
-      throw new Error(`Server not accessible at ${SERVER_URL}. Please start with: npm run dev`);
-    }
-  });
+describe('Sheets API - Application Integration Tests', () => {
 
   describe('GET /api/v1/sheets', () => {
     it('should return a response with correct structure', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
+      const request = new Request('http://localhost/api/v1/sheets', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
         }
       });
+
+      const response = await app.fetch(request, env);
 
       expect(response.status).toBe(200);
       expect(response.headers.get('content-type')).toContain('application/json');
@@ -76,12 +67,14 @@ describe('Sheets API - Live Server Tests', () => {
     }, 10000);
 
     it('should handle filter query parameter correctly', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets?filter=test`, {
+      const request = new Request('http://localhost/api/v1/sheets?filter=test', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
         }
       });
+
+      const response = await app.fetch(request, env);
 
       expect(response.status).toBe(200);
 
@@ -95,13 +88,15 @@ describe('Sheets API - Live Server Tests', () => {
     });
 
     it('should handle master key header', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
+      const request = new Request('http://localhost/api/v1/sheets', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'x-master-key': 'test-master-key'
         }
       });
+
+      const response = await app.fetch(request, env);
 
       expect(response.status).toBe(200);
 
@@ -115,7 +110,7 @@ describe('Sheets API - Live Server Tests', () => {
     });
 
     it('should reject invalid HTTP methods', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
+      const request = new Request('http://localhost/api/v1/sheets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -123,17 +118,21 @@ describe('Sheets API - Live Server Tests', () => {
         body: JSON.stringify({ test: 'data' })
       });
 
+      const response = await app.fetch(request, env);
+
       expect(response.status).toBe(400); // Bad Request (OpenAPI validation error)
     });
 
     it('should handle CORS properly', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
+      const request = new Request('http://localhost/api/v1/sheets', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Origin': 'http://localhost:3000'
         }
       });
+
+      const response = await app.fetch(request, env);
 
       // Should include CORS headers
       expect(response.headers.get('access-control-allow-origin')).toBeTruthy();
@@ -142,12 +141,14 @@ describe('Sheets API - Live Server Tests', () => {
     it('should respond within reasonable time', async () => {
       const startTime = Date.now();
       
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
+      const request = new Request('http://localhost/api/v1/sheets', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
         }
       });
+
+      const response = await app.fetch(request, env);
 
       const endTime = Date.now();
       const responseTime = endTime - startTime;
@@ -157,14 +158,15 @@ describe('Sheets API - Live Server Tests', () => {
     }, 15000);
 
     it('should handle concurrent requests without issues', async () => {
-      const requests = Array(3).fill(null).map(() =>
-        fetch(`${SERVER_URL}/api/v1/sheets`, {
+      const requests = Array(3).fill(null).map(() => {
+        const request = new Request('http://localhost/api/v1/sheets', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
           }
-        })
-      );
+        });
+        return app.fetch(request, env);
+      });
 
       const responses = await Promise.all(requests);
       
@@ -177,11 +179,11 @@ describe('Sheets API - Live Server Tests', () => {
     it('should maintain consistent response format across multiple calls', async () => {
       // Make multiple calls to ensure consistency
       const responses = await Promise.all([
-        fetch(`${SERVER_URL}/api/v1/sheets`),
-        fetch(`${SERVER_URL}/api/v1/sheets?filter=test`),
-        fetch(`${SERVER_URL}/api/v1/sheets`, {
+        app.fetch(new Request('http://localhost/api/v1/sheets'), env),
+        app.fetch(new Request('http://localhost/api/v1/sheets?filter=test'), env),
+        app.fetch(new Request('http://localhost/api/v1/sheets', {
           headers: { 'x-master-key': 'invalid' }
-        })
+        }), env)
       ]);
 
       const dataArray = await Promise.all(
@@ -205,9 +207,13 @@ describe('Sheets API - Live Server Tests', () => {
     });
   });
 
-  describe('Server Integration', () => {
+  describe('Application Integration', () => {
     it('should be accessible and responsive', async () => {
-      const healthResponse = await fetch(`${SERVER_URL}/api/v1/health`);
+      const request = new Request('http://localhost/api/v1/health', {
+        method: 'GET'
+      });
+
+      const healthResponse = await app.fetch(request, env);
       expect(healthResponse.ok).toBe(true);
 
       const healthData = await healthResponse.json() as { status: string };
