@@ -16,8 +16,9 @@ export const SheetSuccessResponseSchema = z.object({
 });
 
 export const SheetErrorSchema = z.object({
-  error: z.string().openapi({ example: 'Sheet name is required' }),
-  message: z.string().openapi({ example: 'Please provide a valid sheet name in the request body' })
+  success: z.literal(false),
+  error: z.string().openapi({ example: 'service_not_configured' }),
+  message: z.string().openapi({ example: 'Google Sheets service is not properly configured. Please complete the setup first.' })
 });
 
 // Sheets list schemas

@@ -1,8 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { drizzle } from 'drizzle-orm/d1';
+import { ConfigService } from '../../../../src/services/config';
 import app from '../../../../src/index';
 import { env } from 'cloudflare:test';
+import { setupConfigDatabase } from '../../../utils/database-setup';
 
 describe('Storage API - /api/v1/storages', () => {
+  const db = drizzle(env.DB);
+
+  beforeAll(async () => {
+    // Setup database and ConfigService
+    await setupConfigDatabase(db);
+    await ConfigService.initialize(db);
+  });
 
   describe('POST /api/v1/storages', () => {
     it('should reject request without file', async () => {
@@ -70,9 +80,9 @@ describe('Storage API - /api/v1/storages', () => {
         }
       }), env);
 
-      // CORS headers should be present (may be null in test environment)
+      // CORS headers should be present (may reflect the request origin)
       const corsOrigin = response.headers.get('Access-Control-Allow-Origin');
-      expect(corsOrigin === '*' || corsOrigin === null).toBe(true);
+      expect(corsOrigin === '*' || corsOrigin === 'https://example.com' || corsOrigin === null).toBe(true);
     });
   });
 });

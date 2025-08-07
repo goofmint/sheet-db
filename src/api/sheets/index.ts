@@ -103,13 +103,27 @@ export async function getSheetsHandler(c: Context<{ Bindings: Env }>): Promise<R
     // Determine if system sheets should be included
     const includeSystem = isMasterKey;
 
-    // Initialize sheet service
+    // Check configuration before attempting initialization
+    const spreadsheetId = ConfigService.getString('google.sheetId');
+    const accessToken = ConfigService.getString('google.access_token');
+    
+    if (!spreadsheetId || !accessToken) {
+      // Configuration is incomplete - return 503 without attempting initialization
+      return c.json({
+        success: false,
+        error: 'service_not_configured',
+        message: 'Google Sheets service is not properly configured. Please complete the setup first.'
+      }, 503); // Service Unavailable
+    }
+
+    // Initialize sheet service (should succeed since config is available)
     const sheetService = SheetService.getInstance();
     
     try {
       await sheetService.initialize();
     } catch (initError) {
-      console.error('SheetService initialization failed:', initError);
+      // Unexpected initialization error even with valid config
+      console.error('Unexpected SheetService initialization failed:', initError);
       return c.json({
         success: false,
         error: 'service_not_configured',

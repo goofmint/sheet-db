@@ -1,23 +1,31 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { drizzle } from 'drizzle-orm/d1';
+import { ConfigService } from '../../../../src/services/config';
+import app from '../../../../src/index';
+import { env } from 'cloudflare:test';
 import type { SheetsListResponse, SheetErrorResponse } from '../../../../src/api/v1/sheets/types';
-
-const SERVER_URL = 'http://localhost:8787';
+import { setupConfigDatabase } from '../../../utils/database-setup';
 
 describe('Sheets API - Live Server Tests', () => {
+  const db = drizzle(env.DB);
+
   beforeAll(async () => {
-    // Verify server is running
-    const healthResponse = await fetch(`${SERVER_URL}/api/v1/health`);
-    expect(healthResponse.ok).toBe(true);
+    // Setup database and ConfigService
+    await setupConfigDatabase(db);
+    await ConfigService.initialize(db);
   });
 
   describe('GET /api/v1/sheets', () => {
     it('should return a response with correct structure', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/sheets', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }),
+        env
+      );
 
       // In development environment, service may not be configured, expect 503
       expect(response.status).toBe(503);
@@ -32,12 +40,15 @@ describe('Sheets API - Live Server Tests', () => {
     }, 10000);
 
     it('should handle filter query parameter correctly', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets?filter=test`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/sheets?filter=test', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }),
+        env
+      );
 
       // Service not configured, expect 503
       expect(response.status).toBe(503);
@@ -48,13 +59,16 @@ describe('Sheets API - Live Server Tests', () => {
     });
 
     it('should handle master key header', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-master-key': 'test-master-key'
-        }
-      });
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/sheets', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-master-key': 'test-master-key'
+          }
+        }),
+        env
+      );
 
       // Service not configured, expect 503 regardless of master key
       expect(response.status).toBe(503);
@@ -65,25 +79,31 @@ describe('Sheets API - Live Server Tests', () => {
     });
 
     it('should reject invalid HTTP methods', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ test: 'data' })
-      });
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/sheets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ test: 'data' })
+        }),
+        env
+      );
 
       expect(response.status).toBe(400); // Bad Request for invalid method
     });
 
     it('should handle CORS properly', async () => {
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Origin': 'http://localhost:3000'
-        }
-      });
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/sheets', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Origin': 'http://localhost:3000'
+          }
+        }),
+        env
+      );
 
       // Service not configured, but CORS headers should still be present
       expect(response.status).toBe(503);
@@ -93,12 +113,15 @@ describe('Sheets API - Live Server Tests', () => {
     it('should respond within reasonable time', async () => {
       const startTime = Date.now();
       
-      const response = await fetch(`${SERVER_URL}/api/v1/sheets`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/sheets', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }),
+        env
+      );
 
       const endTime = Date.now();
       const responseTime = endTime - startTime;
@@ -109,12 +132,15 @@ describe('Sheets API - Live Server Tests', () => {
 
     it('should handle concurrent requests without issues', async () => {
       const requests = Array(3).fill(null).map(() =>
-        fetch(`${SERVER_URL}/api/v1/sheets`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
+        app.fetch(
+          new Request('http://localhost/api/v1/sheets', {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }),
+          env
+        )
       );
 
       const responses = await Promise.all(requests);
@@ -128,11 +154,11 @@ describe('Sheets API - Live Server Tests', () => {
     it('should maintain consistent response format across multiple calls', async () => {
       // Make multiple calls to ensure consistency
       const responses = await Promise.all([
-        fetch(`${SERVER_URL}/api/v1/sheets`),
-        fetch(`${SERVER_URL}/api/v1/sheets?filter=test`),
-        fetch(`${SERVER_URL}/api/v1/sheets`, {
+        app.fetch(new Request('http://localhost/api/v1/sheets'), env),
+        app.fetch(new Request('http://localhost/api/v1/sheets?filter=test'), env),
+        app.fetch(new Request('http://localhost/api/v1/sheets', {
           headers: { 'x-master-key': 'invalid' }
-        })
+        }), env)
       ]);
 
       // All responses should return 503 status consistently
@@ -155,7 +181,7 @@ describe('Sheets API - Live Server Tests', () => {
 
   describe('Server Integration', () => {
     it('should be accessible and responsive', async () => {
-      const healthResponse = await fetch(`${SERVER_URL}/api/v1/health`);
+      const healthResponse = await app.fetch(new Request('http://localhost/api/v1/health'), env);
       expect(healthResponse.ok).toBe(true);
       expect(healthResponse.status).toBe(200);
 
