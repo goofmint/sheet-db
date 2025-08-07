@@ -180,3 +180,4 @@ line.sh
 test-results/
 playwright-report/
 .serena
+.DS_Store

@@ -42,9 +42,7 @@ export class SheetApiClient {
     }
 
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}`, {
-      headers: {
-        'Authorization': 'Bearer ' + this.config.accessToken
-      }
+      headers: this.getAuthHeaders()
     });
 
     if (!response.ok) {
@@ -66,9 +64,7 @@ export class SheetApiClient {
     const fullRange = range ? `${escapedSheetName}!${range}` : escapedSheetName;
     
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${this.config.spreadsheetId}/values/${fullRange}`, {
-      headers: {
-        'Authorization': 'Bearer ' + this.config.accessToken
-      }
+      headers: this.getAuthHeaders()
     });
 
     if (!response.ok) {

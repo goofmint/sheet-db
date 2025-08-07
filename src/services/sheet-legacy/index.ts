@@ -15,14 +15,12 @@ export class SheetService {
     accessToken: null
   };
 
-  private apiClient: SheetApiClient;
-  private structureManager: SheetStructureManager;
-  private operations: SheetOperations;
+  private apiClient?: SheetApiClient;
+  private structureManager?: SheetStructureManager;
+  private operations?: SheetOperations;
 
   private constructor() {
-    this.apiClient = new SheetApiClient(this.config);
-    this.structureManager = new SheetStructureManager(this.apiClient);
-    this.operations = new SheetOperations(this.apiClient, this.structureManager);
+    // Components will be initialized lazily after config is populated
   }
 
   static getInstance(): SheetService {
@@ -46,8 +44,10 @@ export class SheetService {
       throw new Error('Google access token not available');
     }
 
-    // Update configuration in all components
-    this.apiClient.updateConfig(this.config);
+    // Initialize components with populated config
+    this.apiClient = new SheetApiClient(this.config);
+    this.structureManager = new SheetStructureManager(this.apiClient);
+    this.operations = new SheetOperations(this.apiClient, this.structureManager);
   }
 
   /**
@@ -55,6 +55,7 @@ export class SheetService {
    */
   async createSheet(title: string, data: string[][]): Promise<void> {
     await this.ensureInitialized();
+    if (!this.structureManager) throw new Error('SheetService not initialized');
     await this.structureManager.createSheet(title, data);
   }
 
@@ -63,6 +64,7 @@ export class SheetService {
    */
   async updateSheetData(sheetName: string, data: string[][]): Promise<void> {
     await this.ensureInitialized();
+    if (!this.operations) throw new Error('SheetService not initialized');
     await this.operations.updateSheetData(sheetName, data);
   }
 
@@ -71,6 +73,7 @@ export class SheetService {
    */
   async getSheetData<T>(sheetName: string): Promise<T[]> {
     await this.ensureInitialized();
+    if (!this.operations) throw new Error('SheetService not initialized');
     return await this.operations.getSheetData<T>(sheetName);
   }
 
@@ -79,6 +82,7 @@ export class SheetService {
    */
   async addRecord<T>(sheetName: string, record: T): Promise<void> {
     await this.ensureInitialized();
+    if (!this.operations) throw new Error('SheetService not initialized');
     await this.operations.addRecord<T>(sheetName, record);
   }
 
@@ -87,6 +91,7 @@ export class SheetService {
    */
   async updateRecord<T>(sheetName: string, id: string, record: T): Promise<void> {
     await this.ensureInitialized();
+    if (!this.operations) throw new Error('SheetService not initialized');
     await this.operations.updateRecord<T>(sheetName, id, record);
   }
 
@@ -95,6 +100,7 @@ export class SheetService {
    */
   async deleteRecord(sheetName: string, id: string): Promise<boolean> {
     await this.ensureInitialized();
+    if (!this.operations) throw new Error('SheetService not initialized');
     return await this.operations.deleteRecord(sheetName, id);
   }
 

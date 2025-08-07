@@ -24,20 +24,22 @@ export class SheetOperations {
     }
 
     const headers = values[0];
+    const schemas = values[1]; // Get schema row for type information
     const dataRows = values.slice(2); // Skip header and schema rows
 
     return dataRows.map((row: string[]) => {
       const record: any = {};
       headers.forEach((header: string, index: number) => {
         const value = row[index] || '';
+        const schema = schemas?.[index] || 'string';
         
-        // Parse value based on type
-        if (header.includes('_at') && value) {
-          record[header] = value; // Keep as string for now
-        } else if (header.includes('public_') && value) {
+        // Parse value based on schema type
+        if (schema === 'timestamp' && value) {
+          record[header] = new Date(value);
+        } else if (schema === 'boolean' && value) {
           record[header] = value.toLowerCase() === 'true';
-        } else if (header.endsWith('_read') || header.endsWith('_write')) {
-          // Parse array fields
+        } else if (schema === 'array' && value) {
+          // Parse array fields more robustly
           record[header] = value ? value.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
         } else {
           record[header] = value;
