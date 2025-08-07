@@ -94,8 +94,7 @@ export async function getSheetsHandler(c: Context<{ Bindings: Env }>): Promise<R
   try {
     // Check for master key authentication
     const masterKeyHeader = c.req.header('x-master-key');
-    const configuredMasterKey = c.env.MASTER_KEY;
-    const isMasterKey = !!(masterKeyHeader && configuredMasterKey && masterKeyHeader === configuredMasterKey);
+    const isMasterKey = masterKeyHeader ? await validateMasterKey(masterKeyHeader, c.env) : false;
     
     const query: SheetsListQuery = {
       filter: c.req.query('filter')
@@ -186,6 +185,15 @@ export async function getSheetsHandler(c: Context<{ Bindings: Env }>): Promise<R
 
   } catch (error) {
     console.error('Error in getSheetsHandler:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      env: {
+        hasGoogleClientId: !!c.env.GOOGLE_CLIENT_ID,
+        hasGoogleClientSecret: !!c.env.GOOGLE_CLIENT_SECRET,
+        hasMasterKey: !!c.env.MASTER_KEY
+      }
+    });
     
     return c.json({
       success: false,
