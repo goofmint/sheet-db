@@ -81,10 +81,10 @@
 - [x] src/services/session.tsの作成（セッション管理） - [詳細](./tasks/2.3.1-session-service.md)
 - [x] src/middleware/auth.tsの作成（認証ミドルウェア） - [詳細](./tasks/2.3.2-auth-middleware.md)
 - [x] JWTトークン検証の実装 - [詳細](./tasks/2.3.3-jwt-token-validation.md)
-- [ ] リフレッシュトークンの実装
+- [x] リフレッシュトークンの実装
 
 ### 2.4 ACL実装 🔄 **部分完了**
-- [ ] src/services/acl.tsの作成（アクセス制御サービス） - [詳細](./tasks/2.4.1-acl-service.md)
+- [x] src/services/acl.tsの作成（アクセス制御サービス） - [詳細](./tasks/2.4.1-acl-service.md)
 - [x] src/middleware/authorization.tsの作成（認可ミドルウェア） - auth.tsに統合実装済み
 - [x] 公開データアクセスの実装 - SheetACL型定義で実装済み（public_read/write）
 - [x] ユーザーベースアクセス制御 - SheetACL型定義で実装済み（user_read/write）
