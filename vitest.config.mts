@@ -8,9 +8,13 @@ export default defineWorkersConfig({
 		},
 	},
 	test: {
-		// Include only unit/integration tests, exclude e2e tests
+		// Include only unit tests, exclude integration and e2e tests
 		include: ['test/**/*.{test,spec}.{js,ts}'],
-		exclude: ['**/node_modules/**', '**/tests-e2e/**'],
+		exclude: ['**/node_modules/**', '**/tests-e2e/**', '**/test/integration/**'],
+		
+		// HTML test reporter configuration
+		reporters: ['default', 'html'],
+		outputFile: './test-result.html',
 		
 		// Run tests sequentially to prevent Auth0 rate limiting
 		sequence: {

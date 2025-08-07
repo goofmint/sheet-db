@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { getCookie } from 'hono/cookie';
 import type { Env } from '../types/env';
-import { SessionService } from '../services/session';
+import { SessionService } from '../services/sessions';
 import { Auth0Service } from '../services/auth0';
 import type { SessionValidationResult } from '../types/session';
 

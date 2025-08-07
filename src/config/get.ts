@@ -7,6 +7,7 @@ import {
   setCSRFCookie
 } from '@/utils/security';
 import { LoginForm } from '../templates/config/login';
+import { ErrorPage } from '../templates/error-page';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -27,20 +28,15 @@ app.get('/', async (c) => {
 
   } catch (error) {
     console.error('Config page error:', error);
-    return c.html(`
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="utf-8">
-        <title>Error - Configuration Management</title>
-      </head>
-      <body>
-        <h1>An Error Occurred</h1>
-        <p>An error occurred while loading the configuration.</p>
-        <a href="/playground">Back to Playground</a>
-      </body>
-      </html>
-    `, 500);
+    return c.html(ErrorPage({
+      title: 'Error - Configuration Management',
+      heading: 'Configuration Error',
+      message: 'An error occurred while loading the configuration page.',
+      backLink: {
+        url: '/playground',
+        text: '← Back to Playground'
+      }
+    }), 500);
   }
 });
 

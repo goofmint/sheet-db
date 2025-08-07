@@ -12,7 +12,7 @@
 import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 import type { Env } from '../../../../types/env';
-import { SessionService } from '../../../../services/session';
+import { SessionService } from '../../../../services/sessions';
 import { Auth0Service } from '../../../../services/auth0';
 
 interface RefreshTokenRequest {

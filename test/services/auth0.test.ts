@@ -34,7 +34,7 @@ describe('Auth0Service', () => {
       { key: 'auth0.domain', value: env.AUTH0_DOMAIN, type: 'string' },
       { key: 'auth0.client_id', value: env.AUTH0_CLIENT_ID, type: 'string' },
       { key: 'auth0.client_secret', value: env.AUTH0_CLIENT_SECRET, type: 'string' },
-      { key: 'allowedRedirectBases', value: JSON.stringify([
+      { key: 'auth.allowed_redirect_bases', value: JSON.stringify([
         'http://localhost:8787',
         'https://test.example.com'
       ]), type: 'json' }
@@ -51,7 +51,7 @@ describe('Auth0Service', () => {
     await db.delete(configTable).where(eq(configTable.key, 'auth0.domain'));
     await db.delete(configTable).where(eq(configTable.key, 'auth0.client_id'));
     await db.delete(configTable).where(eq(configTable.key, 'auth0.client_secret'));
-    await db.delete(configTable).where(eq(configTable.key, 'allowedRedirectBases'));
+    await db.delete(configTable).where(eq(configTable.key, 'auth.allowed_redirect_bases'));
   });
 
   describe('getAuthorizationUrl', () => {

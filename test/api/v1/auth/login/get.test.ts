@@ -44,7 +44,7 @@ describe('Login API - GET /api/v1/auth/login', () => {
     await ConfigService.upsert('auth0.domain', originalAuth0Domain, 'string');
     await ConfigService.upsert('auth0.client_id', originalAuth0ClientId, 'string');
     await ConfigService.upsert('auth0.client_secret', env.AUTH0_CLIENT_SECRET, 'string');
-    await ConfigService.upsert('allowedRedirectBases', originalAllowedRedirectBases, 'json');
+    await ConfigService.upsert('auth.allowed_redirect_bases', originalAllowedRedirectBases, 'json');
   });
 
   // Ensure clean state after each test that might modify config
@@ -53,7 +53,7 @@ describe('Login API - GET /api/v1/auth/login', () => {
     await ConfigService.upsert('auth0.domain', originalAuth0Domain, 'string');
     await ConfigService.upsert('auth0.client_id', originalAuth0ClientId, 'string');
     await ConfigService.upsert('auth0.client_secret', env.AUTH0_CLIENT_SECRET, 'string');
-    await ConfigService.upsert('allowedRedirectBases', originalAllowedRedirectBases, 'json');
+    await ConfigService.upsert('auth.allowed_redirect_bases', originalAllowedRedirectBases, 'json');
   });
 
   afterAll(async () => {
@@ -61,7 +61,7 @@ describe('Login API - GET /api/v1/auth/login', () => {
     await ConfigService.deleteByKey('auth0.domain');
     await ConfigService.deleteByKey('auth0.client_id');
     await ConfigService.deleteByKey('auth0.client_secret');
-    await ConfigService.deleteByKey('allowedRedirectBases');
+    await ConfigService.deleteByKey('auth.allowed_redirect_bases');
   });
 
   describe('Successful login redirect', () => {

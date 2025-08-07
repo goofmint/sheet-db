@@ -31,15 +31,14 @@ test.describe('Boolean Configuration Edit', () => {
     const targetConfigKey = 'test-boolean';
     let targetConfigRow = page.locator(`#config-table tbody tr:has(.config-key:text-is("${targetConfigKey}"))`);
     
-    // If test-boolean doesn't exist, look for any false boolean config
+    // If test-boolean doesn't exist, create it or find any false boolean config
     if (await targetConfigRow.count() === 0) {
       const falseConfigRow = page.locator('#config-table tbody tr').filter({
         has: page.locator('.config-boolean-value:not(:checked)')
       }).first();
       
       if (await falseConfigRow.count() === 0) {
-        test.skip('No boolean configuration with false value found');
-        return;
+        throw new Error('Test environment error: No boolean configuration with false value found for testing. Test requires at least one boolean config to be present.');
       }
       targetConfigRow = falseConfigRow;
     }
@@ -104,8 +103,7 @@ test.describe('Boolean Configuration Edit', () => {
       }).first();
       
       if (await trueConfigRow.count() === 0) {
-        test.skip('No boolean configuration with true value found');
-        return;
+        throw new Error('Test environment error: No boolean configuration with true value found for testing. Test requires at least one boolean config to be present.');
       }
       targetConfigRow = trueConfigRow;
     }
@@ -159,8 +157,7 @@ test.describe('Boolean Configuration Edit', () => {
     }).first();
     
     if (await booleanRow.count() === 0) {
-      test.skip('No boolean configuration found');
-      return;
+      throw new Error('Test environment error: No boolean configuration found for testing. Test requires at least one boolean config to be present.');
     }
 
     // Check if the checkbox is currently checked
@@ -196,8 +193,7 @@ test.describe('Boolean Configuration Edit', () => {
     }).first();
     
     if (await booleanRow.count() === 0) {
-      test.skip('No boolean configuration found');
-      return;
+      throw new Error('Test environment error: No boolean configuration found for testing. Test requires at least one boolean config to be present.');
     }
 
     // Click Edit button

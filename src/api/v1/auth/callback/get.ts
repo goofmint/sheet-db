@@ -2,7 +2,7 @@ import { Hono, Context } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { Auth0Service } from '@/services/auth0';
 import { ConfigService } from '@/services/config';
-import { SessionService } from '@/services/session';
+import { SessionService } from '@/services/sessions';
 import { UserSheet } from '@/sheet/user';
 import { drizzle } from 'drizzle-orm/d1';
 import { sessionTable } from '@/db/schema';
