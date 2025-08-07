@@ -47,8 +47,16 @@ async function validateMasterKey(providedKey: string, env: Env): Promise<boolean
       return false;
     }
     
-    // Simple string comparison - in production, this should use constant-time comparison
-    return providedKey === configuredMasterKey;
+    // Use constant-time comparison to prevent timing attacks
+    if (providedKey.length !== configuredMasterKey.length) {
+      return false;
+    }
+    
+    let result = 0;
+    for (let i = 0; i < providedKey.length; i++) {
+      result |= providedKey.charCodeAt(i) ^ configuredMasterKey.charCodeAt(i);
+    }
+    return result === 0;
   } catch (error) {
     console.error('Master key validation error:', error);
     return false;
