@@ -96,21 +96,24 @@
 ### 3.2 データ読み書き機能
 - [x] src/api/sheets/index.tsの作成（シート一覧） - [詳細](./tasks/3.2.1-sheets-list-api.md)
 - [ ] src/api/sheets/post.tsの作成（シート作成）
-- [ ] src/api/sheets/$sheetName/get.tsの作成（シートデータ取得）
-- [ ] src/api/sheets/$sheetName/put.tsの作成（シート更新）
-- [ ] src/api/sheets/$sheetName/delete.tsの作成（シート削除）
+- [ ] src/api/sheets/get.tsの作成（シート取得）
+- [ ] src/api/sheets/put.tsの作成（リネーム）
+- [ ] src/api/sheets/delete.tsの作成（シート削除）
 
 ### 3.3 データCRUD API
-- [ ] src/api/sheets/$sheetName/data/get.tsの作成（データ検索）
-- [ ] src/api/sheets/$sheetName/data/post.tsの作成（データ作成）
-- [ ] src/api/sheets/$sheetName/data/$id/get.tsの作成（データ取得）
-- [ ] src/api/sheets/$sheetName/data/$id/put.tsの作成（データ更新）
-- [ ] src/api/sheets/$sheetName/data/$id/delete.tsの作成（データ削除）
-- [ ] クエリパラメータ処理（フィルタ、ソート、ページネーション）
+- [ ] src/api/sheets/data/index.tsの作成（全件取得）
+- [ ] src/api/sheets/data/index.tsのクエリパラメータ処理（フィルタ、ソート、ページネーション）
+- [ ] src/api/sheets/data/post.tsの作成（データ作成）
+- [ ] src/api/sheets/data/get.tsの作成（データ取得）
+- [ ] src/api/sheets/data/put.tsの作成（データ更新）
+- [ ] src/api/sheets/data/delete.tsの作成（データ削除）
 
 ### 3.4 スキーマ管理
-- [ ] src/api/sheets/$sheetName/schema/get.tsの作成（スキーマ取得）
-- [ ] src/api/sheets/$sheetName/schema/put.tsの作成（スキーマ更新）
+- [ ] src/api/sheets/schema/index.tsの作成（スキーマ取得）
+- [ ] src/api/sheets/schema/post.tsの作成（カラム追加）
+- [ ] src/api/sheets/schema/get.tsの作成（特定のカラム取得）
+- [ ] src/api/sheets/schema/put.tsの作成（カラム更新）
+- [ ] src/api/sheets/schema/delete.tsの作成（カラム削除）
 - [ ] src/utils/schema-parser.tsの作成（スキーマ解析）
 - [ ] src/utils/schema-validator.tsの作成（データ検証）
 - [ ] デフォルトシート構造の自動生成

@@ -11,6 +11,9 @@ export interface Env {
   // Auth0 secrets
   AUTH0_CLIENT_SECRET: string;
   
+  // Master key for full API access (optional)
+  MASTER_KEY?: string;
+  
   // Drizzle database connection (development only)
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_DATABASE_ID?: string;

@@ -20,7 +20,50 @@ export const SheetErrorSchema = z.object({
   message: z.string().openapi({ example: 'Please provide a valid sheet name in the request body' })
 });
 
+// Sheets list schemas
+export const SheetsListQuerySchema = z.object({
+  filter: z.string().optional().openapi({
+    description: 'Filter sheet names by partial match',
+    example: 'user'
+  })
+});
+
+export const ColumnInfoSchema = z.object({
+  name: z.string().openapi({ example: 'id' }),
+  type: z.string().openapi({ example: 'string' }),
+  default: z.any().optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  required: z.boolean().optional(),
+  pattern: z.string().optional()
+});
+
+export const SheetInfoSchema = z.object({
+  name: z.string().openapi({ example: 'users' }),
+  columns: z.array(ColumnInfoSchema)
+});
+
+export const SheetsListResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    sheets: z.array(SheetInfoSchema),
+    total: z.number(),
+    accessible_count: z.number(),
+    system_sheet_count: z.number().optional()
+  }),
+  meta: z.object({
+    user_id: z.string().optional(),
+    is_master_key_auth: z.boolean(),
+    include_system: z.boolean(),
+    filter_applied: z.string().optional()
+  })
+});
+
 // Type exports
 export type CreateSheetRequest = z.infer<typeof CreateSheetRequestSchema>;
 export type SheetSuccessResponse = z.infer<typeof SheetSuccessResponseSchema>;
 export type SheetErrorResponse = z.infer<typeof SheetErrorSchema>;
+export type SheetsListQuery = z.infer<typeof SheetsListQuerySchema>;
+export type ColumnInfo = z.infer<typeof ColumnInfoSchema>;
+export type SheetInfo = z.infer<typeof SheetInfoSchema>;
+export type SheetsListResponse = z.infer<typeof SheetsListResponseSchema>;

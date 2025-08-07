@@ -105,6 +105,24 @@ export class SheetService {
   }
 
   /**
+   * Get spreadsheet metadata
+   */
+  async getSpreadsheetMetadata(): Promise<any> {
+    await this.ensureInitialized();
+    if (!this.apiClient) throw new Error('SheetService not initialized');
+    return await this.apiClient.getSpreadsheetMetadata();
+  }
+
+  /**
+   * Get sheet values
+   */
+  async getSheetValues(sheetName: string, range?: string): Promise<any> {
+    await this.ensureInitialized();
+    if (!this.apiClient) throw new Error('SheetService not initialized');
+    return await this.apiClient.getValues(sheetName, range);
+  }
+
+  /**
    * Ensure service is initialized
    */
   private async ensureInitialized(): Promise<void> {
