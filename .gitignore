@@ -181,3 +181,9 @@ test-results/
 playwright-report/
 .serena
 .DS_Store
+assets
+bg.png
+favicon.ico
+favicon.png
+html.meta.json.gz
+test-result.html
