@@ -94,7 +94,7 @@
 ## Phase 3: Google Sheets統合
 
 ### 3.2 データ読み書き機能
-- [ ] src/api/sheets/get.tsの作成（シート一覧）
+- [x] src/api/sheets/index.tsの作成（シート一覧） - [詳細](./tasks/3.2.1-sheets-list-api.md)
 - [ ] src/api/sheets/post.tsの作成（シート作成）
 - [ ] src/api/sheets/$sheetName/get.tsの作成（シートデータ取得）
 - [ ] src/api/sheets/$sheetName/put.tsの作成（シート更新）
