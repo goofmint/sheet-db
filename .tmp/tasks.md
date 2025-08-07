@@ -95,7 +95,7 @@
 
 ### 3.2 データ読み書き機能
 - [x] src/api/sheets/index.tsの作成（シート一覧） - [詳細](./tasks/3.2.1-sheets-list-api.md)
-- [ ] src/api/sheets/post.tsの作成（シート作成）
+- [x] src/api/sheets/post.tsの作成（シート作成） - [詳細](./tasks/3.2.2-sheets-post-api.md)
 - [ ] src/api/sheets/get.tsの作成（シート取得）
 - [ ] src/api/sheets/put.tsの作成（リネーム）
 - [ ] src/api/sheets/delete.tsの作成（シート削除）
