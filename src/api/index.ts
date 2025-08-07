@@ -7,8 +7,9 @@ import { healthHandler } from './v1/health/get';
 import { setupStatusRoute, setupConfigRoute } from './v1/setup/route';
 import { setupGetHandler } from './v1/setup/get';
 import { setupPostHandler } from './v1/setup/post';
-import { createSheetRoute } from './v1/sheets/route';
+import { createSheetRoute, listSheetsRoute } from './v1/sheets/route';
 import { sheetsPostHandler } from './v1/sheets/post';
+import { getSheetsHandler } from './sheets/index';
 import storagesRouter, { uploadFileRoute, deleteFileRoute } from './v1/storages/route';
 import storagesPostHandler from './v1/storages/post';
 import storagesDeleteHandler from './v1/storages/delete';
@@ -49,6 +50,7 @@ api.openapi(setupConfigRoute, setupPostHandler);
 
 // Sheets routes - direct OpenAPI mount
 api.openapi(createSheetRoute, sheetsPostHandler);
+api.openapi(listSheetsRoute, getSheetsHandler);
 
 // Storage routes - direct OpenAPI mount
 api.openapi(uploadFileRoute, storagesPostHandler);
