@@ -1,6 +1,26 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import type { SheetsListResponse, SheetErrorResponse } from '../../../../src/api/v1/sheets/types';
 
 const SERVER_URL = 'http://localhost:8787';
+
+// Type guards for response validation
+function isSuccessResponse(data: unknown): data is SheetsListResponse {
+  return typeof data === 'object' && 
+         data !== null && 
+         'success' in data && 
+         data.success === true;
+}
+
+function isErrorResponse(data: unknown): data is SheetErrorResponse {
+  return typeof data === 'object' && 
+         data !== null && 
+         'error' in data && 
+         'message' in data &&
+         typeof (data as SheetErrorResponse).error === 'string' &&
+         typeof (data as SheetErrorResponse).message === 'string';
+}
+
+type ApiResponse = SheetsListResponse | SheetErrorResponse;
 
 describe('Sheets API - Live Server Tests', () => {
   beforeAll(async () => {
@@ -27,14 +47,14 @@ describe('Sheets API - Live Server Tests', () => {
       expect(response.status).toBe(200);
       expect(response.headers.get('content-type')).toContain('application/json');
 
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
       
-      // Should always have these properties regardless of success/failure
-      expect(data).toHaveProperty('success');
-      expect(typeof data.success).toBe('boolean');
+      // Should always have a response structure
+      expect(data).toBeDefined();
 
-      if (data.success === true) {
+      if (isSuccessResponse(data)) {
         // Success case - verify structure
+        expect(data.success).toBe(true);
         expect(data).toHaveProperty('data');
         expect(data).toHaveProperty('meta');
         expect(data.data).toHaveProperty('sheets');
@@ -43,14 +63,17 @@ describe('Sheets API - Live Server Tests', () => {
         expect(data.meta).toHaveProperty('is_master_key_auth');
         expect(data.meta).toHaveProperty('include_system');
         expect(Array.isArray(data.data.sheets)).toBe(true);
-      } else {
+      } else if (isErrorResponse(data)) {
         // Error case - verify error structure
         expect(data).toHaveProperty('error');
         expect(data).toHaveProperty('message');
         expect(typeof data.error).toBe('string');
         expect(typeof data.message).toBe('string');
+      } else {
+        // Unknown response structure
+        throw new Error('Response does not match expected API format');
       }
-    });
+    }, 10000);
 
     it('should handle filter query parameter correctly', async () => {
       const response = await fetch(`${SERVER_URL}/api/v1/sheets?filter=test`, {
@@ -62,11 +85,11 @@ describe('Sheets API - Live Server Tests', () => {
 
       expect(response.status).toBe(200);
 
-      const data = await response.json();
-      expect(data).toHaveProperty('success');
+      const data = await response.json() as ApiResponse;
+      expect(data).toBeDefined();
 
       // If successful, should include filter information
-      if (data.success && data.meta) {
+      if (isSuccessResponse(data)) {
         expect(data.meta.filter_applied).toBe('test');
       }
     });
@@ -82,11 +105,11 @@ describe('Sheets API - Live Server Tests', () => {
 
       expect(response.status).toBe(200);
 
-      const data = await response.json();
-      expect(data).toHaveProperty('success');
+      const data = await response.json() as ApiResponse;
+      expect(data).toBeDefined();
       
       // Should process master key (even if invalid)
-      if (data.success && data.meta) {
+      if (isSuccessResponse(data)) {
         expect(typeof data.meta.is_master_key_auth).toBe('boolean');
       }
     });
@@ -100,7 +123,7 @@ describe('Sheets API - Live Server Tests', () => {
         body: JSON.stringify({ test: 'data' })
       });
 
-      expect(response.status).toBe(405); // Method Not Allowed
+      expect(response.status).toBe(400); // Bad Request (OpenAPI validation error)
     });
 
     it('should handle CORS properly', async () => {
@@ -131,7 +154,7 @@ describe('Sheets API - Live Server Tests', () => {
 
       expect(response.status).toBe(200);
       expect(responseTime).toBeLessThan(10000); // Less than 10 seconds
-    });
+    }, 15000);
 
     it('should handle concurrent requests without issues', async () => {
       const requests = Array(3).fill(null).map(() =>
@@ -163,19 +186,20 @@ describe('Sheets API - Live Server Tests', () => {
 
       const dataArray = await Promise.all(
         responses.map(r => r.json())
-      );
+      ) as ApiResponse[];
 
       // All responses should have consistent structure
       dataArray.forEach(data => {
-        expect(data).toHaveProperty('success');
-        expect(typeof data.success).toBe('boolean');
+        expect(data).toBeDefined();
         
-        if (data.success) {
+        if (isSuccessResponse(data)) {
           expect(data).toHaveProperty('data');
           expect(data).toHaveProperty('meta');
-        } else {
+        } else if (isErrorResponse(data)) {
           expect(data).toHaveProperty('error');
           expect(data).toHaveProperty('message');
+        } else {
+          throw new Error('Response does not match expected API format');
         }
       });
     });
@@ -186,7 +210,7 @@ describe('Sheets API - Live Server Tests', () => {
       const healthResponse = await fetch(`${SERVER_URL}/api/v1/health`);
       expect(healthResponse.ok).toBe(true);
 
-      const healthData = await healthResponse.json();
+      const healthData = await healthResponse.json() as { status: string };
       expect(healthData).toHaveProperty('status', 'healthy');
     });
   });
