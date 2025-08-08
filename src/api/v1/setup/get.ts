@@ -1,4 +1,5 @@
 import { Context } from 'hono';
+import { drizzle } from 'drizzle-orm/d1';
 import { ConfigService } from '../../../services/config';
 import type { Env } from '../../../types';
 import type { SetupStatusResponse, SetupErrorResponse } from './types';
@@ -14,6 +15,12 @@ import { constantTimeEquals } from '../../../utils/security';
  */
 export const setupGetHandler = async (c: Context<{ Bindings: Env }>) => {
   try {
+    // Initialize ConfigService with database connection
+    const db = drizzle(c.env.DB);
+    if (!ConfigService.isInitialized()) {
+      await ConfigService.initialize(db);
+    }
+    
     // セットアップ状態の確認
     const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
     

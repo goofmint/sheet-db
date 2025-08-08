@@ -9,7 +9,7 @@ import { setupGetHandler } from './v1/setup/get';
 import { setupPostHandler } from './v1/setup/post';
 import { createSheetRoute, listSheetsRoute } from './v1/sheets/route';
 import { sheetsPostHandler } from './v1/sheets/post';
-import { getSheetsHandler } from './sheets/index';
+import { getSheetsHandler } from './v1/sheets/index';
 import storagesRouter, { uploadFileRoute, deleteFileRoute } from './v1/storages/route';
 import storagesPostHandler from './v1/storages/post';
 import storagesDeleteHandler from './v1/storages/delete';

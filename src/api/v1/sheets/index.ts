@@ -1,66 +1,17 @@
 import type { Context } from 'hono';
-import type { Env } from '../../types/env';
-import { SheetService } from '../../services/sheet-legacy';
-import { ConfigService } from '../../services/config';
-import type { SheetsListQuery, SheetInfo, ColumnInfo, SheetsListResponse } from '../v1/sheets/types';
+import type { Env } from '@/types/env';
+import { drizzle } from 'drizzle-orm/d1';
+import { ConfigService } from '@/services/config';
+import { ConfigRepository } from '@/repositories/config';
+import type { SheetsListQuery, ColumnInfo, SheetsListResponse } from './types';
+import { SheetService } from '@/services/sheet-legacy';
 
-/**
- * Interface for Google Sheets API response
- */
-interface SheetsMetadataResponse {
-  sheets: Array<{
-    properties: {
-      title: string;
-      sheetId: number;
-      gridProperties?: {
-        rowCount?: number;
-        columnCount?: number;
-      };
-    };
-  }>;
-}
-
-/**
- * Interface for sheet values response from Google Sheets API
- */
-interface SheetsValuesResponse {
-  values?: string[][];
-  range?: string;
-}
 
 /**
  * Check if a sheet name is a system sheet (starts with underscore)
  */
 function isSystemSheet(sheetName: string): boolean {
   return sheetName.startsWith('_');
-}
-
-/**
- * Validate master key against configured master key
- * Simplified implementation since ACLService doesn't exist yet
- */
-async function validateMasterKey(providedKey: string, env: Env): Promise<boolean> {
-  try {
-    // Get configured master key from environment or config
-    const configuredMasterKey = env.MASTER_KEY;
-    if (!configuredMasterKey) {
-      return false;
-    }
-    
-    // Use constant-time comparison to prevent timing attacks
-    if (providedKey.length !== configuredMasterKey.length) {
-      return false;
-    }
-    
-    let result = 0;
-    for (let i = 0; i < providedKey.length; i++) {
-      result |= providedKey.charCodeAt(i) ^ configuredMasterKey.charCodeAt(i);
-    }
-    return result === 0;
-  } catch (error) {
-    console.error('Master key validation error:', error);
-    return false;
-  }
 }
 
 /**
@@ -85,16 +36,26 @@ function parseColumnInfo(headers: string[], schemaRow?: string[]): ColumnInfo[] 
   });
 }
 
-
 /**
  * Get sheets list handler
  * Implements GET /api/v1/sheets endpoint
  */
 export async function getSheetsHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
   try {
+    // Initialize ConfigService with database connection
+    const db = drizzle(c.env.DB);
+    if (!ConfigService.isInitialized()) {
+      await ConfigService.initialize(db);
+    }
+
     // Check for master key authentication
     const masterKeyHeader = c.req.header('x-master-key');
-    const isMasterKey = masterKeyHeader ? await validateMasterKey(masterKeyHeader, c.env) : false;
+    let isMasterKey = false;
+    
+    if (masterKeyHeader) {
+      const configRepo = new ConfigRepository(db);
+      isMasterKey = await configRepo.verifyMasterKey(masterKeyHeader);
+    }
     
     const query: SheetsListQuery = {
       filter: c.req.query('filter')
@@ -222,15 +183,6 @@ export async function getSheetsHandler(c: Context<{ Bindings: Env }>): Promise<R
 
   } catch (error) {
     console.error('Error in getSheetsHandler:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace',
-      env: {
-        hasGoogleClientId: !!c.env.GOOGLE_CLIENT_ID,
-        hasGoogleClientSecret: !!c.env.GOOGLE_CLIENT_SECRET,
-        hasMasterKey: !!c.env.MASTER_KEY
-      }
-    });
     
     return c.json({
       success: false,
@@ -239,4 +191,3 @@ export async function getSheetsHandler(c: Context<{ Bindings: Env }>): Promise<R
     }, 500);
   }
 }
-

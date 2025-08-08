@@ -211,9 +211,12 @@ export class ConfigRepository extends AbstractBaseRepository<Config, ConfigInser
    * Special handling for api.master_key to store only the hash
    */
   async setMasterKey(rawKey: string): Promise<Config> {
-    const salt = ConfigService.get('api.master_key_salt');
+    let salt = ConfigService.get('api.master_key_salt');
+    
+    // If salt doesn't exist, generate one
     if (!salt || salt === '') {
-      throw new Error('Master key salt not found. System initialization required.');
+      salt = crypto.randomUUID();
+      await ConfigService.upsert('api.master_key_salt', salt, 'string', 'Salt for master key hashing');
     }
     
     // Hash the raw key
@@ -226,6 +229,25 @@ export class ConfigRepository extends AbstractBaseRepository<Config, ConfigInser
     // Note: This is a best-effort approach in JavaScript
     
     return result;
+  }
+
+  /**
+   * Verify if a raw master key matches the stored hash
+   */
+  async verifyMasterKey(rawKey: string): Promise<boolean> {
+    try {
+      const salt = ConfigService.getString('api.master_key_salt');
+      const storedHash = ConfigService.getString('api.master_key_hash');
+      
+      if (!salt || !storedHash) {
+        return false;
+      }
+      
+      const computedHash = await this.hashMasterKey(rawKey, salt);
+      return computedHash === storedHash;
+    } catch (error) {
+      return false;
+    }
   }
 }
 

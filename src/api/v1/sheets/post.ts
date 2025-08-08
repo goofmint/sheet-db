@@ -68,12 +68,20 @@ export const sheetsPostHandler = async (c: Context<{ Bindings: Env }, any, {}>) 
     }
 
     // Check authentication
-    const allowCreateTables = ConfigService.getBoolean('allow_create_tables');
+    const allowCreateTables = ConfigService.getBoolean('app.allow_create_tables', false);
     const masterKey = c.req.header('X-Master-Key');
     const authHeader = c.req.header('Authorization');
     
-    // Check if authentication is required
-    const requiresAuth = !allowCreateTables && (!masterKey || masterKey !== ConfigService.getString('master_key'));
+    // Check master key validation
+    let isMasterKeyValid = false;
+    if (masterKey) {
+      const { ConfigRepository } = await import('@/repositories/config');
+      const db = drizzle(c.env.DB);
+      const configRepo = new ConfigRepository(db);
+      isMasterKeyValid = await configRepo.verifyMasterKey(masterKey);
+    }
+    
+    const requiresAuth = !allowCreateTables && !isMasterKeyValid;
     
     if (requiresAuth && !authHeader) {
       return c.json({
@@ -140,20 +148,23 @@ export const sheetsPostHandler = async (c: Context<{ Bindings: Env }, any, {}>) 
     const cacheKey = `sheet:${name}`;
     const expiresAt = new Date(Date.now() + 600 * 1000).toISOString(); // 10 minutes
     
+    // Extract sheet data (result.data should be the sheet object for createSheet)
+    const sheetData = Array.isArray(result.data) ? result.data[0] : result.data;
+    
     await cacheRepo.upsertByKey(cacheKey, {
       cache_key: cacheKey,
       data: JSON.stringify({
-        id: result.data?.id,
+        id: sheetData?.id,
         name: name,
         headers: headers || [],
-        createdAt: result.data?.createdAt
+        createdAt: sheetData?.createdAt
       }),
       expires_at: expiresAt,
       metadata: JSON.stringify({ type: 'sheet' })
     });
 
     // Return success response
-    const responseData = result.data as { id: string; name: string; url: string; createdAt: string };
+    const responseData = sheetData as { id: string; name: string; url: string; createdAt: string };
     return c.json({
       id: responseData.id,
       name: responseData.name,

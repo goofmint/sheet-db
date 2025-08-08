@@ -35,7 +35,22 @@ export class SheetService {
    */
   async initialize(): Promise<void> {
     this.config.spreadsheetId = ConfigService.getString('google.sheetId');
-    this.config.accessToken = ConfigService.getString('google.access_token');
+    
+    // Use GoogleOAuthService to get a valid access token
+    const { GoogleOAuthService } = await import('../google-oauth');
+    const googleOAuth = new GoogleOAuthService();
+    
+    try {
+      this.config.accessToken = await googleOAuth.getValidAccessToken();
+    } catch (error) {
+      // If refresh fails, try to get stored access token as fallback
+      const storedToken = ConfigService.getString('google.access_token');
+      if (storedToken) {
+        this.config.accessToken = storedToken;
+      } else {
+        throw new Error('Google access token not available: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      }
+    }
 
     if (!this.config.spreadsheetId) {
       throw new Error('Google Sheet ID not configured');

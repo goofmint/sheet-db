@@ -1,15 +1,37 @@
-import { describe, it, expect, beforeAll, afterAll, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { drizzle } from 'drizzle-orm/d1';
+import { env } from 'cloudflare:test';
 import { app } from '@/index';
 import { ConfigService } from '@/services/config';
-import { GoogleOAuthService } from '@/services/google-oauth';
+import { setupConfigDatabase } from '../../../utils/database-setup';
 
 describe('POST /api/v1/sheets', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  const db = drizzle(env.DB);
+
+  beforeEach(async () => {
+    // Setup database and ConfigService
+    await setupConfigDatabase(db);
+    await ConfigService.initialize(db);
+    
+    // Set up required configurations for testing
+    await ConfigService.upsert('app.config_password', 'testPassword123', 'string');
+    await ConfigService.upsert('app.setup_completed', 'true', 'boolean');
+    await ConfigService.upsert('google.sheetId', 'test-spreadsheet-id', 'string');
+    await ConfigService.upsert('app.master_key', 'test-master-key', 'string');
+    await ConfigService.upsert('app.allow_create_tables', 'true', 'boolean');
   });
 
-  afterAll(() => {
-    vi.restoreAllMocks();
+  afterAll(async () => {
+    // Clean up test configurations
+    try {
+      await ConfigService.deleteByKey('app.config_password');
+      await ConfigService.deleteByKey('app.setup_completed');
+      await ConfigService.deleteByKey('google.sheetId');
+      await ConfigService.deleteByKey('app.master_key');
+      await ConfigService.deleteByKey('app.allow_create_tables');
+    } catch {
+      // Ignore cleanup errors
+    }
   });
 
   it('should validate required sheet name', async () => {
