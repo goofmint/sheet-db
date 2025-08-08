@@ -1,12 +1,13 @@
 interface SheetInitializationProps {
   accessToken: string;
   configPassword: string;
+  masterKey: string;
   isSetupCompleted?: boolean;
   isAuthenticated?: boolean;
   error?: string;
 }
 
-export default function SheetInitializationTemplate({ accessToken, configPassword, isSetupCompleted, isAuthenticated, error }: SheetInitializationProps) {
+export default function SheetInitializationTemplate({ accessToken, configPassword, masterKey, isSetupCompleted, isAuthenticated, error }: SheetInitializationProps) {
   return (
     <html>
       <head>
@@ -145,7 +146,7 @@ export default function SheetInitializationTemplate({ accessToken, configPasswor
 
         {(!isSetupCompleted || isAuthenticated) && (
           <>
-            <div id="auth-data" style="display: none;" data-access-token={accessToken} data-config-password={configPassword}></div>
+            <div id="auth-data" style="display: none;" data-access-token={accessToken} data-config-password={configPassword} data-master-key={masterKey}></div>
             <script src="/statics/sheet-initializations/script.js"></script>
           </>
         )}

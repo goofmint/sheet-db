@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   const accessToken = authData.dataset.accessToken;
   const configPassword = authData.dataset.configPassword;
+  const masterKey = authData.dataset.masterKey;
 
   // Storage type toggle
   document.querySelectorAll('input[name="storage"]').forEach(radio => {
@@ -92,7 +93,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const response = await fetch('/api/v1/sheets', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Master-Key': masterKey
         },
         body: JSON.stringify({ name: sheetName })
       });

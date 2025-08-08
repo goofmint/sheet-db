@@ -1,4 +1,5 @@
 import { Context } from 'hono';
+import { drizzle } from 'drizzle-orm/d1';
 import { ConfigService } from '../../../services/config';
 import type { Env } from '../../../types';
 import type { SetupSuccessResponse } from './types';
@@ -15,6 +16,12 @@ import { constantTimeEquals } from '../../../utils/security';
  */
 export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
   try {
+    // Initialize ConfigService with database connection
+    const db = drizzle(c.env.DB);
+    if (!ConfigService.isInitialized()) {
+      await ConfigService.initialize(db);
+    }
+    
     // Check current setup status
     const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
     
@@ -62,17 +69,33 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
     // Check if this is flat config data (key/value pairs from config form)
     if (requestData && typeof requestData === 'object') {
       const data = requestData as Record<string, any>;
+      console.log('Setup request data keys:', Object.keys(data));
       const hasDotNotation = Object.keys(data).some(key => key.includes('.'));
       
       if (hasDotNotation) {
         // This is flat config data - process directly as key/value pairs
         const configs: Record<string, { value: string; type?: ConfigType }> = {};
         
+        // Handle master key separately with proper hashing
+        let masterKeyToSet: string | null = null;
+        
         for (const [key, value] of Object.entries(data)) {
           if (key === 'csrf_token') continue;
           
+          // Special handling for master key
+          if (key === 'app.masterKey' || key === 'app.master_key') {
+            masterKeyToSet = String(value);
+            continue; // Skip adding to configs - will be handled separately
+          }
+          
+          // Convert camelCase to snake_case for certain keys
+          let configKey = key;
+          if (key === 'app.configPassword') {
+            configKey = 'app.config_password';
+          }
+          
           // Get existing config to preserve the original type
-          const existingType = ConfigService.getType(key) as ConfigType;
+          const existingType = ConfigService.getType(configKey) as ConfigType;
           
           // Convert boolean values to string for storage
           let stringValue: string;
@@ -83,22 +106,50 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
           }
           
           const configType: ConfigType = existingType || (typeof value === 'boolean' ? 'boolean' : 'string');
-          configs[key] = { 
+          configs[configKey] = { 
             value: stringValue,
             type: configType
           };
         }
         
-        // Save all configurations
-        try {
-          await ConfigService.setAll(configs);
-        } catch (error) {
+        // Handle master key with proper hashing if provided
+        if (masterKeyToSet) {
+          console.log('Processing master key from flat config data');
+          const { ConfigRepository } = await import('../../../repositories/config');
+          const db = drizzle(c.env.DB);
+          const configRepo = new ConfigRepository(db);
+          await configRepo.setMasterKey(masterKeyToSet);
+          console.log('Master key hashed and stored successfully');
+        }
+        
+// Save all configurations (skip if empty - master key is handled separately)
+        if (Object.keys(configs).length > 0) {
           try {
-            await ConfigService.refreshCache();
-          } catch (rollbackError) {
-            console.error('Failed to rollback configuration cache:', rollbackError);
+            await ConfigService.setAll(configs);
+          } catch (error) {
+            try {
+              await ConfigService.refreshCache();
+            } catch (rollbackError) {
+              console.error('Failed to rollback configuration cache:', rollbackError);
+            }
+            throw error;
           }
-          throw error;
+        }
+        
+        // Check if setup is now complete after saving configurations
+        // Required: Google OAuth, Auth0, config password, master key, access token, sheet ID, storage
+        const hasGoogleAuth = ConfigService.getString('google.client_id') && ConfigService.getString('google.client_secret');
+        const hasAuth0 = ConfigService.getString('auth0.domain') && ConfigService.getString('auth0.client_id') && ConfigService.getString('auth0.client_secret');
+        const hasConfigPassword = ConfigService.getString('app.config_password');
+        const hasMasterKey = ConfigService.getString('api.master_key_hash');
+        const hasGoogleToken = ConfigService.getString('google.access_token');
+        const hasSheetId = ConfigService.getString('google.sheetId');
+        const hasStorage = ConfigService.getString('storage.type');
+        
+        const isNowComplete = hasGoogleAuth && hasAuth0 && hasConfigPassword && hasMasterKey && hasGoogleToken && hasSheetId && hasStorage;
+        
+        if (isNowComplete && !ConfigService.getBoolean('app.setup_completed', false)) {
+          await ConfigService.upsert('app.setup_completed', 'true', 'boolean', 'Setup completion flag');
         }
         
         // Return success response
@@ -151,7 +202,17 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
     }
     
     if (setupData.app) {
-      configs['app.config_password'] = { value: setupData.app.configPassword };
+      configs['app.config_password'] = { value: setupData.app.configPassword, type: 'string' };
+      
+      // Handle master key with proper hashing
+      if (setupData.app.masterKey) {
+        console.log('Processing master key from nested app data');
+        const { ConfigRepository } = await import('../../../repositories/config');
+        const db = drizzle(c.env.DB);
+        const configRepo = new ConfigRepository(db);
+        await configRepo.setMasterKey(setupData.app.masterKey);
+        console.log('Master key hashed and stored successfully (nested)');
+      }
     }
 
     // Add storage configuration if provided
@@ -230,10 +291,12 @@ export const setupPostHandler = async (c: Context<{ Bindings: Env }>) => {
 
   } catch (error) {
     console.error('Setup POST API error:', error);
+    console.error('Error details:', error instanceof Error ? error.stack : error);
     return c.json({
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'Failed to process setup configuration'
+        message: 'Failed to process setup configuration',
+        details: error instanceof Error ? error.message : String(error)
       }
     }, 500);
   }
@@ -283,6 +346,8 @@ function transformFlatConfigData(data: Record<string, any>): Record<string, any>
       } else if (section === 'app') {
         if (field === 'config_password') {
           result.app.configPassword = value;
+        } else if (field === 'master_key' || field === 'masterKey') {
+          result.app.masterKey = value;
         } else if (field === 'setup_completed') {
           result.app.setupCompleted = value === 'true' || value === true;
         }

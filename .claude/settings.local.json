@@ -129,7 +129,9 @@
       "Bash(timeout 90s npx playwright test --workers=1)",
       "Bash(timeout 90s npx playwright test config-boolean-display.spec.ts)",
       "Bash(timeout 90s npx playwright test config-boolean-edit.spec.ts)",
-      "Bash(timeout 120s npx playwright test)"
+      "Bash(timeout 120s npx playwright test)",
+      "mcp__serena__find_file",
+      "mcp__serena__list_dir"
     ],
     "deny": []
   },

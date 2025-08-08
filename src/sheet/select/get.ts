@@ -21,6 +21,13 @@ export async function sheetSelectHandler(c: Context) {
   // Check if setup is completed and require authentication
   const isSetupCompleted = ConfigService.getBoolean('app.setup_completed', false);
   
+  // If we have a valid Google access token from OAuth flow, skip password authentication
+  // The presence of accessToken means user just completed Google OAuth authentication
+  if (accessToken && accessToken.startsWith('ya29.')) {
+    // Valid Google access token from OAuth flow - allow access without password
+    return c.html(html`${SheetSelectionTemplate({ accessToken, configPassword, isAuthenticated: true })}`);
+  }
+  
   if (isSetupCompleted) {
     // Check for POST request with password authentication
     if (c.req.method === 'POST') {

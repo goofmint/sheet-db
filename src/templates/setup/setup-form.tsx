@@ -121,6 +121,21 @@ export function SetupForm() {
               This password will be used for configuration authentication
             </div>
           </div>
+          
+          <div className="field-group">
+            <label htmlFor="master-key">Master Key *</label>
+            <input 
+              type="password" 
+              id="master-key" 
+              name="app.masterKey"
+              placeholder="Enter a strong master key for API access"
+              required
+            />
+            <div id="master-key-error" className="field-error"></div>
+            <div className="field-help">
+              This key will be used for API authentication and access control
+            </div>
+          </div>
         </div>
 
 

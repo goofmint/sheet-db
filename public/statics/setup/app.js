@@ -249,7 +249,8 @@ class SetupManager {
       'auth0.domain': document.getElementById('auth0-domain').value,
       'auth0.client_id': document.getElementById('auth0-client-id').value,
       'auth0.client_secret': document.getElementById('auth0-client-secret').value,
-      'app.config_password': document.getElementById('config-password').value
+      'app.config_password': document.getElementById('config-password').value,
+      'app.masterKey': document.getElementById('master-key').value
     };
   }
 
@@ -303,6 +304,18 @@ class SetupManager {
           if (!/[0-9]/.test(value)) errors.push('number');
           if (errors.length > 0) {
             error = `Password must contain ${errors.join(', ')}`;
+          }
+          break;
+        }
+        case 'app.masterKey': {
+          const errors = [];
+          if (value.length < 16) errors.push('at least 16 characters');
+          if (value.length > 128) errors.push('maximum 128 characters');
+          if (!/^[a-zA-Z0-9\-_@#$%^&*+=!?]+$/.test(value)) {
+            errors.push('only letters, numbers, and symbols: -_@#$%^&*+=!?');
+          }
+          if (errors.length > 0) {
+            error = `Master key must have ${errors.join(', ')}`;
           }
           break;
         }
@@ -375,7 +388,7 @@ class SetupManager {
 
     try {
       // OAuth2認証フローの開始
-      const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(window.location.origin + '/google/callback')}&scope=${encodeURIComponent('https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file')}&response_type=code&access_type=offline`;
+      const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(window.location.origin + '/google/callback')}&scope=${encodeURIComponent('https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file')}&response_type=code&access_type=offline&prompt=consent`;
       
       // 現在のページから認証URLにリダイレクト
       window.location.href = authUrl;

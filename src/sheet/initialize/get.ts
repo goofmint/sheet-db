@@ -19,11 +19,24 @@ export async function sheetInitializeHandler(c: Context) {
     return c.text('Configuration service not initialized', 500);
   }
   
-  // Get config password from ConfigService
+  // Get config password and master key from ConfigService
   const configPassword = ConfigService.getString('app.config_password');
+  let masterKey = ConfigService.getString('app.master_key');
   
   if (!configPassword) {
     return c.text('Configuration password not found', 500);
+  }
+  
+  // If master key is not in database, try to get from environment variable
+  if (!masterKey) {
+    // @ts-ignore - accessing env through context
+    masterKey = c.env?.MASTER_KEY;
+  }
+  
+  // Still no master key? Use a fallback for initial setup
+  if (!masterKey) {
+    console.warn('Master key not found in config or environment, using temporary fallback');
+    masterKey = 'temporary-setup-key';
   }
   
   // Check if setup is completed and require authentication
@@ -38,24 +51,26 @@ export async function sheetInitializeHandler(c: Context) {
       if (!constantTimeEquals(submittedPassword || '', configPassword || '')) {
         return c.html(html`${SheetInitializationTemplate({ 
           accessToken, 
-          configPassword, 
+          configPassword,
+          masterKey, 
           isSetupCompleted: true, 
           error: 'Invalid password. Please try again.' 
         })}`);
       }
       
       // Password is correct, show the sheet initialization interface
-      return c.html(html`${SheetInitializationTemplate({ accessToken, configPassword, isSetupCompleted: true, isAuthenticated: true })}`);
+      return c.html(html`${SheetInitializationTemplate({ accessToken, configPassword, masterKey, isSetupCompleted: true, isAuthenticated: true })}`);
     }
     
     // GET request for completed setup - show password form
     return c.html(html`${SheetInitializationTemplate({ 
       accessToken, 
-      configPassword, 
+      configPassword,
+      masterKey, 
       isSetupCompleted: true 
     })}`);
   }
   
   // Setup not completed, show normal interface
-  return c.html(html`${SheetInitializationTemplate({ accessToken, configPassword })}`);
+  return c.html(html`${SheetInitializationTemplate({ accessToken, configPassword, masterKey })}`);
 }

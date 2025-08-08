@@ -84,3 +84,6 @@ app.route('/config', configRouter);
 export default {
   fetch: app.fetch,
 };
+
+// Export app for testing
+export { app };

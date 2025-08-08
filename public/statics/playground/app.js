@@ -23,6 +23,12 @@ async function logout() {
   }
 }
 
+// Helper function to get master key from input
+function getMasterKey() {
+  const masterKeyInput = document.getElementById('master-key-input');
+  return masterKeyInput ? masterKeyInput.value.trim() : '';
+}
+
 async function testEndpoint(method, url, body, responseId) {
   const responseEl = document.getElementById(responseId);
   responseEl.style.display = 'block';
@@ -37,6 +43,12 @@ async function testEndpoint(method, url, body, responseId) {
         'X-Requested-With': 'XMLHttpRequest'
       }
     };
+    
+    // Add master key header if provided
+    const masterKey = getMasterKey();
+    if (masterKey) {
+      options.headers['X-Master-Key'] = masterKey;
+    }
     
     if (body) {
       options.body = JSON.stringify(body);
@@ -59,6 +71,18 @@ async function testUserSheetCreation(responseId) {
   await testEndpoint('POST', '/api/v1/sheets', { name: '_User' }, responseId);
 }
 
+async function testCustomSheetCreation(responseId) {
+  const sheetNameInput = document.getElementById('sheet-name-input');
+  const sheetName = sheetNameInput ? sheetNameInput.value.trim() : '';
+  
+  if (!sheetName) {
+    alert('Please enter a sheet name');
+    return;
+  }
+  
+  await testEndpoint('POST', '/api/v1/sheets', { name: sheetName }, responseId);
+}
+
 async function testFileUpload(responseId) {
   const fileInput = document.getElementById('test-file');
   const file = fileInput.files[0];
@@ -76,13 +100,21 @@ async function testFileUpload(responseId) {
     const formData = new FormData();
     formData.append('file', file);
     
+    const headers = {
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    
+    // Add master key header if provided
+    const masterKey = getMasterKey();
+    if (masterKey) {
+      headers['X-Master-Key'] = masterKey;
+    }
+    
     const response = await fetch('/api/v1/storages', {
       method: 'POST',
       body: formData,
       credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
-      }
+      headers: headers
     });
     
     const data = await response.json();
@@ -110,12 +142,20 @@ async function testFileDelete(responseId) {
   responseEl.textContent = 'Deleting...';
   
   try {
+    const headers = {
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    
+    // Add master key header if provided
+    const masterKey = getMasterKey();
+    if (masterKey) {
+      headers['X-Master-Key'] = masterKey;
+    }
+    
     const response = await fetch(`/api/v1/storages/${fileId}`, {
       method: 'DELETE',
       credentials: 'include',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
-      }
+      headers: headers
     });
     
     const data = await response.json();

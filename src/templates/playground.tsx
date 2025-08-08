@@ -33,6 +33,15 @@ export function playground(props: PlaygroundProps) {
           <p class="subtitle">Your Google Sheets API is ready! Test endpoints and explore functionality.</p>
         </div>
 
+        <div class="master-key-section">
+          <div class="info-card">
+            <h3>🔐 Master Key (Optional)</h3>
+            <p>Enter master key to access admin endpoints and create system tables:</p>
+            <input type="password" id="master-key-input" placeholder="Enter master key (optional)" style="width: 100%; padding: 8px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;" />
+            <small style="color: #666;">Leave empty for regular user operations</small>
+          </div>
+        </div>
+
         <div class="info-grid">
           <div class="info-card">
             <h3>👤 Authentication Status</h3>
@@ -101,9 +110,15 @@ export function playground(props: PlaygroundProps) {
               <span class="method post">POST</span>
               <span class="endpoint-url">/api/v1/sheets</span>
             </div>
-            <p class="endpoint-description">Create or initialize sheets</p>
-            <button class="test-button primary" onclick="testSheetCreation('sheet-response')">Test _Role Sheet Creation</button>
-            <button class="test-button secondary" onclick="testUserSheetCreation('sheet-response')">Test _User Sheet Creation</button>
+            <p class="endpoint-description">Create or initialize sheets with custom names</p>
+            <div class="custom-sheet-test">
+              <input type="text" id="sheet-name-input" placeholder="Enter sheet name (e.g., MyCustomSheet)" style="width: 200px; padding: 5px; margin-right: 10px; border: 1px solid #ddd; border-radius: 4px;" />
+              <button class="test-button primary" onclick="testCustomSheetCreation('sheet-response')">Create Custom Sheet</button>
+            </div>
+            <div class="predefined-tests" style="margin-top: 10px;">
+              <button class="test-button secondary" onclick="testSheetCreation('sheet-response')">Test _Role Sheet Creation</button>
+              <button class="test-button secondary" onclick="testUserSheetCreation('sheet-response')">Test _User Sheet Creation</button>
+            </div>
             <div id="sheet-response" class="response-area"></div>
           </div>
 

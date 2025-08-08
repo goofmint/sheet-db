@@ -121,6 +121,18 @@ export function validateSetupRequest(data: unknown): {
         })));
       }
     }
+
+    if (!app.masterKey || typeof app.masterKey !== 'string') {
+      errors.push({ field: 'app.masterKey', message: 'Master key is required' });
+    } else {
+      const keyValidation = validateMasterKey(app.masterKey);
+      if (!keyValidation.isValid) {
+        errors.push(...keyValidation.errors.map(error => ({
+          field: 'app.masterKey',
+          message: error
+        })));
+      }
+    }
   }
 
 
@@ -200,6 +212,18 @@ function validatePartialSetupRequest(
         })));
       }
     }
+
+    if (!app.masterKey || typeof app.masterKey !== 'string') {
+      errors.push({ field: 'app.masterKey', message: 'Master key is required' });
+    } else {
+      const keyValidation = validateMasterKey(app.masterKey);
+      if (!keyValidation.isValid) {
+        errors.push(...keyValidation.errors.map(error => ({
+          field: 'app.masterKey',
+          message: error
+        })));
+      }
+    }
   }
 
   // Validate storage if provided
@@ -259,6 +283,34 @@ export function validateConfigPassword(password: string): {
 
   if (!/[0-9]/.test(password)) {
     errors.push('Password must contain at least one number');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+/**
+ * Validate master key strength
+ */
+export function validateMasterKey(key: string): {
+  isValid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  if (key.length < 16) {
+    errors.push('Master key must be at least 16 characters long');
+  }
+
+  if (key.length > 128) {
+    errors.push('Master key must not exceed 128 characters');
+  }
+
+  // Allow alphanumeric characters, hyphens, underscores, and common symbols
+  if (!/^[a-zA-Z0-9\-_@#$%^&*+=!?]+$/.test(key)) {
+    errors.push('Master key contains invalid characters. Use letters, numbers, and symbols: -_@#$%^&*+=!?');
   }
 
   return {

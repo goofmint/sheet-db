@@ -2,23 +2,31 @@ import { z } from '@hono/zod-openapi';
 
 // Request schemas
 export const CreateSheetRequestSchema = z.object({
-  name: z.string().openapi({
+  name: z.string().min(1).max(100).openapi({
     example: 'MySheet',
     description: 'Sheet name to create or initialize'
+  }),
+  headers: z.array(z.string().min(1).max(50)).max(50).optional().openapi({
+    example: ['id', 'name', 'email'],
+    description: 'Initial headers for the sheet'
   })
 });
 
 // Response schemas
 export const SheetSuccessResponseSchema = z.object({
-  success: z.literal(true),
-  message: z.string().openapi({ example: 'MySheet sheet initialized successfully' }),
-  sheet: z.string().openapi({ example: 'MySheet' })
+  id: z.string().openapi({ example: 'sheet_123', description: 'Sheet ID' }),
+  name: z.string().openapi({ example: 'MySheet', description: 'Sheet name' }),
+  url: z.string().openapi({ example: 'https://docs.google.com/spreadsheets/d/abc123/edit#gid=0', description: 'Sheet URL' }),
+  createdAt: z.string().openapi({ example: '2024-01-01T00:00:00Z', description: 'Creation timestamp' })
 });
 
 export const SheetErrorSchema = z.object({
-  success: z.literal(false),
   error: z.string().openapi({ example: 'service_not_configured' }),
-  message: z.string().openapi({ example: 'Google Sheets service is not properly configured. Please complete the setup first.' })
+  details: z.union([
+    z.string(),
+    z.object({}).passthrough(),
+    z.array(z.string())
+  ]).optional().openapi({ example: null, description: 'Additional error details' })
 });
 
 // Sheets list schemas

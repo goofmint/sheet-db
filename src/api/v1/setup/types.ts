@@ -52,6 +52,7 @@ export interface SetupRequest {
   };
   app: {
     configPassword: string;
+    masterKey: string;
   };
   // Optional storage configuration
   storage?: {
