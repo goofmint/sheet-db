@@ -113,12 +113,73 @@ export const sheetsPostHandler = async (c: Context<{ Bindings: Env }, any, {}>) 
       return c.json(createSystemSheetResponse('_Role'), 201);
     }
 
-    // Create general sheet
+    // Create general sheet with default columns and schema if no headers provided
+    let finalHeaders = headers;
+    let needsSchemaRow = false;
+    
+    if (!headers || headers.length === 0) {
+      // Import default columns from the data service
+      const { DEFAULT_COLUMNS } = await import('@/sheet/data');
+      finalHeaders = DEFAULT_COLUMNS.map(col => col.name);
+      needsSchemaRow = true;
+    }
+    
     const result = await sheetService.createSheet(
       name,
-      headers || [],
+      finalHeaders || [],
       undefined // ACL can be set later
     );
+    
+    // Add schema row for default columns
+    if (result.success && needsSchemaRow) {
+      const { DEFAULT_COLUMNS } = await import('@/sheet/data');
+      const schemaRow = DEFAULT_COLUMNS.map(col => {
+        let schemaStr = col.type;
+        if (col.required) schemaStr += '|required';
+        if (col.unique) schemaStr += '|unique';
+        if (col.default !== undefined) {
+          if (typeof col.default === 'string') {
+            schemaStr += `|default:${col.default}`;
+          } else if (Array.isArray(col.default)) {
+            schemaStr += `|default:[]`;
+          } else {
+            schemaStr += `|default:${col.default}`;
+          }
+        }
+        return schemaStr;
+      });
+      
+      // Add schema row to the sheet
+      try {
+        const spreadsheetId = ConfigService.getString('google.sheetId');
+        const { GoogleOAuthService } = await import('@/services/google-oauth');
+        const googleOAuth = new GoogleOAuthService();
+        const accessToken = await googleOAuth.getValidAccessToken();
+        
+        const escapedSheetName = name.replace(/'/g, "''");
+        const range = `'${escapedSheetName}'!A2`;
+        
+        const schemaResponse = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              values: [schemaRow]
+            })
+          }
+        );
+        
+        if (!schemaResponse.ok) {
+          console.warn('Failed to add schema row, but sheet was created successfully');
+        }
+      } catch (error) {
+        console.warn('Failed to add schema row:', error);
+      }
+    }
 
     if (!result.success) {
       // Check for specific error conditions
@@ -156,7 +217,7 @@ export const sheetsPostHandler = async (c: Context<{ Bindings: Env }, any, {}>) 
       data: JSON.stringify({
         id: sheetData?.id,
         name: name,
-        headers: headers || [],
+        headers: finalHeaders,
         createdAt: sheetData?.createdAt
       }),
       expires_at: expiresAt,
