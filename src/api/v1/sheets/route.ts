@@ -42,6 +42,30 @@ export const createSheetRoute = createRoute({
       },
       description: 'Invalid request or unsupported sheet name'
     },
+    401: {
+      content: {
+        'application/json': {
+          schema: SheetErrorSchema
+        }
+      },
+      description: 'Authentication required'
+    },
+    403: {
+      content: {
+        'application/json': {
+          schema: SheetErrorSchema
+        }
+      },
+      description: 'Insufficient permissions'
+    },
+    409: {
+      content: {
+        'application/json': {
+          schema: SheetErrorSchema
+        }
+      },
+      description: 'Sheet already exists'
+    },
     500: {
       content: {
         'application/json': {
