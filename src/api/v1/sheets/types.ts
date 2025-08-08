@@ -22,7 +22,11 @@ export const SheetSuccessResponseSchema = z.object({
 
 export const SheetErrorSchema = z.object({
   error: z.string().openapi({ example: 'service_not_configured' }),
-  details: z.any().optional().openapi({ example: null, description: 'Additional error details' })
+  details: z.union([
+    z.string(),
+    z.object({}).passthrough(),
+    z.array(z.string())
+  ]).optional().openapi({ example: null, description: 'Additional error details' })
 });
 
 // Sheets list schemas

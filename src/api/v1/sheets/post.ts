@@ -82,29 +82,27 @@ export const sheetsPostHandler = async (c: Context<{ Bindings: Env }, any, {}>) 
       }, 401);
     }
 
+    // Helper function for system sheet response
+    const createSystemSheetResponse = (sheetName: string) => ({
+      id: sheetName,
+      name: sheetName,
+      url: `https://docs.google.com/spreadsheets/d/${ConfigService.getString('google.sheetId')}/edit`,
+      createdAt: new Date().toISOString()
+    });
+
     // Handle special system sheets
     if (name === '_User') {
       const userSheet = new UserSheet(c.env);
       await userSheet.ensureUserSheet();
       
-      return c.json({
-        id: '_User',
-        name: '_User',
-        url: `https://docs.google.com/spreadsheets/d/${ConfigService.getString('google.sheetId')}/edit`,
-        createdAt: new Date().toISOString()
-      }, 201);
+      return c.json(createSystemSheetResponse('_User'), 201);
     }
     
     if (name === '_Role') {
       const roleService = RoleService.getInstance();
       await roleService.initializeSheet();
       
-      return c.json({
-        id: '_Role',
-        name: '_Role',
-        url: `https://docs.google.com/spreadsheets/d/${ConfigService.getString('google.sheetId')}/edit`,
-        createdAt: new Date().toISOString()
-      }, 201);
+      return c.json(createSystemSheetResponse('_Role'), 201);
     }
 
     // Create general sheet

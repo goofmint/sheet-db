@@ -1,6 +1,8 @@
 import { createSheetRow } from './create';
 import { findSheetRows, findSheetRow } from './find';
 import { updateSheetRow } from './update';
+import { ConfigService } from '../config';
+import { GoogleOAuthService } from '../google-oauth';
 import { 
   ISheetService, 
   SheetCreateOptions, 
@@ -42,9 +44,6 @@ export class SheetService implements ISheetService {
 
   async createSheet(sheetName: string, headers: string[], acl?: SheetACL): Promise<SheetOperationResult> {
     try {
-      const { ConfigService } = await import('../config');
-      const { GoogleOAuthService } = await import('../google-oauth');
-      
       const spreadsheetId = ConfigService.getString('google.sheetId');
       if (!spreadsheetId) {
         return {
