@@ -1,0 +1,12 @@
+node_modules
+dist
+npm-debug.log
+.env
+.git
+.gitignore
+README.md
+CONTRIBUTING.md
+DEPLOYMENT.md
+QUICK_START.md
+LICENSE
+example.ts
