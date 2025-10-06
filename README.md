@@ -11,6 +11,36 @@ Backend as a Service using Google Sheets as a database. Turn your Google Sheets 
 - 🎯 Type-safe with TypeScript
 - ⚡ Easy to set up and deploy
 
+## Architecture
+
+```
+┌─────────────┐
+│   Client    │
+│ Application │
+└──────┬──────┘
+       │ HTTP/REST
+       ↓
+┌─────────────┐
+│   Express   │
+│   Server    │
+│  (server.ts)│
+└──────┬──────┘
+       │
+       ↓
+┌─────────────┐
+│   SheetDB   │
+│    Class    │
+│(SheetDB.ts) │
+└──────┬──────┘
+       │ Google API
+       ↓
+┌─────────────┐
+│   Google    │
+│   Sheets    │
+│     API     │
+└─────────────┘
+```
+
 ## Installation
 
 ```bash
@@ -64,6 +94,28 @@ npm run dev
 ```bash
 npm run build
 npm start
+```
+
+## How It Works
+
+sheet-db transforms your Google Sheets into a fully functional database with a REST API:
+
+1. **First Row = Schema**: The first row of your sheet defines the field names (columns)
+2. **Rows = Records**: Each subsequent row is a record in your database
+3. **API Operations**: The REST API maps to Google Sheets operations:
+   - GET → Read rows
+   - POST → Append rows
+   - PUT → Update rows
+   - DELETE → Remove rows
+4. **Authentication**: Uses Google Service Account credentials for secure access
+5. **Real-time**: Changes via the API are immediately reflected in the Google Sheet
+
+**Example Sheet Structure:**
+```
+| id | name      | email              | status  |
+|----|-----------|--------------------| --------|
+| 1  | John Doe  | john@example.com   | active  |
+| 2  | Jane Smith| jane@example.com   | active  |
 ```
 
 ## API Endpoints
