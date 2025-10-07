@@ -27,8 +27,18 @@ setup.get('/', async (c) => {
   const step = Number(c.req.query('step')) || 1;
   const error = c.req.query('error');
 
-  // Debug: Check if we need to re-authenticate due to scope change
+  // Check if setup is already completed
   const configRepo = new ConfigRepository(c.env);
+  const isSetupCompleted = await configRepo.isSetupComplete();
+
+  if (isSetupCompleted) {
+    return c.json(
+      { error: 'Setup already completed. Please go to the dashboard.' },
+      403
+    );
+  }
+
+  // Debug: Check if we need to re-authenticate due to scope change
   const hasTokens = !!(await configRepo.getGoogleAccessToken());
   console.log('[Setup] Has tokens:', hasTokens, 'Step:', step);
 
