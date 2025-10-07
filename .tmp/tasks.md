@@ -30,23 +30,24 @@
 
 ### Phase 1: プロジェクト基盤
 
-#### Task 1.1: プロジェクト初期化・デプロイ環境構築
+#### Task 1.1: プロジェクト初期化・デプロイ環境構築 ✅
 
 - [x] ドキュメント作成完了（.tmp/tasks/1.1-project-initialization.md）
-- [ ] package.json作成とTypeScript設定
-- [ ] Vite + React + TypeScript 環境構築
-- [ ] Hono + Cloudflare Workers 基本設定
-- [ ] wrangler.toml 設定ファイル作成（本番・開発環境）
-- [ ] ESLint, Prettier 設定
-- [ ] Vitest テスト環境構築（実環境接続設定）
-- [ ] **Playwright テスト環境構築**（Chrome使用、ブラウザテスト）
-- [ ] **GitHub Actions CI/CD設定**（自動テスト・自動デプロイ）
-- [ ] **Cloudflare Workers本番環境設定**
-- [ ] **環境変数管理設定**（開発・本番分離）
-- [ ] **初回デプロイ実施・動作確認**
-- **完了条件**: `npm run dev`, `npm run build`, `npm run test`, `npm run test:e2e` が正常実行 + **本番環境デプロイ成功**
+- [x] package.json作成とTypeScript設定
+- [x] Hono + React(JSX) 統合環境構築
+- [x] Hono + Cloudflare Workers 基本設定
+- [x] wrangler.toml 設定ファイル作成（本番・開発環境）
+- [x] ESLint, Prettier 設定
+- [x] Vitest テスト環境構築（実環境接続設定）
+- [x] **Playwright テスト環境構築**（Chrome使用、ブラウザテスト）
+- [x] **GitHub Actions CI/CD設定**（自動テスト・自動デプロイ）
+- [x] **Cloudflare Workers本番環境設定**
+- [x] **環境変数管理設定**（開発・本番分離）
+- [x] **初回デプロイ実施・動作確認**
+- **完了条件**: `npm run dev`, `npm run build`, `npm run test`, `npm run test:e2e` が正常実行 + **本番環境デプロイ成功** ✅
 - **依存**: なし
 - **推定時間**: 6時間
+- **実績**: 完了（PR #3）
 
 #### Task 1.2: 基盤UI・API構築
 
