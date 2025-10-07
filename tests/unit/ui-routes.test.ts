@@ -11,12 +11,12 @@
 
 import { describe, it, expect } from 'vitest';
 import app from '../../src/index.tsx';
-import { createTestEnv } from '../helpers/test-app';
+import { getTestEnv } from '../helpers/test-app';
 
 describe('UI Routes', () => {
-  const testEnv = createTestEnv();
   describe('Dashboard Page (/)', () => {
     it('should return 200 status code', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/', {
         method: 'GET',
       }, testEnv);
@@ -25,6 +25,7 @@ describe('UI Routes', () => {
     });
 
     it('should return HTML content', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/', {}, testEnv);
 
       expect(res.headers.get('Content-Type')).toContain('text/html');
@@ -35,6 +36,7 @@ describe('UI Routes', () => {
     });
 
     it('should include Dashboard title', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/', {}, testEnv);
       const html = await res.text();
 
@@ -42,6 +44,7 @@ describe('UI Routes', () => {
     });
 
     it('should include Header component', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/', {}, testEnv);
       const html = await res.text();
 
@@ -49,6 +52,7 @@ describe('UI Routes', () => {
     });
 
     it('should include Sidebar component with navigation', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/', {}, testEnv);
       const html = await res.text();
 
@@ -58,6 +62,7 @@ describe('UI Routes', () => {
     });
 
     it('should include Dashboard content', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/', {}, testEnv);
       const html = await res.text();
 
@@ -67,6 +72,7 @@ describe('UI Routes', () => {
 
   describe('Settings Page (/settings)', () => {
     it('should return 200 status code', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/settings', {
         method: 'GET',
       }, testEnv);
@@ -75,6 +81,7 @@ describe('UI Routes', () => {
     });
 
     it('should return HTML content', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/settings', {}, testEnv);
 
       expect(res.headers.get('Content-Type')).toContain('text/html');
@@ -85,6 +92,7 @@ describe('UI Routes', () => {
     });
 
     it('should include Settings title', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/settings', {}, testEnv);
       const html = await res.text();
 
@@ -92,6 +100,7 @@ describe('UI Routes', () => {
     });
 
     it('should include Settings page heading', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/settings', {}, testEnv);
       const html = await res.text();
 
@@ -99,6 +108,7 @@ describe('UI Routes', () => {
     });
 
     it('should include placeholder content for Task 2.2', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/settings', {}, testEnv);
       const html = await res.text();
 
@@ -108,6 +118,7 @@ describe('UI Routes', () => {
 
   describe('Setup Page (/setup)', () => {
     it('should return 200 status code', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/setup', {
         method: 'GET',
       }, testEnv);
@@ -116,6 +127,7 @@ describe('UI Routes', () => {
     });
 
     it('should return HTML content', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/setup', {}, testEnv);
 
       expect(res.headers.get('Content-Type')).toContain('text/html');
@@ -126,6 +138,7 @@ describe('UI Routes', () => {
     });
 
     it('should include Setup title', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/setup', {}, testEnv);
       const html = await res.text();
 
@@ -133,6 +146,7 @@ describe('UI Routes', () => {
     });
 
     it('should include Setup page heading', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/setup', {}, testEnv);
       const html = await res.text();
 
@@ -140,6 +154,7 @@ describe('UI Routes', () => {
     });
 
     it('should include placeholder content for Task 2.1', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/setup', {}, testEnv);
       const html = await res.text();
 
@@ -147,6 +162,7 @@ describe('UI Routes', () => {
     });
 
     it('should describe Google Sheets connection features', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/setup', {}, testEnv);
       const html = await res.text();
 
@@ -157,6 +173,7 @@ describe('UI Routes', () => {
 
   describe('CORS headers on UI routes', () => {
     it('should include CORS headers on dashboard', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/', {
         method: 'GET',
         headers: {
@@ -168,6 +185,7 @@ describe('UI Routes', () => {
     });
 
     it('should include CORS headers on settings', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/settings', {
         method: 'GET',
         headers: {
@@ -179,6 +197,7 @@ describe('UI Routes', () => {
     });
 
     it('should include CORS headers on setup', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/setup', {
         method: 'GET',
         headers: {
@@ -192,6 +211,7 @@ describe('UI Routes', () => {
 
   describe('Viewport and responsive design', () => {
     it('should include viewport meta tag on dashboard', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/', {}, testEnv);
       const html = await res.text();
 
@@ -200,6 +220,7 @@ describe('UI Routes', () => {
     });
 
     it('should include viewport meta tag on settings', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/settings', {}, testEnv);
       const html = await res.text();
 
@@ -208,6 +229,7 @@ describe('UI Routes', () => {
     });
 
     it('should include viewport meta tag on setup', async () => {
+      const testEnv = await getTestEnv();
       const res = await app.request('/setup', {}, testEnv);
       const html = await res.text();
 

@@ -10,12 +10,11 @@
 
 import { describe, it, expect } from 'vitest';
 import app from '../../src/index.tsx';
-import { createTestEnv } from '../helpers/test-app';
+import { getTestEnv } from '../helpers/test-app';
 
 describe('Version API', () => {
-  const testEnv = createTestEnv();
-
   it('should return 200 status code', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/version', {
       method: 'GET',
     }, testEnv);
@@ -24,6 +23,7 @@ describe('Version API', () => {
   });
 
   it('should return valid version response structure', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/version', {}, testEnv);
     const data = await res.json();
 
@@ -39,6 +39,7 @@ describe('Version API', () => {
   });
 
   it('should return semantic version format', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/version', {}, testEnv);
     const data = await res.json();
 
@@ -48,6 +49,7 @@ describe('Version API', () => {
   });
 
   it('should return application name', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/version', {}, testEnv);
     const data = await res.json();
 
@@ -57,6 +59,7 @@ describe('Version API', () => {
   });
 
   it('should return environment information', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/version', {}, testEnv);
     const data = await res.json();
 
@@ -65,6 +68,7 @@ describe('Version API', () => {
   });
 
   it('should return valid build timestamp in ISO 8601 format', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/version', {}, testEnv);
     const data = await res.json();
 
@@ -77,6 +81,7 @@ describe('Version API', () => {
   });
 
   it('should return node version information', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/version', {}, testEnv);
     const data = await res.json();
 
@@ -85,6 +90,7 @@ describe('Version API', () => {
   });
 
   it('should include CORS headers', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/version', {
       method: 'GET',
       headers: {
@@ -99,6 +105,7 @@ describe('Version API', () => {
   });
 
   it('should handle OPTIONS preflight requests', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/version', {
       method: 'OPTIONS',
       headers: {

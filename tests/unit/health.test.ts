@@ -10,12 +10,11 @@
 
 import { describe, it, expect } from 'vitest';
 import app from '../../src/index.tsx';
-import { createTestEnv } from '../helpers/test-app';
+import { getTestEnv } from '../helpers/test-app';
 
 describe('Health API', () => {
-  const testEnv = createTestEnv();
-
   it('should return healthy status with proper structure', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/health', {
       method: 'GET',
     }, testEnv);
@@ -50,6 +49,7 @@ describe('Health API', () => {
   });
 
   it('should return valid timestamp in ISO 8601 format', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/health', {}, testEnv);
     const data = await res.json();
 
@@ -62,6 +62,7 @@ describe('Health API', () => {
   });
 
   it('should return uptime in seconds', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/health', {}, testEnv);
     const data = await res.json();
 
@@ -71,6 +72,7 @@ describe('Health API', () => {
   });
 
   it('should return environment information', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/health', {}, testEnv);
     const data = await res.json();
 
@@ -79,6 +81,7 @@ describe('Health API', () => {
   });
 
   it('should return version information', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/health', {}, testEnv);
     const data = await res.json();
 
@@ -88,6 +91,7 @@ describe('Health API', () => {
   });
 
   it('should include CORS headers', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/health', {
       method: 'GET',
       headers: {
@@ -102,6 +106,7 @@ describe('Health API', () => {
   });
 
   it('should handle OPTIONS preflight requests', async () => {
+    const testEnv = await getTestEnv();
     const res = await app.request('/api/health', {
       method: 'OPTIONS',
       headers: {

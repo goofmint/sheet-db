@@ -11,23 +11,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, and } from 'drizzle-orm';
-import { getPlatformProxy } from 'wrangler';
+import { getTestEnv } from '../../helpers/test-app';
 import * as schema from '../../../src/db/schema';
 import { createDbClient } from '../../../src/db/client';
 import type { Env } from '../../../src/types/env';
 
 describe('Database Client Integration', () => {
   let env: Env;
-  // Initialize cleanup with noop function to satisfy TypeScript strict mode
-  // Will be overwritten by actual cleanup function from getPlatformProxy
-  let cleanup: () => Promise<void> = async () => {};
 
   beforeEach(async () => {
-    // Get platform proxy to access D1 database in local mode
-    // This provides access to the real D1 database without mocking
-    const proxy = await getPlatformProxy<Env>();
-    env = proxy.env;
-    cleanup = proxy.dispose;
+    // Get test environment with real D1 database (no mocking)
+    // Uses shared platform proxy from test helper to avoid database locks
+    env = await getTestEnv();
 
     // Clear all tables before each test to ensure clean state
     const db = createDbClient(env);
@@ -37,14 +32,6 @@ describe('Database Client Integration', () => {
     await db.delete(schema.cacheEntries);
     await db.delete(schema.userSessions);
     await db.delete(schema.rateLimits);
-
-    // Clean up proxy after clearing
-    await cleanup();
-
-    // Get fresh proxy for the test
-    const freshProxy = await getPlatformProxy<Env>();
-    env = freshProxy.env;
-    cleanup = freshProxy.dispose;
   });
 
   describe('Client Creation', () => {
@@ -58,7 +45,6 @@ describe('Database Client Integration', () => {
       expect(db.update).toBeDefined();
       expect(db.delete).toBeDefined();
 
-      await cleanup();
     });
   });
 
@@ -85,7 +71,6 @@ describe('Database Client Integration', () => {
       expect(result[0].description).toBe('Test configuration');
       expect(result[0].updated_at).toBeInstanceOf(Date);
 
-      await cleanup();
     });
 
     it('should update config entries', async () => {
@@ -111,7 +96,6 @@ describe('Database Client Integration', () => {
 
       expect(result[0].value).toBe('new_value');
 
-      await cleanup();
     });
 
     it('should delete config entries', async () => {
@@ -135,7 +119,6 @@ describe('Database Client Integration', () => {
 
       expect(result).toHaveLength(0);
 
-      await cleanup();
     });
   });
 
@@ -163,7 +146,6 @@ describe('Database Client Integration', () => {
       expect(result[0].created_at).toBeInstanceOf(Date);
       expect(result[0].updated_at).toBeInstanceOf(Date);
 
-      await cleanup();
     });
   });
 
@@ -194,7 +176,6 @@ describe('Database Client Integration', () => {
       );
       expect(result[0].created_at).toBeInstanceOf(Date);
 
-      await cleanup();
     });
 
     it('should query sessions by user_id using index', async () => {
@@ -225,7 +206,6 @@ describe('Database Client Integration', () => {
 
       expect(result).toHaveLength(2);
 
-      await cleanup();
     });
   });
 
@@ -262,7 +242,6 @@ describe('Database Client Integration', () => {
         Math.floor(windowStart.getTime() / 1000)
       );
 
-      await cleanup();
     });
 
     it('should enforce composite primary key constraint', async () => {
@@ -290,7 +269,6 @@ describe('Database Client Integration', () => {
         })
       ).rejects.toThrow();
 
-      await cleanup();
     });
 
     it('should use default value for count', async () => {
@@ -319,7 +297,6 @@ describe('Database Client Integration', () => {
       // Default count should be 0
       expect(result[0].count).toBe(0);
 
-      await cleanup();
     });
   });
 });
