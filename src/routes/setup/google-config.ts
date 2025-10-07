@@ -24,6 +24,30 @@ export async function postGoogleConfig(c: Context<{ Bindings: Env }>) {
       );
     }
 
+    // Validate redirectUri format
+    try {
+      const url = new URL(body.redirectUri);
+      if (!url.protocol.startsWith('http')) {
+        return c.json(
+          { error: 'redirectUri must use http:// or https:// protocol' },
+          400
+        );
+      }
+    } catch {
+      return c.json(
+        { error: 'redirectUri must be a valid URL' },
+        400
+      );
+    }
+
+    // Validate clientId format (Google OAuth client IDs end with .apps.googleusercontent.com)
+    if (!body.clientId.endsWith('.apps.googleusercontent.com')) {
+      return c.json(
+        { error: 'clientId must be a valid Google OAuth client ID' },
+        400
+      );
+    }
+
     // Save credentials
     const configRepo = new ConfigRepository(c.env);
     await configRepo.saveGoogleCredentials({

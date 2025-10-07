@@ -13,6 +13,23 @@ import type {
   ValidationResult,
 } from '../types/google';
 
+/**
+ * Convert 1-based column index to Excel-style column letter(s)
+ * Examples: 1 -> A, 26 -> Z, 27 -> AA, 52 -> AZ, 703 -> AAA
+ */
+function columnIndexToLetter(columnIndex: number): string {
+  let letter = '';
+  let n = columnIndex;
+
+  while (n > 0) {
+    const remainder = (n - 1) % 26;
+    letter = String.fromCharCode(65 + remainder) + letter;
+    n = Math.floor((n - 1) / 26);
+  }
+
+  return letter;
+}
+
 export class GoogleSheetsService {
   private accessToken: string;
 
@@ -26,49 +43,66 @@ export class GoogleSheetsService {
    * @returns Array of spreadsheet metadata
    */
   async listSpreadsheets(): Promise<SpreadsheetMetadata[]> {
-    const params = new URLSearchParams({
-      q: "mimeType='application/vnd.google-apps.spreadsheet'",
-      fields: 'files(id,name,webViewLink,createdTime,modifiedTime)',
-      orderBy: 'modifiedTime desc',
-      pageSize: '100',
-    });
+    const allFiles: Array<{
+      id: string;
+      name: string;
+      webViewLink: string;
+      createdTime: string;
+      modifiedTime: string;
+    }> = [];
 
-    const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files?${params}`,
-      {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          Accept: 'application/json',
-        },
+    let pageToken: string | undefined;
+
+    // Implement pagination to retrieve all files
+    do {
+      const params = new URLSearchParams({
+        q: "mimeType='application/vnd.google-apps.spreadsheet'",
+        fields: 'files(id,name,webViewLink,createdTime,modifiedTime),nextPageToken',
+        orderBy: 'modifiedTime desc',
+        pageSize: '100',
+      });
+
+      if (pageToken) {
+        params.set('pageToken', pageToken);
       }
-    );
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('[GoogleSheetsService] API Error:', response.status, error);
-      throw new Error(
-        `Failed to list spreadsheets: ${response.status} ${error}`
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files?${params}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            Accept: 'application/json',
+          },
+        }
       );
-    }
 
-    const data = (await response.json()) as {
-      files?: Array<{
-        id: string;
-        name: string;
-        webViewLink: string;
-        createdTime: string;
-        modifiedTime: string;
-      }>;
-    };
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('[GoogleSheetsService] API Error:', response.status, error);
+        throw new Error(
+          `Failed to list spreadsheets: ${response.status} ${error}`
+        );
+      }
 
-    console.log('[GoogleSheetsService] API Response:', data);
+      const data = (await response.json()) as {
+        files?: Array<{
+          id: string;
+          name: string;
+          webViewLink: string;
+          createdTime: string;
+          modifiedTime: string;
+        }>;
+        nextPageToken?: string;
+      };
 
-    if (!data.files) {
-      console.warn('[GoogleSheetsService] No files array in response');
-      return [];
-    }
+      if (data.files) {
+        allFiles.push(...data.files);
+      }
 
-    return data.files.map((file) => ({
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    return allFiles.map((file) => ({
       id: file.id,
       name: file.name,
       url: file.webViewLink,
@@ -221,7 +255,7 @@ export class GoogleSheetsService {
 
     // 2. Set header values (row 1) and column definitions (row 2)
     console.log(`[GoogleSheetsService] Step 2/3: Writing headers and column definitions...`);
-    const columnLetter = String.fromCharCode(64 + headers.length); // A=65, so headers.length columns
+    const columnLetter = columnIndexToLetter(headers.length);
     const columnDefStrings = columnDefs.map((def) => JSON.stringify(def));
 
     const updateResponse = await fetch(

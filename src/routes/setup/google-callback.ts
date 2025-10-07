@@ -82,10 +82,7 @@ export async function getGoogleCallback(c: Context<{ Bindings: Env }>) {
     return c.redirect('/setup?step=2&status=authenticated');
   } catch (error) {
     console.error('Error in OAuth callback:', error);
-    return c.redirect(
-      `/setup?step=1&error=${encodeURIComponent(
-        error instanceof Error ? error.message : 'Authentication failed'
-      )}`
-    );
+    // Use generic error code instead of exposing error details in URL
+    return c.redirect('/setup?step=1&error=oauth_failed');
   }
 }

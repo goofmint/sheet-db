@@ -23,7 +23,7 @@ import { postComplete } from './complete';
 const setup = new Hono<{ Bindings: Env }>();
 
 // DELETE /api/setup/google-tokens - Clear stored Google OAuth tokens
-setup.delete('/google-tokens', deleteGoogleTokens);
+setup.delete('/google-tokens', setupInProgressMiddleware, deleteGoogleTokens);
 
 // POST /api/setup/google-config - Save Google OAuth2 credentials
 setup.post('/google-config', setupInProgressMiddleware, postGoogleConfig);
@@ -35,7 +35,7 @@ setup.get('/google-auth', getGoogleAuth);
 setup.get('/google-callback', getGoogleCallback);
 
 // GET /api/setup/sheets - Get list of available Google Sheets
-setup.get('/sheets', getSheets);
+setup.get('/sheets', setupInProgressMiddleware, getSheets);
 
 // POST /api/setup/initialize-sheet-stream - Initialize sheets with SSE progress
 setup.post('/initialize-sheet-stream', setupInProgressMiddleware, postInitializeSheetStream);

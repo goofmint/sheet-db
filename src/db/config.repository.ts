@@ -93,6 +93,13 @@ export class ConfigRepository {
   }
 
   /**
+   * Delete configuration value by key
+   */
+  async delete(key: string): Promise<void> {
+    await this.db.delete(config).where(eq(config.key, key));
+  }
+
+  /**
    * Set encrypted configuration value
    */
   async setEncrypted(

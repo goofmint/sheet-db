@@ -13,9 +13,9 @@ export async function deleteGoogleTokens(c: Context<{ Bindings: Env }>) {
     const configRepo = new ConfigRepository(c.env);
 
     // Delete all Google-related tokens from config
-    await configRepo.set('google_access_token', '', 'Cleared');
-    await configRepo.set('google_refresh_token', '', 'Cleared');
-    await configRepo.set('google_token_expires_at', '', 'Cleared');
+    await configRepo.delete('google_access_token');
+    await configRepo.delete('google_refresh_token');
+    await configRepo.delete('google_token_expires_at');
 
     return c.json({ success: true, message: 'Tokens cleared' });
   } catch (error) {

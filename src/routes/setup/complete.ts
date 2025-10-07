@@ -9,6 +9,7 @@ import type { Env } from '../../types/env';
 import { ConfigRepository } from '../../db/config.repository';
 import { GoogleSheetsService } from '../../services/google-sheets.service';
 import type { CompleteSetupRequest } from '../../types/google';
+import { hashPassword } from '../../utils/password';
 
 export async function postComplete(c: Context<{ Bindings: Env }>) {
   try {
@@ -62,19 +63,14 @@ export async function postComplete(c: Context<{ Bindings: Env }>) {
 
     const sheetsService = new GoogleSheetsService(accessToken);
 
-    // Hash password (simple for now - should use bcrypt in production)
-    const encoder = new TextEncoder();
-    const data = encoder.encode(body.adminUser.password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const passwordHash = btoa(
-      String.fromCharCode(...new Uint8Array(hashBuffer))
-    );
+    // Hash password using PBKDF2 with salt
+    const passwordHash = await hashPassword(body.adminUser.password);
 
     // Add admin user to _Users sheet (using correct column structure)
     await sheetsService.appendRow(body.sheetId, '_Users', [
       crypto.randomUUID(), // object_id
       body.adminUser.userId, // username
-      passwordHash, // _password_hash
+      passwordHash, // _password_hash (salt:hash format)
       '', // email (empty for now)
       'Administrator', // name
       'active', // status
