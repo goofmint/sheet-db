@@ -4,7 +4,7 @@ export const renderer = jsxRenderer(({ children }) => {
   return (
     <html lang="en">
       <head>
-        <meta charset="UTF-8" />
+        <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Sheet DB Admin</title>
         <script type="module" src="/static/client.js" />
