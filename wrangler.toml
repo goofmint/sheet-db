@@ -20,6 +20,6 @@ vars = { ENVIRONMENT = "production" }
 # D1 Database binding for production environment
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "sheet-db"
-database_id = "250f9762-08d9-4d28-9739-30e8b0076921"
+database_name = "sheet-db-production"
+database_id = "9a6f7aaa-c7dd-401b-9946-a443a6ba647f"
 migrations_dir = "src/db/migrations"
