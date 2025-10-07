@@ -16,6 +16,7 @@ import { GoogleAuthService } from '../services/google-auth.service';
 import { GoogleSheetsService } from '../services/google-sheets.service';
 import { signState, verifyState } from '../utils/oauth-state';
 import type { CompleteSetupRequest, SheetInitResult } from '../types/google';
+import { setupInProgressMiddleware } from '../middleware/setup';
 
 const setup = new Hono<{ Bindings: Env }>();
 
@@ -48,7 +49,7 @@ setup.delete('/google-tokens', async (c) => {
  *
  * Save Google OAuth2 credentials to config table
  */
-setup.post('/google-config', async (c) => {
+setup.post('/google-config', setupInProgressMiddleware, async (c) => {
   try {
     const body = await c.req.json<{
       clientId: string;
@@ -249,7 +250,7 @@ setup.get('/sheets', async (c) => {
  *
  * Initialize required sheets (_Users, _Roles, _Files) with Server-Sent Events progress
  */
-setup.post('/initialize-sheet-stream', async (c) => {
+setup.post('/initialize-sheet-stream', setupInProgressMiddleware, async (c) => {
   try {
     const body = await c.req.json<{ sheetId: string; sheetName: string }>();
 
@@ -426,7 +427,7 @@ setup.post('/initialize-sheet-stream', async (c) => {
  *
  * Initialize required sheets (_Users, _Roles, _Files) with headers
  */
-setup.post('/initialize-sheet', async (c) => {
+setup.post('/initialize-sheet', setupInProgressMiddleware, async (c) => {
   try {
     const body = await c.req.json<{ sheetId: string }>();
 
@@ -568,7 +569,7 @@ setup.post('/initialize-sheet', async (c) => {
  *
  * Complete initial setup with final configuration
  */
-setup.post('/complete', async (c) => {
+setup.post('/complete', setupInProgressMiddleware, async (c) => {
   try {
     const body = await c.req.json<CompleteSetupRequest>();
 
