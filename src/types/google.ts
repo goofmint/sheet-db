@@ -106,7 +106,6 @@ export interface AdminUserConfig {
  */
 export interface CompleteSetupRequest {
   sheetId: string;
-  sheetName: string;
   fileStorage: FileStorageConfig;
   adminUser: AdminUserConfig;
   masterKey: string;

@@ -859,9 +859,9 @@ const Step3FinalConfiguration: FC = () => {
                   }
                 };
 
+            const urlParams = new URLSearchParams(window.location.search);
             const requestBody = {
-              sheetId: new URLSearchParams(window.location.search).get('sheetId'),
-              sheetName: 'Selected Sheet', // TODO: Get from query or session
+              sheetId: urlParams.get('sheetId'),
               fileStorage,
               adminUser: {
                 userId: formData.get('adminUserId'),

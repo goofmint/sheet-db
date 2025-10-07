@@ -16,8 +16,8 @@ export async function postComplete(c: Context<{ Bindings: Env }>) {
     const body = await c.req.json<CompleteSetupRequest>();
 
     // Validate input
-    if (!body.sheetId || !body.sheetName) {
-      return c.json({ error: 'Missing sheetId or sheetName' }, 400);
+    if (!body.sheetId) {
+      return c.json({ error: 'Missing sheetId' }, 400);
     }
 
     if (!body.fileStorage || !body.fileStorage.type) {
@@ -44,7 +44,7 @@ export async function postComplete(c: Context<{ Bindings: Env }>) {
     }
 
     // 1. Save sheet configuration
-    await configRepo.saveSheetConfig(body.sheetId, body.sheetName);
+    await configRepo.saveSheetConfig(body.sheetId);
 
     // 2. Save file storage configuration
     await configRepo.saveFileStorageConfig(body.fileStorage);

@@ -193,10 +193,8 @@ export class ConfigRepository {
   /**
    * Save selected sheet configuration
    */
-  async saveSheetConfig(sheetId: string, sheetName: string): Promise<void> {
-    // Execute sequentially to avoid database locks in D1
+  async saveSheetConfig(sheetId: string): Promise<void> {
     await this.set('selected_sheet_id', sheetId, 'Selected Google Sheet ID');
-    await this.set('selected_sheet_name', sheetName, 'Selected Google Sheet Name');
   }
 
   /**
