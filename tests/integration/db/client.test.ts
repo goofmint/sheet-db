@@ -8,16 +8,20 @@
  * no mocking is used, following strict project requirements.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, and } from 'drizzle-orm';
-import { getTestEnv } from '../../helpers/test-app';
+import { getTestEnv, cleanupTestEnv } from '../../helpers/test-app';
 import * as schema from '../../../src/db/schema';
 import { createDbClient } from '../../../src/db/client';
 import type { Env } from '../../../src/types/env';
 
 describe('Database Client Integration', () => {
   let env: Env;
+
+  afterAll(async () => {
+    await cleanupTestEnv();
+  });
 
   beforeEach(async () => {
     // Get test environment with real D1 database (no mocking)

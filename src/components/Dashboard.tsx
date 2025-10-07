@@ -178,6 +178,7 @@ export const Dashboard: FC = () => {
           <a
             href="/api/health"
             target="_blank"
+            rel="noopener noreferrer"
             style={{
               display: 'inline-block',
               padding: '10px 20px',

@@ -30,22 +30,30 @@ export async function getTestEnv(): Promise<Env> {
     return cachedEnv;
   }
 
-  const proxy = await getPlatformProxy<Env>();
-  cachedEnv = proxy.env;
-  cachedCleanup = proxy.dispose;
-
-  return cachedEnv;
+  try {
+    const proxy = await getPlatformProxy<Env>();
+    cachedEnv = proxy.env;
+    cachedCleanup = proxy.dispose;
+    return cachedEnv;
+  } catch (error) {
+    throw new Error(
+      `Failed to initialize test environment: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
 }
 
 /**
  * Cleanup test environment
  *
  * Should be called after all tests complete to dispose of the platform proxy.
+ * Call this in afterAll() hooks to ensure proper resource cleanup.
  */
 export async function cleanupTestEnv(): Promise<void> {
   if (cachedCleanup) {
     await cachedCleanup();
-    cachedEnv = null;
-    cachedCleanup = null;
   }
+  cachedEnv = null;
+  cachedCleanup = null;
 }

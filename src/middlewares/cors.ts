@@ -65,6 +65,9 @@ export function cors(options: CorsOptions) {
 
     // Set CORS headers
     c.header('Access-Control-Allow-Origin', responseOrigin);
+    if (responseOrigin !== '*') {
+      c.header('Vary', 'Origin');
+    }
     c.header('Access-Control-Allow-Methods', allowMethods.join(', '));
     c.header('Access-Control-Allow-Headers', allowHeaders.join(', '));
 
