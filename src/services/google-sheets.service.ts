@@ -351,13 +351,13 @@ export class GoogleSheetsService {
         const columns = data.values?.[0] || [];
 
         const requiredColumns = [
-          'id',
+          'object_id',
+          'username',
+          '_password_hash',
           'email',
           'name',
-          'password_hash',
-          'role',
+          'status',
           'created_at',
-          'updated_at',
         ];
         for (const col of requiredColumns) {
           if (!columns.includes(col)) {
