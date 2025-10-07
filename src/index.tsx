@@ -1,28 +1,44 @@
+/**
+ * Main application entry point
+ *
+ * Configures middleware, routes, and exports the Hono application.
+ * This application serves both API endpoints and UI pages.
+ */
+
 import { Hono } from 'hono';
 import { renderer } from './middlewares/renderer';
 import { errorHandler } from './middlewares/error';
+import { defaultCors } from './middlewares/cors';
 import apiRoutes from './routes/api';
+import uiRoutes from './routes/ui';
 import type { Env } from './types/env';
 
 const app = new Hono<{ Bindings: Env }>();
 
-// Error handling middleware
+/**
+ * Global middleware configuration
+ *
+ * Middleware order is critical:
+ * 1. Error handler - Catches and formats all errors
+ * 2. CORS - Handles cross-origin requests (BaaS architecture)
+ * 3. Renderer - Provides JSX rendering capability
+ *
+ * CORS is configured to allow all origins (*) since this is a BaaS.
+ * No credentials flag is set as we allow all origins for maximum compatibility.
+ */
 app.use('*', errorHandler);
-
-// Renderer middleware for frontend
+app.use('*', defaultCors);
 app.use('*', renderer);
 
-// API routes
+/**
+ * Route configuration
+ *
+ * - /api/* - API endpoints (health, version, etc.)
+ * - /* - UI pages (dashboard, settings, setup)
+ *
+ * UI routes are mounted at root to provide clean URLs for pages.
+ */
 app.route('/api', apiRoutes);
-
-// Frontend routes
-app.get('/', (c) => {
-  return c.render(
-    <div>
-      <h1>Sheet DB Admin Dashboard</h1>
-      <p>Welcome to the admin panel</p>
-    </div>
-  );
-});
+app.route('/', uiRoutes);
 
 export default app;
