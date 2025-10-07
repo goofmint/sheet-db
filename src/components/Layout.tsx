@@ -48,7 +48,7 @@ export const Layout: FC<LayoutProps> = ({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{title}</title>
         <style>
-          {`
+          {raw(`
             * {
               box-sizing: border-box;
             }
@@ -75,10 +75,9 @@ export const Layout: FC<LayoutProps> = ({
               display: grid;
               grid-template-rows: 64px 1fr;
               grid-template-columns: 250px 1fr;
-              grid-template-areas:
-                "header header"
-                "sidebar main";
-              min-height: 100vh;
+              grid-template-areas: 'header header' 'sidebar main';
+              height: 100vh;
+              width: 100vw;
             }
             header {
               grid-area: header;
@@ -90,12 +89,11 @@ export const Layout: FC<LayoutProps> = ({
               grid-area: main;
               padding: 24px;
               background-color: #f9fafb;
-              overflow-y: auto;
             }
             a:hover {
               opacity: 0.8;
             }
-          `}
+          `)}
         </style>
       </head>
       <body>
