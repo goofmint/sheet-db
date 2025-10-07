@@ -449,7 +449,6 @@ const Step2SheetSelection: FC<{ sheets?: Array<{ id: string; name: string; url: 
             e.preventDefault();
             const select = document.getElementById('sheetId');
             const sheetId = select.value;
-            const sheetName = select.options[select.selectedIndex].dataset.name;
             const button = e.target.querySelector('button[type="submit"]');
             const originalText = button.textContent;
 
@@ -476,7 +475,7 @@ const Step2SheetSelection: FC<{ sheets?: Array<{ id: string; name: string; url: 
               const res = await fetch('/api/setup/initialize-sheet-stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sheetId, sheetName })
+                body: JSON.stringify({ sheetId })
               });
 
               if (!res.ok) {

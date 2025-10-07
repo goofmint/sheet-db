@@ -11,10 +11,10 @@ import { GoogleSheetsService } from '../../services/google-sheets.service';
 
 export async function postInitializeSheetStream(c: Context<{ Bindings: Env }>) {
   try {
-    const body = await c.req.json<{ sheetId: string; sheetName: string }>();
+    const body = await c.req.json<{ sheetId: string }>();
 
-    if (!body.sheetId || !body.sheetName) {
-      return c.json({ error: 'Missing sheetId or sheetName' }, 400);
+    if (!body.sheetId) {
+      return c.json({ error: 'Missing sheetId' }, 400);
     }
 
     const configRepo = new ConfigRepository(c.env);
@@ -26,9 +26,6 @@ export async function postInitializeSheetStream(c: Context<{ Bindings: Env }>) {
         401
       );
     }
-
-    // Save sheet configuration
-    await configRepo.saveSheetConfig(body.sheetId, body.sheetName);
 
     // Create Server-Sent Events stream
     const stream = new ReadableStream({
