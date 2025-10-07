@@ -5,8 +5,8 @@
  * Compatible with Cloudflare Workers runtime
  *
  * Required OAuth Scopes:
- * - https://www.googleapis.com/auth/spreadsheets (read/write for sheet initialization)
- * - https://www.googleapis.com/auth/drive.readonly (list spreadsheets)
+ * - https://www.googleapis.com/auth/spreadsheets (read/write for sheet operations)
+ * - https://www.googleapis.com/auth/drive.file (access to files created/opened by this app)
  */
 
 import type { Env } from '../types/env';
@@ -52,7 +52,7 @@ export class GoogleAuthService {
       response_type: 'code',
       scope: [
         'https://www.googleapis.com/auth/spreadsheets',
-        'https://www.googleapis.com/auth/drive.readonly',
+        'https://www.googleapis.com/auth/drive.file',
       ].join(' '),
       access_type: 'offline',
       prompt: 'consent',
