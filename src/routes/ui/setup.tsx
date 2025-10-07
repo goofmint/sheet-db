@@ -36,12 +36,16 @@ setup.get('/', async (c) => {
       const configRepo = new ConfigRepository(c.env);
       const accessToken = await configRepo.getGoogleAccessToken();
 
+      console.log('[Setup Step 2] Access token exists:', !!accessToken);
+
       if (!accessToken) {
         return c.redirect('/setup?step=1&error=' + encodeURIComponent('Not authenticated'));
       }
 
       const sheetsService = new GoogleSheetsService(accessToken);
+      console.log('[Setup Step 2] Fetching spreadsheets...');
       const spreadsheets = await sheetsService.listSpreadsheets();
+      console.log('[Setup Step 2] Found spreadsheets:', spreadsheets.length);
 
       sheets = spreadsheets.map((s) => ({
         id: s.id,
@@ -49,6 +53,7 @@ setup.get('/', async (c) => {
         url: s.url,
       }));
     } catch (err) {
+      console.error('[Setup Step 2] Error:', err);
       return c.redirect(
         '/setup?step=1&error=' +
           encodeURIComponent('Failed to load sheets: ' + (err instanceof Error ? err.message : String(err)))

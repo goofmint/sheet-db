@@ -6,7 +6,10 @@
  *
  * Required OAuth Scopes:
  * - https://www.googleapis.com/auth/spreadsheets (read/write for sheet operations)
- * - https://www.googleapis.com/auth/drive.file (access to files created/opened by this app)
+ * - https://www.googleapis.com/auth/drive (full access to Drive for listing and file upload)
+ *
+ * Note: drive.file scope only allows access to files created by this app,
+ * so we need full drive scope to list existing spreadsheets during setup.
  */
 
 import type { Env } from '../types/env';
@@ -52,7 +55,7 @@ export class GoogleAuthService {
       response_type: 'code',
       scope: [
         'https://www.googleapis.com/auth/spreadsheets',
-        'https://www.googleapis.com/auth/drive.file',
+        'https://www.googleapis.com/auth/drive',
       ].join(' '),
       access_type: 'offline',
       prompt: 'consent',
