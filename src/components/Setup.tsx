@@ -450,9 +450,30 @@ const Step2SheetSelection: FC<{ sheets?: Array<{ id: string; name: string; url: 
             const select = document.getElementById('sheetId');
             const sheetId = select.value;
             const sheetName = select.options[select.selectedIndex].dataset.name;
+            const button = e.target.querySelector('button[type="submit"]');
+            const originalText = button.textContent;
+
+            // Disable button and show loading state
+            button.disabled = true;
+            button.style.opacity = '0.6';
+            button.style.cursor = 'not-allowed';
+            button.textContent = 'Initializing...';
+
+            // Create progress display
+            const progressDiv = document.createElement('div');
+            progressDiv.id = 'init-progress';
+            progressDiv.style.marginTop = '16px';
+            progressDiv.style.padding = '16px';
+            progressDiv.style.backgroundColor = '#f3f4f6';
+            progressDiv.style.borderRadius = '6px';
+            progressDiv.style.fontSize = '14px';
+            progressDiv.innerHTML = '<div style="color: #6b7280;">Starting initialization...</div>';
+            e.target.appendChild(progressDiv);
+
+            const progressMessages = {};
 
             try {
-              const res = await fetch('/api/setup/initialize-sheet', {
+              const res = await fetch('/api/setup/initialize-sheet-stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sheetId, sheetName })
@@ -460,14 +481,69 @@ const Step2SheetSelection: FC<{ sheets?: Array<{ id: string; name: string; url: 
 
               if (!res.ok) {
                 const error = await res.json();
-                alert('Failed to initialize sheet: ' + (error.error || 'Unknown error'));
+                progressDiv.innerHTML = '<div style="color: #ef4444;">✗ ' + (error.error || 'Unknown error') + '</div>';
+                button.disabled = false;
+                button.style.opacity = '1';
+                button.style.cursor = 'pointer';
+                button.textContent = originalText;
                 return;
               }
 
-              // Redirect to progress page
-              window.location.href = '/setup?step=2.5&sheetId=' + encodeURIComponent(sheetId);
+              // Process Server-Sent Events
+              const reader = res.body.getReader();
+              const decoder = new TextDecoder();
+              let buffer = '';
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\\n\\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  if (!line.trim()) continue;
+
+                  const eventMatch = line.match(/^event: (.+)$/m);
+                  const dataMatch = line.match(/^data: (.+)$/m);
+
+                  if (eventMatch && dataMatch) {
+                    const eventType = eventMatch[1];
+                    const data = JSON.parse(dataMatch[1]);
+
+                    if (eventType === 'progress') {
+                      progressMessages[data.sheet] = data.message;
+                      let html = '';
+                      for (const [sheet, msg] of Object.entries(progressMessages)) {
+                        html += '<div style="margin: 4px 0;">' + msg + '</div>';
+                      }
+                      progressDiv.innerHTML = html;
+                    } else if (eventType === 'error') {
+                      progressDiv.innerHTML += '<div style="color: #ef4444; margin: 4px 0;">✗ ' + data.message + '</div>';
+                    } else if (eventType === 'complete') {
+                      if (data.success) {
+                        progressDiv.innerHTML += '<div style="color: #10b981; font-weight: 500; margin-top: 12px;">✓ All sheets initialized successfully!</div>';
+                        setTimeout(() => {
+                          window.location.href = '/setup?step=3&sheetId=' + encodeURIComponent(sheetId);
+                        }, 1000);
+                      } else {
+                        progressDiv.innerHTML += '<div style="color: #ef4444; margin-top: 12px;">✗ Initialization completed with errors</div>';
+                        button.disabled = false;
+                        button.style.opacity = '1';
+                        button.style.cursor = 'pointer';
+                        button.textContent = originalText;
+                      }
+                    }
+                  }
+                }
+              }
             } catch (error) {
-              alert('Error: ' + error.message);
+              progressDiv.innerHTML = '<div style="color: #ef4444;">✗ Error: ' + error.message + '</div>';
+              button.disabled = false;
+              button.style.opacity = '1';
+              button.style.cursor = 'pointer';
+              button.textContent = originalText;
             }
           });
         `)}
