@@ -9,16 +9,16 @@
  */
 
 import { Hono } from 'hono';
-import type { Env } from '../types/env';
-import { setupInProgressMiddleware } from '../middleware/setup';
-import { deleteGoogleTokens } from './setup/google-tokens';
-import { postGoogleConfig } from './setup/google-config';
-import { getGoogleAuth } from './setup/google-auth';
-import { getGoogleCallback } from './setup/google-callback';
-import { getSheets } from './setup/sheets';
-import { postInitializeSheetStream } from './setup/initialize-sheet-stream';
-import { postInitializeSheet } from './setup/initialize-sheet';
-import { postComplete } from './setup/complete';
+import type { Env } from '../../types/env';
+import { setupInProgressMiddleware } from '../../middleware/setup';
+import { deleteGoogleTokens } from './google-tokens';
+import { postGoogleConfig } from './google-config';
+import { getGoogleAuth } from './google-auth';
+import { getGoogleCallback } from './google-callback';
+import { getSheets } from './sheets';
+import { postInitializeSheetStream } from './initialize-sheet-stream';
+import { postInitializeSheet } from './initialize-sheet';
+import { postComplete } from './complete';
 
 const setup = new Hono<{ Bindings: Env }>();
 
