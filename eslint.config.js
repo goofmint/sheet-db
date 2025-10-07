@@ -43,6 +43,7 @@ export default [
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': 'error',
       'react/react-in-jsx-scope': 'off',
+      'react/prop-types': 'off', // Hono JSX uses TypeScript for prop validation
     },
     settings: {
       react: {
