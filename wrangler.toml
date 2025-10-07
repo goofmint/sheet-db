@@ -1,0 +1,10 @@
+name = "sheet-db"
+main = "src/index.tsx"
+compatibility_date = "2024-10-01"
+
+[vars]
+ENVIRONMENT = "development"
+
+[env.production]
+name = "sheet-db-production"
+vars = { ENVIRONMENT = "production" }
