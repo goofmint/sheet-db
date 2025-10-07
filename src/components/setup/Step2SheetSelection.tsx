@@ -61,7 +61,10 @@ export const Step2SheetSelection: FC<Step2SheetSelectionProps> = ({
       }
 
       const reader = res.body?.getReader();
-      if (!reader) return;
+      if (!reader) {
+        setIsLoading(false);
+        return;
+      }
 
       const decoder = new TextDecoder();
       let buffer = '';

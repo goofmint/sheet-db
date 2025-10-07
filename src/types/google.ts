@@ -75,15 +75,6 @@ export interface SheetInitResult {
 }
 
 /**
- * File storage configuration
- */
-export interface FileStorageConfig {
-  type: 'google_drive' | 'r2';
-  googleDriveFolderId?: string;
-  r2Config?: R2Config;
-}
-
-/**
  * R2 storage configuration
  */
 export interface R2Config {
@@ -92,6 +83,27 @@ export interface R2Config {
   accessKeyId: string;
   secretAccessKey: string;
 }
+
+/**
+ * Google Drive file storage configuration
+ */
+export interface GoogleDriveFileStorageConfig {
+  type: 'google_drive';
+  googleDriveFolderId: string;
+}
+
+/**
+ * R2 file storage configuration
+ */
+export interface R2FileStorageConfig {
+  type: 'r2';
+  r2Config: R2Config;
+}
+
+/**
+ * File storage configuration (discriminated union)
+ */
+export type FileStorageConfig = GoogleDriveFileStorageConfig | R2FileStorageConfig;
 
 /**
  * Initial admin user configuration

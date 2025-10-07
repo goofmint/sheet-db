@@ -43,6 +43,26 @@ export const Step3FinalConfiguration: FC = () => {
     }
 
     const storageType = formData.get('storageType');
+
+    // Validate storage-specific required fields
+    if (storageType === 'r2') {
+      const r2AccountId = formData.get('r2AccountId');
+      const r2AccessKeyId = formData.get('r2AccessKeyId');
+      const r2SecretAccessKey = formData.get('r2SecretAccessKey');
+      const r2BucketName = formData.get('r2BucketName');
+
+      if (!r2AccountId || !r2AccessKeyId || !r2SecretAccessKey || !r2BucketName) {
+        alert('All R2 fields (Account ID, Access Key, Secret Key, Bucket Name) are required!');
+        return;
+      }
+    } else if (storageType === 'google_drive') {
+      const googleDriveFolderId = formData.get('googleDriveFolderId');
+      if (!googleDriveFolderId) {
+        alert('Google Drive Folder ID is required!');
+        return;
+      }
+    }
+
     const fileStorage = storageType === 'google_drive'
       ? { type: 'google_drive', googleDriveFolderId: formData.get('googleDriveFolderId') }
       : {
@@ -56,8 +76,15 @@ export const Step3FinalConfiguration: FC = () => {
         };
 
     const urlParams = new URLSearchParams(window.location.search);
+    const sheetId = urlParams.get('sheetId');
+
+    if (!sheetId) {
+      alert('Sheet ID is missing. Please go back and select a sheet.');
+      return;
+    }
+
     const requestBody = {
-      sheetId: urlParams.get('sheetId'),
+      sheetId,
       fileStorage,
       adminUser: {
         userId: formData.get('adminUserId'),

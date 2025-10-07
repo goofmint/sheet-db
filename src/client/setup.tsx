@@ -9,7 +9,7 @@ import { Setup } from '../components/Setup';
 try {
   const statusRes = await fetch('/setup/status');
   if (statusRes.ok) {
-    const { completed } = await statusRes.json();
+    const { completed } = await statusRes.json() as { completed: boolean };
     if (completed) {
       const root = document.getElementById('app');
       if (root) {

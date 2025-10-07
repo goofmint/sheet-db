@@ -13,6 +13,7 @@ export interface ColumnDefinition {
   required?: boolean;
   pattern?: string;
   min?: number;
+  [key: string]: unknown;
 }
 
 export interface RequiredSheet {
