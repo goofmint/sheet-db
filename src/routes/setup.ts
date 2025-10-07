@@ -94,6 +94,17 @@ setup.post('/google-config', setupInProgressMiddleware, async (c) => {
  */
 setup.get('/google-auth', async (c) => {
   try {
+    // Check if setup is already completed
+    const configRepo = new ConfigRepository(c.env);
+    const isSetupCompleted = await configRepo.isSetupComplete();
+
+    if (isSetupCompleted) {
+      return c.json(
+        { error: 'Setup already completed. OAuth authentication is not allowed.' },
+        403
+      );
+    }
+
     const authService = new GoogleAuthService(c.env);
 
     // Generate random state token
@@ -144,6 +155,14 @@ setup.get('/google-auth', async (c) => {
  */
 setup.get('/google-callback', async (c) => {
   try {
+    // Check if setup is already completed before processing OAuth callback
+    const configRepoCheck = new ConfigRepository(c.env);
+    const isSetupCompleted = await configRepoCheck.isSetupComplete();
+
+    if (isSetupCompleted) {
+      return c.redirect('/setup?step=2&status=already_configured');
+    }
+
     // Extract state and code from query
     const stateFromQuery = c.req.query('state');
     const code = c.req.query('code');
@@ -591,6 +610,15 @@ setup.post('/complete', setupInProgressMiddleware, async (c) => {
     }
 
     const configRepo = new ConfigRepository(c.env);
+
+    // Double-check setup is not already completed to prevent re-running
+    const isAlreadyCompleted = await configRepo.isSetupComplete();
+    if (isAlreadyCompleted) {
+      return c.json(
+        { error: 'Setup is already completed. Cannot re-run setup.' },
+        409
+      );
+    }
 
     // 1. Save sheet configuration
     await configRepo.saveSheetConfig(body.sheetId, body.sheetName);
