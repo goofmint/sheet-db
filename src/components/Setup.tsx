@@ -122,7 +122,7 @@ const Step1GoogleCredentials: FC = () => {
       <h2 style={{ fontSize: '20px', fontWeight: '600', margin: '0 0 16px 0' }}>
         Google OAuth2 Credentials
       </h2>
-      <p style={{ color: '#6b7280', fontSize: '14px', margin: '0 0 24px 0' }}>
+      <p style={{ color: '#6b7280', fontSize: '14px', margin: '0 0 16px 0' }}>
         Enter your Google Cloud Console OAuth 2.0 credentials. If you don&apos;t have them yet,{' '}
         <a
           href="https://console.cloud.google.com/apis/credentials"
@@ -134,6 +134,39 @@ const Step1GoogleCredentials: FC = () => {
         </a>
         .
       </p>
+
+      <div
+        style={{
+          backgroundColor: '#eff6ff',
+          border: '1px solid #3b82f6',
+          borderRadius: '6px',
+          padding: '12px 16px',
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <div style={{ fontSize: '13px', color: '#1e40af' }}>
+          <strong>Note:</strong> If you changed OAuth scopes, clear existing tokens first
+        </div>
+        <button
+          type="button"
+          id="clear-tokens-btn"
+          style={{
+            backgroundColor: '#ef4444',
+            color: 'white',
+            padding: '6px 12px',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '12px',
+            fontWeight: '500',
+            cursor: 'pointer',
+          }}
+        >
+          Clear Tokens
+        </button>
+      </div>
 
       <form id="google-credentials-form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div>
@@ -237,6 +270,26 @@ const Step1GoogleCredentials: FC = () => {
             }
           });
 
+          // Clear tokens button
+          document.getElementById('clear-tokens-btn').addEventListener('click', async () => {
+            if (!confirm('This will clear all stored Google tokens. You will need to re-authenticate. Continue?')) {
+              return;
+            }
+
+            try {
+              const res = await fetch('/api/setup/google-tokens', { method: 'DELETE' });
+              if (res.ok) {
+                alert('Tokens cleared successfully. Please re-authenticate.');
+                window.location.reload();
+              } else {
+                const error = await res.json();
+                alert('Failed to clear tokens: ' + (error.error || 'Unknown error'));
+              }
+            } catch (error) {
+              alert('Error: ' + error.message);
+            }
+          });
+
           document.getElementById('google-credentials-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -304,7 +357,44 @@ const Step2SheetSelection: FC<{ sheets?: Array<{ id: string; name: string; url: 
       </p>
 
       {sheets.length === 0 ? (
-        <p style={{ color: '#6b7280', fontSize: '14px' }}>Loading sheets...</p>
+        <div>
+          <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '16px' }}>
+            No spreadsheets found in your Google Drive.
+          </p>
+          <div
+            style={{
+              backgroundColor: '#fef3c7',
+              border: '1px solid #f59e0b',
+              borderRadius: '6px',
+              padding: '16px',
+              marginBottom: '16px',
+            }}
+          >
+            <p style={{ margin: '0 0 8px 0', color: '#92400e', fontSize: '14px', fontWeight: '500' }}>
+              ⚠️ Possible Issues:
+            </p>
+            <ul style={{ margin: '0', paddingLeft: '20px', color: '#92400e', fontSize: '13px' }}>
+              <li>Your Google account has no spreadsheets</li>
+              <li>You need to re-authenticate after scope changes</li>
+              <li>The access token may have expired</li>
+            </ul>
+          </div>
+          <a
+            href="/setup?step=1"
+            style={{
+              display: 'inline-block',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              padding: '10px 20px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+            }}
+          >
+            ← Back to Step 1 (Re-authenticate)
+          </a>
+        </div>
       ) : (
         <form id="sheet-selection-form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>

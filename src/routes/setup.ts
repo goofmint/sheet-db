@@ -20,6 +20,30 @@ import type { CompleteSetupRequest, SheetInitResult } from '../types/google';
 const setup = new Hono<{ Bindings: Env }>();
 
 /**
+ * DELETE /api/setup/google-tokens
+ *
+ * Clear stored Google OAuth tokens (for re-authentication)
+ */
+setup.delete('/google-tokens', async (c) => {
+  try {
+    const configRepo = new ConfigRepository(c.env);
+
+    // Delete all Google-related tokens from config
+    await configRepo.set('google_access_token', '', 'Cleared');
+    await configRepo.set('google_refresh_token', '', 'Cleared');
+    await configRepo.set('google_token_expires_at', '', 'Cleared');
+
+    return c.json({ success: true, message: 'Tokens cleared' });
+  } catch (error) {
+    console.error('Error clearing tokens:', error);
+    return c.json(
+      { error: error instanceof Error ? error.message : 'Failed to clear tokens' },
+      500
+    );
+  }
+});
+
+/**
  * POST /api/setup/google-config
  *
  * Save Google OAuth2 credentials to config table

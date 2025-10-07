@@ -27,6 +27,11 @@ setup.get('/', async (c) => {
   const step = Number(c.req.query('step')) || 1;
   const error = c.req.query('error');
 
+  // Debug: Check if we need to re-authenticate due to scope change
+  const configRepo = new ConfigRepository(c.env);
+  const hasTokens = !!(await configRepo.getGoogleAccessToken());
+  console.log('[Setup] Has tokens:', hasTokens, 'Step:', step);
+
   let sheets: Array<{ id: string; name: string; url: string }> | undefined;
   let initProgress: { users: boolean; roles: boolean; files: boolean } | undefined;
 

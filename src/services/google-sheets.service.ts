@@ -45,13 +45,14 @@ export class GoogleSheetsService {
 
     if (!response.ok) {
       const error = await response.text();
+      console.error('[GoogleSheetsService] API Error:', response.status, error);
       throw new Error(
         `Failed to list spreadsheets: ${response.status} ${error}`
       );
     }
 
     const data = (await response.json()) as {
-      files: Array<{
+      files?: Array<{
         id: string;
         name: string;
         webViewLink: string;
@@ -59,6 +60,13 @@ export class GoogleSheetsService {
         modifiedTime: string;
       }>;
     };
+
+    console.log('[GoogleSheetsService] API Response:', data);
+
+    if (!data.files) {
+      console.warn('[GoogleSheetsService] No files array in response');
+      return [];
+    }
 
     return data.files.map((file) => ({
       id: file.id,
