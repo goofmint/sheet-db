@@ -180,7 +180,10 @@ export class GoogleSheetsService {
     headers: string[],
     columnDefs: Record<string, unknown>[]
   ): Promise<void> {
+    console.log(`[GoogleSheetsService] Creating sheet "${sheetTitle}" with ${headers.length} columns...`);
+
     // 1. Create new sheet with frozen rows for header (row 1) and column defs (row 2)
+    console.log(`[GoogleSheetsService] Step 1/3: Creating sheet structure...`);
     const createRequest = {
       requests: [
         {
@@ -214,8 +217,10 @@ export class GoogleSheetsService {
       const error = await createResponse.text();
       throw new Error(`Failed to create sheet: ${createResponse.status} ${error}`);
     }
+    console.log(`[GoogleSheetsService] ✓ Sheet structure created`);
 
     // 2. Set header values (row 1) and column definitions (row 2)
+    console.log(`[GoogleSheetsService] Step 2/3: Writing headers and column definitions...`);
     const columnLetter = String.fromCharCode(64 + headers.length); // A=65, so headers.length columns
     const columnDefStrings = columnDefs.map((def) => JSON.stringify(def));
 
@@ -237,8 +242,10 @@ export class GoogleSheetsService {
       const error = await updateResponse.text();
       throw new Error(`Failed to set headers and column definitions: ${updateResponse.status} ${error}`);
     }
+    console.log(`[GoogleSheetsService] ✓ Headers and column definitions written`);
 
     // 3. Format header row (row 1) and column definition row (row 2)
+    console.log(`[GoogleSheetsService] Step 3/3: Applying formatting...`);
     const sheetId = await this.getSheetIdByTitle(spreadsheetId, sheetTitle);
     const formatRequest = {
       requests: [
@@ -295,6 +302,8 @@ export class GoogleSheetsService {
       const error = await formatResponse.text();
       throw new Error(`Failed to format headers: ${formatResponse.status} ${error}`);
     }
+    console.log(`[GoogleSheetsService] ✓ Formatting applied successfully`);
+    console.log(`[GoogleSheetsService] ✓✓ Sheet "${sheetTitle}" created successfully`);
   }
 
   /**

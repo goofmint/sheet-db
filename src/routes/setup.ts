@@ -347,20 +347,26 @@ setup.post('/initialize-sheet', async (c) => {
     // Create each sheet sequentially (one-by-one to avoid Workers execution time limit)
     for (const sheet of requiredSheets) {
       try {
+        console.log(`[Initialize Sheet] Checking ${sheet.title}...`);
         const exists = await sheetsService.sheetExists(body.sheetId, sheet.title);
         if (!exists) {
+          console.log(`[Initialize Sheet] Creating ${sheet.title}...`);
           await sheetsService.createSheetWithHeaders(
             body.sheetId,
             sheet.title,
             sheet.headers,
             sheet.columnDefs
           );
+          console.log(`[Initialize Sheet] ✓ ${sheet.title} created successfully`);
           result.createdSheets.push(sheet.title);
+        } else {
+          console.log(`[Initialize Sheet] ✓ ${sheet.title} already exists`);
         }
       } catch (error) {
         const errorMsg = `Failed to create ${sheet.title}: ${
           error instanceof Error ? error.message : String(error)
         }`;
+        console.error(`[Initialize Sheet] ✗ ${errorMsg}`);
         result.errors.push(errorMsg);
         result.success = false;
       }
