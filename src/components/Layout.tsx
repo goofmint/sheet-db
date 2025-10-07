@@ -52,9 +52,17 @@ export const Layout: FC<LayoutProps> = ({
             * {
               box-sizing: border-box;
             }
+            html {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+            }
             body {
               margin: 0;
               padding: 0;
+              width: 100%;
+              height: 100%;
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
                 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
                 sans-serif;
@@ -71,26 +79,17 @@ export const Layout: FC<LayoutProps> = ({
                 "header header"
                 "sidebar main";
               min-height: 100vh;
-              width: 100%;
-              height: 100vh;
             }
             header {
               grid-area: header;
-              width: 100%;
-              height: 100%;
             }
             aside {
               grid-area: sidebar;
-              width: 100%;
-              height: 100%;
-              overflow-y: auto;
             }
             main {
               grid-area: main;
               padding: 24px;
               background-color: #f9fafb;
-              width: 100%;
-              height: 100%;
               overflow-y: auto;
             }
             a:hover {
