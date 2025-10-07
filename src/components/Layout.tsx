@@ -71,17 +71,27 @@ export const Layout: FC<LayoutProps> = ({
                 "header header"
                 "sidebar main";
               min-height: 100vh;
+              width: 100%;
+              height: 100vh;
             }
             header {
               grid-area: header;
+              width: 100%;
+              height: 100%;
             }
             aside {
               grid-area: sidebar;
+              width: 100%;
+              height: 100%;
+              overflow-y: auto;
             }
             main {
               grid-area: main;
               padding: 24px;
               background-color: #f9fafb;
+              width: 100%;
+              height: 100%;
+              overflow-y: auto;
             }
             a:hover {
               opacity: 0.8;
