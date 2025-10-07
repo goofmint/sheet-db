@@ -251,10 +251,10 @@ setup.get('/sheets', async (c) => {
  */
 setup.post('/initialize-sheet-stream', async (c) => {
   try {
-    const body = await c.req.json<{ sheetId: string }>();
+    const body = await c.req.json<{ sheetId: string; sheetName: string }>();
 
-    if (!body.sheetId) {
-      return c.json({ error: 'Missing sheetId' }, 400);
+    if (!body.sheetId || !body.sheetName) {
+      return c.json({ error: 'Missing sheetId or sheetName' }, 400);
     }
 
     const configRepo = new ConfigRepository(c.env);
@@ -266,6 +266,9 @@ setup.post('/initialize-sheet-stream', async (c) => {
         401
       );
     }
+
+    // Save sheet configuration
+    await configRepo.saveSheetConfig(body.sheetId, body.sheetName);
 
     // Create Server-Sent Events stream
     const stream = new ReadableStream({
