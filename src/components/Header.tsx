@@ -19,6 +19,7 @@ export const Header: FC<{ environment: string }> = ({ environment }) => {
   return (
     <header
       style={{
+        height: '64px',
         backgroundColor: '#3b82f6',
         color: 'white',
         display: 'flex',

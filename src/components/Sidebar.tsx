@@ -38,9 +38,11 @@ export const Sidebar: FC<{ currentPath: string }> = ({ currentPath }) => {
   return (
     <aside
       style={{
+        width: '250px',
         backgroundColor: '#f9fafb',
         borderRight: '1px solid #e5e7eb',
         padding: '16px 0',
+        minHeight: '100vh',
       }}
     >
       <nav>
