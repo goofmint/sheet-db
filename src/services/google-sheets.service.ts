@@ -167,18 +167,20 @@ export class GoogleSheetsService {
   }
 
   /**
-   * Create a new sheet with headers
+   * Create a new sheet with headers and column definitions
    *
    * @param spreadsheetId - Spreadsheet ID
    * @param sheetTitle - Title for new sheet
    * @param headers - Array of header column names
+   * @param columnDefs - Array of column definition objects (one per column)
    */
   async createSheetWithHeaders(
     spreadsheetId: string,
     sheetTitle: string,
-    headers: string[]
+    headers: string[],
+    columnDefs: Record<string, unknown>[]
   ): Promise<void> {
-    // 1. Create new sheet
+    // 1. Create new sheet with frozen rows for header (row 1) and column defs (row 2)
     const createRequest = {
       requests: [
         {
@@ -188,7 +190,7 @@ export class GoogleSheetsService {
               gridProperties: {
                 rowCount: 1000,
                 columnCount: headers.length,
-                frozenRowCount: 1,
+                frozenRowCount: 2, // Freeze both header and column definition rows
               },
             },
           },
@@ -213,10 +215,12 @@ export class GoogleSheetsService {
       throw new Error(`Failed to create sheet: ${createResponse.status} ${error}`);
     }
 
-    // 2. Set header values
+    // 2. Set header values (row 1) and column definitions (row 2)
     const columnLetter = String.fromCharCode(64 + headers.length); // A=65, so headers.length columns
+    const columnDefStrings = columnDefs.map((def) => JSON.stringify(def));
+
     const updateResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A1:${columnLetter}1?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A1:${columnLetter}2?valueInputOption=RAW`,
       {
         method: 'PUT',
         headers: {
@@ -224,20 +228,21 @@ export class GoogleSheetsService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          values: [headers],
+          values: [headers, columnDefStrings], // Row 1: headers, Row 2: column defs
         }),
       }
     );
 
     if (!updateResponse.ok) {
       const error = await updateResponse.text();
-      throw new Error(`Failed to set headers: ${updateResponse.status} ${error}`);
+      throw new Error(`Failed to set headers and column definitions: ${updateResponse.status} ${error}`);
     }
 
-    // 3. Format header row (bold, background color)
+    // 3. Format header row (row 1) and column definition row (row 2)
     const sheetId = await this.getSheetIdByTitle(spreadsheetId, sheetTitle);
     const formatRequest = {
       requests: [
+        // Format row 1 (headers) - bold with gray background
         {
           repeatCell: {
             range: {
@@ -249,6 +254,23 @@ export class GoogleSheetsService {
               userEnteredFormat: {
                 backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 },
                 textFormat: { bold: true },
+              },
+            },
+            fields: 'userEnteredFormat(backgroundColor,textFormat)',
+          },
+        },
+        // Format row 2 (column definitions) - light blue background
+        {
+          repeatCell: {
+            range: {
+              sheetId: sheetId,
+              startRowIndex: 1,
+              endRowIndex: 2,
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.85, green: 0.92, blue: 0.95 },
+                textFormat: { fontSize: 9 },
               },
             },
             fields: 'userEnteredFormat(backgroundColor,textFormat)',

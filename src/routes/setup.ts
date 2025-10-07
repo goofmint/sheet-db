@@ -274,39 +274,77 @@ setup.post('/initialize-sheet', async (c) => {
       errors: [],
     };
 
-    // Define required sheets with their headers
+    // Define required sheets with their headers and column definitions (per design.md)
     const requiredSheets = [
       {
         title: '_Users',
         headers: [
-          'id',
+          'object_id',
+          'username',
+          '_password_hash',
           'email',
           'name',
-          'password_hash',
-          'role',
+          'status',
           'created_at',
-          'updated_at',
+        ],
+        columnDefs: [
+          { type: 'string', unique: true },
+          { type: 'string', unique: true, required: true },
+          { type: 'string', required: true },
+          { type: 'email', unique: true },
+          { type: 'string' },
+          { type: 'string' },
+          { type: 'date' },
         ],
       },
       {
         title: '_Roles',
-        headers: ['id', 'name', 'permissions', 'created_at', 'updated_at'],
+        headers: ['object_id', 'name', 'users', 'created_at'],
+        columnDefs: [
+          { type: 'string', unique: true },
+          { type: 'string', unique: true, required: true },
+          { type: 'array' },
+          { type: 'date' },
+        ],
       },
       {
         title: '_Files',
         headers: [
-          'id',
-          'name',
-          'path',
-          'size',
-          'mime_type',
-          'uploaded_by',
+          'object_id',
+          'original_name',
+          'storage_provider',
+          'storage_path',
+          'content_type',
+          'size_bytes',
+          'owner_id',
+          'public_read',
+          'public_write',
+          'users_read',
+          'users_write',
+          'roles_read',
+          'roles_write',
           'created_at',
+        ],
+        columnDefs: [
+          { type: 'string', unique: true },
+          { type: 'string', required: true },
+          { type: 'string', pattern: '^(r2|google_drive)$' },
+          { type: 'string' },
+          { type: 'string' },
+          { type: 'number', min: 0 },
+          { type: 'string' },
+          { type: 'boolean' },
+          { type: 'boolean' },
+          { type: 'array' },
+          { type: 'array' },
+          { type: 'array' },
+          { type: 'array' },
+          { type: 'date' },
         ],
       },
     ];
 
-    // Create each sheet if it doesn't exist (idempotent)
+    // Create each sheet sequentially (one-by-one to avoid Workers execution time limit)
     for (const sheet of requiredSheets) {
       try {
         const exists = await sheetsService.sheetExists(body.sheetId, sheet.title);
@@ -314,7 +352,8 @@ setup.post('/initialize-sheet', async (c) => {
           await sheetsService.createSheetWithHeaders(
             body.sheetId,
             sheet.title,
-            sheet.headers
+            sheet.headers,
+            sheet.columnDefs
           );
           result.createdSheets.push(sheet.title);
         }
@@ -397,15 +436,15 @@ setup.post('/complete', async (c) => {
       String.fromCharCode(...new Uint8Array(hashBuffer))
     );
 
-    // Add admin user to _Users sheet
+    // Add admin user to _Users sheet (using correct column structure)
     await sheetsService.appendRow(body.sheetId, '_Users', [
-      body.adminUser.userId,
+      crypto.randomUUID(), // object_id
+      body.adminUser.userId, // username
+      passwordHash, // _password_hash
       '', // email (empty for now)
-      'Administrator',
-      passwordHash,
-      'admin',
-      new Date().toISOString(),
-      new Date().toISOString(),
+      'Administrator', // name
+      'active', // status
+      new Date().toISOString(), // created_at
     ]);
 
     // 5. Mark setup as completed

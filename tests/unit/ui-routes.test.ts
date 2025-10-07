@@ -153,14 +153,6 @@ describe('UI Routes', () => {
       expect(html).toContain('Initial Setup');
     });
 
-    it('should include placeholder content for Task 2.1', async () => {
-      const testEnv = await getTestEnv();
-      const res = await app.request('/setup', {}, testEnv);
-      const html = await res.text();
-
-      expect(html).toContain('Task 2.1');
-    });
-
     it('should describe Google Sheets connection features', async () => {
       const testEnv = await getTestEnv();
       const res = await app.request('/setup', {}, testEnv);
