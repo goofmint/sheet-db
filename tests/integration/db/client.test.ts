@@ -18,7 +18,9 @@ import type { Env } from '../../../src/types/env';
 
 describe('Database Client Integration', () => {
   let env: Env;
-  let cleanup: () => Promise<void>;
+  // Initialize cleanup with noop function to satisfy TypeScript strict mode
+  // Will be overwritten by actual cleanup function from getPlatformProxy
+  let cleanup: () => Promise<void> = async () => {};
 
   beforeEach(async () => {
     // Get platform proxy to access D1 database in local mode
