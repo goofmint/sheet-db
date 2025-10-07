@@ -94,7 +94,7 @@ export async function verifyState(
     const isValid = await crypto.subtle.verify(
       'HMAC',
       key,
-      signature,
+      signature as BufferSource,
       encoder.encode(cookieState)
     );
     return isValid;

@@ -2,6 +2,9 @@ name = "sheet-db"
 main = "src/index.tsx"
 compatibility_date = "2024-10-01"
 
+# Static assets
+assets = { directory = "public" }
+
 [vars]
 ENVIRONMENT = "development"
 ENCRYPTION_KEY = "dev-encryption-key-replace-in-production-32chars"
