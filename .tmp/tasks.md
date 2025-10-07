@@ -32,6 +32,7 @@
 
 #### Task 1.1: プロジェクト初期化・デプロイ環境構築
 
+- [x] ドキュメント作成完了（.tmp/tasks/1.1-project-initialization.md）
 - [ ] package.json作成とTypeScript設定
 - [ ] Vite + React + TypeScript 環境構築
 - [ ] Hono + Cloudflare Workers 基本設定
