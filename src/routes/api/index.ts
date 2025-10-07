@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 import healthRoute from './health';
 import versionRoute from './version';
+import setupRoute from '../setup';
 import type { Env } from '../../types/env';
 
 const api = new Hono<{ Bindings: Env }>();
@@ -16,8 +17,10 @@ const api = new Hono<{ Bindings: Env }>();
  *
  * - /health: Service health check with database status
  * - /version: Application version information
+ * - /setup: Initial setup endpoints (Google OAuth, sheet selection, etc.)
  */
 api.route('/health', healthRoute);
 api.route('/version', versionRoute);
+api.route('/setup', setupRoute);
 
 export default api;

@@ -2,8 +2,13 @@ name = "sheet-db"
 main = "src/index.tsx"
 compatibility_date = "2024-10-01"
 
+# Static assets
+assets = { directory = "public" }
+
 [vars]
 ENVIRONMENT = "development"
+ENCRYPTION_KEY = "dev-encryption-key-replace-in-production-32chars"
+OAUTH_STATE_SECRET = "dev-oauth-state-secret-replace-in-production-32chars"
 
 # D1 Database binding for development environment
 [[d1_databases]]

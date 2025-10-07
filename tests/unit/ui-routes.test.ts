@@ -9,7 +9,7 @@
  * - HTML content validation
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import app from '../../src/index.tsx';
 import { getTestEnv } from '../helpers/test-app';
 
@@ -117,6 +117,14 @@ describe('UI Routes', () => {
   });
 
   describe('Setup Page (/setup)', () => {
+    // Clear setup_completed flag before each test
+    beforeEach(async () => {
+      const env = await getTestEnv();
+      await env.DB.prepare('DELETE FROM config WHERE key = ?')
+        .bind('setup_completed')
+        .run();
+    });
+
     it('should return 200 status code', async () => {
       const testEnv = await getTestEnv();
       const res = await app.request('/setup', {
@@ -151,14 +159,6 @@ describe('UI Routes', () => {
       const html = await res.text();
 
       expect(html).toContain('Initial Setup');
-    });
-
-    it('should include placeholder content for Task 2.1', async () => {
-      const testEnv = await getTestEnv();
-      const res = await app.request('/setup', {}, testEnv);
-      const html = await res.text();
-
-      expect(html).toContain('Task 2.1');
     });
 
     it('should describe Google Sheets connection features', async () => {
