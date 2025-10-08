@@ -152,7 +152,7 @@ export class SettingDefinitionService {
         defaultValue: '',
       },
       {
-        key: 'googleDriveFolderId',
+        key: 'google_drive_folder_id',
         label: 'Google Drive Folder ID',
         description: 'Google Drive folder for file storage',
         category: 'file',
@@ -162,7 +162,7 @@ export class SettingDefinitionService {
 
       // Cache Settings
       {
-        key: 'cacheTTL',
+        key: 'cache_ttl',
         label: 'Cache TTL',
         description: 'Cache time-to-live in seconds',
         category: 'cache',
@@ -171,7 +171,7 @@ export class SettingDefinitionService {
         validation: { min: 0, max: 86400 }, // 0 - 24 hours
       },
       {
-        key: 'cacheEnabled',
+        key: 'cache_enabled',
         label: 'Cache Enabled',
         description: 'Enable or disable caching',
         category: 'cache',
@@ -199,7 +199,7 @@ export class SettingDefinitionService {
         sensitive: true,
       },
       {
-        key: 'sessionTimeout',
+        key: 'session_timeout',
         label: 'Session Timeout',
         description: 'Session timeout in seconds',
         category: 'security',
@@ -208,19 +208,15 @@ export class SettingDefinitionService {
         validation: { min: 60, max: 86400 }, // 1 minute - 24 hours
       },
       {
-        key: 'masterKey',
-        label: 'Master Key',
-        description: 'System master key for administrative access',
-        category: 'security',
-        type: 'password',
-        defaultValue: '',
-        validation: { required: true },
-        sensitive: true,
+        key: 'rate_limit_enabled',
+        label: 'Rate Limit Enabled',
+        description: 'Enable or disable API rate limiting',
+        category: 'rateLimit',
+        type: 'boolean',
+        defaultValue: true,
       },
-
-      // Rate Limiting Settings
       {
-        key: 'rateLimitRequests',
+        key: 'rate_limit_requests',
         label: 'Rate Limit Requests',
         description: 'Maximum number of requests per time window',
         category: 'rateLimit',
@@ -229,7 +225,7 @@ export class SettingDefinitionService {
         validation: { min: 1, max: 10000 },
       },
       {
-        key: 'rateLimitWindow',
+        key: 'rate_limit_window',
         label: 'Rate Limit Window',
         description: 'Time window for rate limiting in seconds',
         category: 'rateLimit',
