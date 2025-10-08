@@ -199,6 +199,11 @@ settings.get('/', requireAuth, requireAdministrator, (c) => {
                     value = element.value;
                 }
 
+                // Skip sensitive settings if empty or null
+                if (def.sensitive && (value === '' || value === null)) {
+                  return;
+                }
+
                 updatedSettings[def.key] = value;
               });
 

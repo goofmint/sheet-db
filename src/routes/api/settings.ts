@@ -141,16 +141,20 @@ app.put('/', requireAuth, requireAdministrator, async (c) => {
     }
 
     // Get old value for audit log
+    const definition = definitionService.getDefinition(key);
+    const isSensitive = definition?.sensitive === true;
     const oldValue = await configRepo.getSetting(key);
 
     // Normalize and save value
     const normalizedValue = validator.normalizeValue(key, value);
-    await configRepo.updateSetting(key, normalizedValue);
+    if (isSensitive) {
+      await configRepo.setEncrypted(key, normalizedValue);
+    } else {
+      await configRepo.updateSetting(key, normalizedValue);
+    }
 
     // Log the change
     const userSession = c.get('userSession') as UserSession;
-    const definition = definitionService.getDefinition(key);
-    const isSensitive = definition?.sensitive === true;
     await auditRepo.logChange({
       userId: userSession.userId,
       action: oldValue ? 'update' : 'create',
@@ -247,14 +251,18 @@ app.put('/bulk', requireAuth, requireAdministrator, async (c) => {
     // Update all settings and create audit logs
     const userSession = c.get('userSession') as UserSession;
     for (const [key, normalizedValue] of Object.entries(normalizedSettings)) {
+      const definition = definitionService.getDefinition(key);
+      const isSensitive = definition?.sensitive === true;
       const oldValue = await configRepo.getSetting(key);
 
-      await configRepo.updateSetting(key, normalizedValue);
+      if (isSensitive) {
+        await configRepo.setEncrypted(key, normalizedValue);
+      } else {
+        await configRepo.updateSetting(key, normalizedValue);
+      }
       updateCount++;
 
       // Log each change
-      const definition = definitionService.getDefinition(key);
-      const isSensitive = definition?.sensitive === true;
       await auditRepo.logChange({
         userId: userSession.userId,
         action: oldValue ? 'update' : 'create',
