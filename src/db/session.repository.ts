@@ -83,10 +83,11 @@ export class SessionRepository {
    */
   async cleanupExpiredSessions(): Promise<number> {
     const now = new Date();
-    const result = await this.db
+    await this.db
       .delete(userSessions)
       .where(lt(userSessions.expires_at, now));
 
-    return result.rowsAffected || 0;
+    // D1 doesn't return rowsAffected, so we return 0
+    return 0;
   }
 }

@@ -6,10 +6,7 @@
 import { Hono } from 'hono';
 import { setCookie, deleteCookie } from 'hono/cookie';
 import type { Env, ContextVariables } from '../../types/env';
-import { ConfigRepository } from '../../db/config.repository';
-import { SessionRepository } from '../../db/session.repository';
-import { GoogleSheetsService } from '../../services/google-sheets.service';
-import { verifyPassword } from '../../utils/password';
+import { AuthService } from '../../services/auth.service';
 import { requireAuth } from '../../middleware/auth';
 
 const auth = new Hono<{ Bindings: Env; Variables: ContextVariables }>();
@@ -41,115 +38,38 @@ auth.post('/login', async (c) => {
       );
     }
 
-    const configRepo = new ConfigRepository(c.env);
+    const authService = new AuthService(c.env);
+    const result = await authService.login({ username, password });
 
-    // Check if setup is completed
-    const isSetupComplete = await configRepo.isSetupComplete();
-    if (!isSetupComplete) {
+    if (!result.success) {
+      const statusCode =
+        result.message === 'System setup not completed. Please complete setup first.'
+          ? 503
+          : result.message === 'System not configured'
+            ? 500
+            : result.message === 'User account is not active'
+              ? 403
+              : 401;
+
       return c.json(
-        {
-          success: false,
-          message: 'System setup not completed. Please complete setup first.',
-        },
-        503
+        { success: false, message: result.message },
+        statusCode
       );
     }
-
-    // Get Google Sheets access token and sheet ID
-    const accessToken = await configRepo.getGoogleAccessToken();
-    const sheetId = await configRepo.getSheetId();
-
-    if (!accessToken || !sheetId) {
-      return c.json(
-        { success: false, message: 'System not configured' },
-        500
-      );
-    }
-
-    const sheetsService = new GoogleSheetsService(accessToken);
-
-    // Get user from _Users sheet (include private columns like _password_hash)
-    const usersData = await sheetsService.getSheetData(sheetId, '_Users', {
-      includePrivateColumns: true,
-    });
-    const user = usersData.find((row) => row.username === username);
-
-    if (!user) {
-      return c.json(
-        { success: false, message: 'Invalid username or password' },
-        401
-      );
-    }
-
-    // Verify password
-    const passwordHash = user._password_hash as string;
-    const isValid = await verifyPassword(password, passwordHash);
-
-    if (!isValid) {
-      return c.json(
-        { success: false, message: 'Invalid username or password' },
-        401
-      );
-    }
-
-    // Check user status
-    if (user.status !== 'active') {
-      return c.json(
-        { success: false, message: 'User account is not active' },
-        403
-      );
-    }
-
-    // Get user roles
-    const userId = user.object_id as string;
-    const rolesData = await sheetsService.getSheetData(sheetId, '_Roles');
-    const userRoles: string[] = [];
-
-    for (const role of rolesData) {
-      const usersInRole = role.users as string;
-      let userIds: string[] = [];
-      if (usersInRole) {
-        try {
-          const parsed = JSON.parse(usersInRole);
-          if (Array.isArray(parsed)) {
-            userIds = parsed;
-          }
-        } catch (err) {
-          console.warn('[auth] 役割データの JSON 解析に失敗したぞ:', err);
-          continue;
-        }
-      }
-      if (userIds.includes(userId)) {
-        userRoles.push(role.name as string);
-      }
-    }
-
-    // Create session
-    const sessionRepo = new SessionRepository(c.env);
-    const sessionId = crypto.randomUUID();
-    const sessionTimeout = await configRepo.getSetting('session_timeout');
-    const parsedTimeout = sessionTimeout ? Number(sessionTimeout) : NaN;
-    const timeoutSeconds = Number.isFinite(parsedTimeout) ? parsedTimeout : 3600; // Default 1 hour
-    const expiresAt = new Date(Date.now() + timeoutSeconds * 1000);
-
-    await sessionRepo.createSession(sessionId, userId, expiresAt);
 
     // Set session cookie
-    setCookie(c, 'session_id', sessionId, {
+    setCookie(c, 'session_id', result.sessionId!, {
       path: '/',
       httpOnly: true,
       secure: c.env.ENVIRONMENT === 'production',
       sameSite: 'Lax',
-      expires: expiresAt,
+      expires: result.expiresAt!,
     });
 
     return c.json({
       success: true,
-      message: 'Login successful',
-      user: {
-        userId,
-        username,
-      },
+      message: result.message,
+      user: result.user,
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -175,11 +95,11 @@ auth.post('/login', async (c) => {
  */
 auth.post('/logout', requireAuth, async (c) => {
   try {
-    const sessionRepo = new SessionRepository(c.env);
     const sessionId = c.req.header('cookie')?.match(/session_id=([^;]+)/)?.[1];
 
     if (sessionId) {
-      await sessionRepo.deleteSession(sessionId);
+      const authService = new AuthService(c.env);
+      await authService.logout(sessionId);
     }
 
     // Delete session cookie
