@@ -38,10 +38,30 @@ app.get('/', requireAuth, requireAdministrator, async (c) => {
     // Get all settings from database
     const rawSettings = await configRepo.getAllSettings();
 
-    // Parse values according to their type definitions
-    const settings: Record<string, SettingValue> = {};
-    for (const [key, value] of Object.entries(rawSettings)) {
-      settings[key] = validator.parseValue(key, value);
+    // Parse values according to their type definitions, hiding any sensitive entries
+    const settings: Record<string, SettingValue | null> = {};
+    for (const definition of definitionService.getAllDefinitions()) {
+      const storedValue = rawSettings[definition.key];
+
+      // If nothing is stored yet, fall back to default (or null for sensitive)
+      if (storedValue === undefined) {
+        settings[definition.key] = definition.sensitive
+          ? null
+          : definition.defaultValue;
+        continue;
+      }
+
+      // Mask any sensitive setting
+      if (definition.sensitive) {
+        settings[definition.key] = null;
+        continue;
+      }
+
+      // Otherwise parse normally
+      settings[definition.key] = validator.parseValue(
+        definition.key,
+        storedValue,
+      );
     }
 
     // Get all setting definitions
@@ -129,13 +149,15 @@ app.put('/', requireAuth, requireAdministrator, async (c) => {
 
     // Log the change
     const userSession = c.get('userSession') as UserSession;
+    const definition = definitionService.getDefinition(key);
+    const isSensitive = definition?.sensitive === true;
     await auditRepo.logChange({
       userId: userSession.userId,
       action: oldValue ? 'update' : 'create',
       targetType: 'config',
       targetKey: key,
-      oldValue: oldValue ?? undefined,
-      newValue: normalizedValue,
+      oldValue: isSensitive ? undefined : oldValue ?? undefined,
+      newValue: isSensitive ? '[REDACTED]' : normalizedValue,
       ipAddress: c.req.header('cf-connecting-ip'),
       userAgent: c.req.header('user-agent'),
     });
@@ -231,13 +253,15 @@ app.put('/bulk', requireAuth, requireAdministrator, async (c) => {
       updateCount++;
 
       // Log each change
+      const definition = definitionService.getDefinition(key);
+      const isSensitive = definition?.sensitive === true;
       await auditRepo.logChange({
         userId: userSession.userId,
         action: oldValue ? 'update' : 'create',
         targetType: 'config',
         targetKey: key,
-        oldValue: oldValue ?? undefined,
-        newValue: normalizedValue,
+        oldValue: isSensitive ? undefined : oldValue ?? undefined,
+        newValue: isSensitive ? '[REDACTED]' : normalizedValue,
         ipAddress: c.req.header('cf-connecting-ip'),
         userAgent: c.req.header('user-agent'),
       });

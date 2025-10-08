@@ -25,10 +25,10 @@ describe('SettingDefinitionService', () => {
 
   test('getDefinition returns specific definition by key', () => {
     const service = new SettingDefinitionService();
-    const def = service.getDefinition('maxFileSize');
+    const def = service.getDefinition('max_file_size');
 
     expect(def).toBeDefined();
-    expect(def?.key).toBe('maxFileSize');
+    expect(def?.key).toBe('max_file_size');
     expect(def?.type).toBe('number');
   });
 

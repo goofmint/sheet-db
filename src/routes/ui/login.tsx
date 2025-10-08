@@ -185,7 +185,11 @@ login.get('/', async (c) => {
                   if (response.ok) {
                     const data = await response.json();
                     // Redirect to intended page or settings
-                    const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/settings';
+                    const redirectParam = new URLSearchParams(window.location.search).get('redirect');
+                    const redirectTo =
+                      redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')
+                        ? redirectParam
+                        : '/settings';
                     window.location.href = redirectTo;
                   } else {
                     // Show error

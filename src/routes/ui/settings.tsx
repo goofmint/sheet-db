@@ -83,6 +83,17 @@ settings.get('/', requireAuth, requireAdministrator, (c) => {
               }
             }
 
+            // HTML escape helper function
+            function escapeHtml(str) {
+              if (str === null || str === undefined) return '';
+              return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+            }
+
             // Render settings UI grouped by category
             function renderSettings() {
               const categories = {};
@@ -99,8 +110,9 @@ settings.get('/', requireAuth, requireAdministrator, (c) => {
               let html = '';
 
               Object.entries(categories).forEach(([category, defs]) => {
+                const safeCategory = escapeHtml(category);
                 html += '<div style="background:white;border-radius:8px;padding:24px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.1);border:1px solid #e5e7eb;">';
-                html += '<h2 style="font-size:20px;font-weight:600;margin:0 0 16px 0;text-transform:capitalize;">' + category + '</h2>';
+                html += '<h2 style="font-size:20px;font-weight:600;margin:0 0 16px 0;text-transform:capitalize;">' + safeCategory + '</h2>';
 
                 defs.forEach(def => {
                   const value = currentSettings[def.key] ?? def.defaultValue;
@@ -122,6 +134,8 @@ settings.get('/', requireAuth, requireAdministrator, (c) => {
             function renderSetting(def, value) {
               let inputHtml = '';
               const inputStyle = 'width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;';
+              const safeLabel = escapeHtml(def.label);
+              const safeDescription = escapeHtml(def.description);
               const required = def.validation?.required ? 'required' : '';
               const requiredMark = def.validation?.required ? '<span style="color:#ef4444;">*</span>' : '';
 
@@ -130,24 +144,24 @@ settings.get('/', requireAuth, requireAdministrator, (c) => {
                   inputHtml = '<input type="checkbox" id="' + def.key + '" ' + (value ? 'checked' : '') + ' onchange="markDirty()" style="width:20px;height:20px;cursor:pointer;" />';
                   break;
                 case 'number':
-                  inputHtml = '<input type="number" id="' + def.key + '" value="' + value + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" ';
+                  inputHtml = '<input type="number" id="' + def.key + '" value="' + escapeHtml(value) + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" ';
                   if (def.validation?.min !== undefined) inputHtml += 'min="' + def.validation.min + '" ';
                   if (def.validation?.max !== undefined) inputHtml += 'max="' + def.validation.max + '" ';
                   inputHtml += '/>';
                   break;
                 case 'password':
-                  inputHtml = '<input type="password" id="' + def.key + '" value="' + value + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" />';
+                  inputHtml = '<input type="password" id="' + def.key + '" value="' + escapeHtml(value) + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" />';
                   break;
                 case 'array':
-                  inputHtml = '<input type="text" id="' + def.key + '" value="' + (Array.isArray(value) ? value.join(',') : '') + '" onchange="markDirty()" ' + required + ' placeholder="Comma-separated values" style="' + inputStyle + '" />';
+                  inputHtml = '<input type="text" id="' + def.key + '" value="' + escapeHtml(Array.isArray(value) ? value.join(',') : '') + '" onchange="markDirty()" ' + required + ' placeholder="Comma-separated values" style="' + inputStyle + '" />';
                   break;
                 default:
-                  inputHtml = '<input type="text" id="' + def.key + '" value="' + value + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" />';
+                  inputHtml = '<input type="text" id="' + def.key + '" value="' + escapeHtml(value) + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" />';
               }
 
               return '<div style="margin-bottom:16px;">' +
-                '<label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">' + def.label + ' ' + requiredMark + '</label>' +
-                '<p style="color:#6b7280;font-size:12px;margin:0 0 8px 0;">' + def.description + '</p>' +
+                '<label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">' + safeLabel + ' ' + requiredMark + '</label>' +
+                '<p style="color:#6b7280;font-size:12px;margin:0 0 8px 0;">' + safeDescription + '</p>' +
                 inputHtml +
                 '</div>';
             }

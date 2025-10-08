@@ -106,7 +106,18 @@ auth.post('/login', async (c) => {
 
     for (const role of rolesData) {
       const usersInRole = role.users as string;
-      const userIds = usersInRole ? JSON.parse(usersInRole) : [];
+      let userIds: string[] = [];
+      if (usersInRole) {
+        try {
+          const parsed = JSON.parse(usersInRole);
+          if (Array.isArray(parsed)) {
+            userIds = parsed;
+          }
+        } catch (err) {
+          console.warn('[auth] 役割データの JSON 解析に失敗したぞ:', err);
+          continue;
+        }
+      }
       if (userIds.includes(userId)) {
         userRoles.push(role.name as string);
       }
@@ -115,7 +126,8 @@ auth.post('/login', async (c) => {
     // Create session
     const sessionId = crypto.randomUUID();
     const sessionTimeout = await configRepo.getSetting('session_timeout');
-    const timeoutSeconds = sessionTimeout ? parseInt(sessionTimeout) : 3600; // Default 1 hour
+    const parsedTimeout = sessionTimeout ? Number(sessionTimeout) : NaN;
+    const timeoutSeconds = Number.isFinite(parsedTimeout) ? parsedTimeout : 3600; // Default 1 hour
     const expiresAt = new Date(Date.now() + timeoutSeconds * 1000);
 
     await configRepo.saveSession(
