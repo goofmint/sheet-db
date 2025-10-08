@@ -269,4 +269,66 @@ export class ConfigRepository {
     const value = await this.get('setup_completed');
     return value === 'true';
   }
+
+  /**
+   * Get all configuration settings as key-value pairs
+   * Used by settings management UI
+   *
+   * @returns Record of all configuration keys and their values
+   */
+  async getAllSettings(): Promise<Record<string, string>> {
+    const results = await this.db.select().from(config);
+
+    const settings: Record<string, string> = {};
+    for (const row of results) {
+      settings[row.key] = row.value;
+    }
+
+    return settings;
+  }
+
+  /**
+   * Get specific setting by key (alias for get method)
+   * Provided for consistency with Task 2.2 API specification
+   *
+   * @param key - Configuration key
+   * @returns Configuration value or null if not found
+   */
+  async getSetting(key: string): Promise<string | null> {
+    return this.get(key);
+  }
+
+  /**
+   * Update a single setting
+   * Alias for set method, provided for API consistency
+   *
+   * @param key - Configuration key
+   * @param value - Configuration value
+   */
+  async updateSetting(key: string, value: string): Promise<void> {
+    await this.set(key, value);
+  }
+
+  /**
+   * Update multiple settings in bulk
+   * Each setting is updated sequentially to avoid D1 transaction issues
+   *
+   * @param settings - Record of configuration keys and values
+   */
+  async updateSettings(settings: Record<string, string>): Promise<void> {
+    // Execute sequentially to avoid database locks in D1
+    for (const [key, value] of Object.entries(settings)) {
+      await this.set(key, value);
+    }
+  }
+
+  /**
+   * Delete a configuration setting
+   * Alias for delete method, provided for API consistency
+   *
+   * @param key - Configuration key to delete
+   */
+  async deleteSetting(key: string): Promise<void> {
+    await this.delete(key);
+  }
 }
