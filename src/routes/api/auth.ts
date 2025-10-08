@@ -42,6 +42,18 @@ auth.post('/login', async (c) => {
 
     const configRepo = new ConfigRepository(c.env);
 
+    // Check if setup is completed
+    const isSetupComplete = await configRepo.isSetupComplete();
+    if (!isSetupComplete) {
+      return c.json(
+        {
+          success: false,
+          message: 'System setup not completed. Please complete setup first.',
+        },
+        503
+      );
+    }
+
     // Get Google Sheets access token and sheet ID
     const accessToken = await configRepo.getGoogleAccessToken();
     const sheetId = await configRepo.getSheetId();

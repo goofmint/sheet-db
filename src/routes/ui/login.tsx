@@ -13,9 +13,19 @@ const login = new Hono<{ Bindings: Env }>();
 /**
  * GET /login - Login page
  */
-login.get('/', (c) => {
+login.get('/', async (c) => {
   const environment = c.env.ENVIRONMENT || 'development';
   const error = c.req.query('error');
+
+  // Check if setup is completed
+  const { ConfigRepository } = await import('../../db/config.repository');
+  const configRepo = new ConfigRepository(c.env);
+  const isSetupComplete = await configRepo.isSetupComplete();
+
+  // Redirect to setup if not completed
+  if (!isSetupComplete) {
+    return c.redirect('/setup');
+  }
 
   return c.html(
     <Layout
