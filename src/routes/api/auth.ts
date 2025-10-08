@@ -55,8 +55,10 @@ auth.post('/login', async (c) => {
 
     const sheetsService = new GoogleSheetsService(accessToken);
 
-    // Get user from _Users sheet
-    const usersData = await sheetsService.getSheetData(sheetId, '_Users');
+    // Get user from _Users sheet (include private columns like _password_hash)
+    const usersData = await sheetsService.getSheetData(sheetId, '_Users', {
+      includePrivateColumns: true,
+    });
     const user = usersData.find((row) => row.username === username);
 
     if (!user) {

@@ -420,7 +420,8 @@ export class GoogleSheetsService {
    */
   async getSheetData(
     spreadsheetId: string,
-    sheetTitle: string
+    sheetTitle: string,
+    options?: { includePrivateColumns?: boolean }
   ): Promise<Array<Record<string, string | number | boolean>>> {
     // Get headers (row 1) and all data (from row 3 onwards)
     const headersResponse = await fetch(
@@ -466,11 +467,13 @@ export class GoogleSheetsService {
 
     const rows = data.values || [];
 
-    // Convert rows to objects using headers as keys, excluding columns starting with _
+    // Convert rows to objects using headers as keys
+    // Exclude columns starting with _ unless includePrivateColumns is true
+    const includePrivate = options?.includePrivateColumns ?? false;
     return rows.map((row) => {
       const rowObject: Record<string, string | number | boolean> = {};
       headers.forEach((header, index) => {
-        if (!header.startsWith('_')) {
+        if (includePrivate || !header.startsWith('_')) {
           rowObject[header] = row[index] ?? '';
         }
       });
