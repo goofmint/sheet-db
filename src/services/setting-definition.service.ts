@@ -56,7 +56,7 @@ export class SettingDefinitionService {
     return [
       // Google API Settings
       {
-        key: 'googleClientId',
+        key: 'google_client_id',
         label: 'Google Client ID',
         description: 'Google OAuth 2.0 Client ID for authentication',
         category: 'google',
@@ -65,7 +65,7 @@ export class SettingDefinitionService {
         validation: { required: true },
       },
       {
-        key: 'googleClientSecret',
+        key: 'google_client_secret',
         label: 'Google Client Secret',
         description: 'Google OAuth 2.0 Client Secret',
         category: 'google',
@@ -75,7 +75,7 @@ export class SettingDefinitionService {
         sensitive: true,
       },
       {
-        key: 'googleSheetId',
+        key: 'selected_sheet_id',
         label: 'Google Sheet ID',
         description: 'Main Google Sheet ID for data storage',
         category: 'google',
@@ -86,7 +86,7 @@ export class SettingDefinitionService {
 
       // File Management Settings
       {
-        key: 'maxFileSize',
+        key: 'max_file_size',
         label: 'Maximum File Size',
         description: 'Maximum file upload size in bytes',
         category: 'file',
@@ -112,7 +112,7 @@ export class SettingDefinitionService {
         validation: { enum: ['r2', 'google_drive'] },
       },
       {
-        key: 'r2AccountId',
+        key: 'r2_account_id',
         label: 'R2 Account ID',
         description: 'Cloudflare R2 Account ID',
         category: 'file',
@@ -120,7 +120,7 @@ export class SettingDefinitionService {
         defaultValue: '',
       },
       {
-        key: 'r2AccessKeyId',
+        key: 'r2_access_key_id',
         label: 'R2 Access Key ID',
         description: 'Cloudflare R2 Access Key ID',
         category: 'file',
@@ -129,7 +129,7 @@ export class SettingDefinitionService {
         sensitive: true,
       },
       {
-        key: 'r2SecretAccessKey',
+        key: 'r2_secret_access_key',
         label: 'R2 Secret Access Key',
         description: 'Cloudflare R2 Secret Access Key',
         category: 'file',
@@ -138,7 +138,7 @@ export class SettingDefinitionService {
         sensitive: true,
       },
       {
-        key: 'r2BucketName',
+        key: 'r2_bucket_name',
         label: 'R2 Bucket Name',
         description: 'Cloudflare R2 Bucket Name',
         category: 'file',
