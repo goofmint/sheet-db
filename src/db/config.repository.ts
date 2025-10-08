@@ -178,9 +178,87 @@ export class ConfigRepository {
 
   /**
    * Get Google access token
+   * Automatically refreshes the token if it has expired
    */
   async getGoogleAccessToken(): Promise<string | null> {
+    const expiresAtStr = await this.get('google_token_expires_at');
+
+    if (!expiresAtStr) {
+      return this.getDecrypted('google_access_token');
+    }
+
+    const expiresAt = new Date(expiresAtStr);
+    const now = new Date();
+
+    // Check if token is expired or will expire in the next 5 minutes
+    if (expiresAt <= new Date(now.getTime() + 5 * 60 * 1000)) {
+      // Token is expired or expiring soon, refresh it
+      const refreshed = await this.refreshGoogleAccessToken();
+      if (refreshed) {
+        return this.getDecrypted('google_access_token');
+      }
+    }
+
     return this.getDecrypted('google_access_token');
+  }
+
+  /**
+   * Refresh Google access token using refresh token
+   * @returns true if refresh was successful
+   */
+  private async refreshGoogleAccessToken(): Promise<boolean> {
+    try {
+      const credentials = await this.getGoogleCredentials();
+      const refreshToken = await this.getGoogleRefreshToken();
+
+      if (!credentials || !refreshToken) {
+        console.error('[ConfigRepository] Missing credentials or refresh token');
+        return false;
+      }
+
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: credentials.clientId,
+          client_secret: credentials.clientSecret,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('[ConfigRepository] Failed to refresh token:', error);
+        return false;
+      }
+
+      const data = (await response.json()) as {
+        access_token: string;
+        expires_in: number;
+      };
+
+      const expiresAt = new Date(Date.now() + data.expires_in * 1000);
+
+      await this.setEncrypted(
+        'google_access_token',
+        data.access_token,
+        'Google OAuth2 Access Token (encrypted)'
+      );
+      await this.set(
+        'google_token_expires_at',
+        expiresAt.toISOString(),
+        'Google OAuth2 Token Expiry Time'
+      );
+
+      console.log('[ConfigRepository] Successfully refreshed Google access token');
+      return true;
+    } catch (error) {
+      console.error('[ConfigRepository] Error refreshing token:', error);
+      return false;
+    }
   }
 
   /**
