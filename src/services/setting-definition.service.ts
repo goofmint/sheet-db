@@ -95,12 +95,18 @@ export class SettingDefinitionService {
         validation: { min: 1024, max: 104857600 }, // 1KB - 100MB
       },
       {
-        key: 'allowedFileTypes',
+        key: 'allowed_file_types',
         label: 'Allowed File Types',
         description: 'Comma-separated list of allowed MIME types',
         category: 'file',
         type: 'array',
-        defaultValue: [],
+        defaultValue: [
+          'image/jpeg',
+          'image/png',
+          'image/gif',
+          'application/pdf',
+          'text/plain',
+        ],
       },
       {
         key: 'storageType',
@@ -175,13 +181,21 @@ export class SettingDefinitionService {
 
       // Security Settings
       {
-        key: 'jwtSecret',
-        label: 'JWT Secret',
-        description: 'Secret key for JWT token signing',
+        key: 'master_key',
+        label: 'Master Key',
+        description: 'Master encryption key for sensitive data',
         category: 'security',
         type: 'password',
         defaultValue: '',
-        validation: { required: true },
+        sensitive: true,
+      },
+      {
+        key: 'jwt_secret',
+        label: 'JWT Secret',
+        description: 'Secret key for JWT token signing (optional)',
+        category: 'security',
+        type: 'password',
+        defaultValue: '',
         sensitive: true,
       },
       {

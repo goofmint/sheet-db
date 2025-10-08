@@ -120,29 +120,31 @@ settings.get('/', (c) => {
             function renderSetting(def, value) {
               let inputHtml = '';
               const inputStyle = 'width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;';
+              const required = def.validation?.required ? 'required' : '';
+              const requiredMark = def.validation?.required ? '<span style="color:#ef4444;">*</span>' : '';
 
               switch (def.type) {
                 case 'boolean':
                   inputHtml = '<input type="checkbox" id="' + def.key + '" ' + (value ? 'checked' : '') + ' onchange="markDirty()" style="width:20px;height:20px;cursor:pointer;" />';
                   break;
                 case 'number':
-                  inputHtml = '<input type="number" id="' + def.key + '" value="' + value + '" onchange="markDirty()" style="' + inputStyle + '" ';
+                  inputHtml = '<input type="number" id="' + def.key + '" value="' + value + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" ';
                   if (def.validation?.min !== undefined) inputHtml += 'min="' + def.validation.min + '" ';
                   if (def.validation?.max !== undefined) inputHtml += 'max="' + def.validation.max + '" ';
                   inputHtml += '/>';
                   break;
                 case 'password':
-                  inputHtml = '<input type="password" id="' + def.key + '" value="' + value + '" onchange="markDirty()" style="' + inputStyle + '" />';
+                  inputHtml = '<input type="password" id="' + def.key + '" value="' + value + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" />';
                   break;
                 case 'array':
-                  inputHtml = '<input type="text" id="' + def.key + '" value="' + (Array.isArray(value) ? value.join(',') : '') + '" onchange="markDirty()" placeholder="Comma-separated values" style="' + inputStyle + '" />';
+                  inputHtml = '<input type="text" id="' + def.key + '" value="' + (Array.isArray(value) ? value.join(',') : '') + '" onchange="markDirty()" ' + required + ' placeholder="Comma-separated values" style="' + inputStyle + '" />';
                   break;
                 default:
-                  inputHtml = '<input type="text" id="' + def.key + '" value="' + value + '" onchange="markDirty()" style="' + inputStyle + '" />';
+                  inputHtml = '<input type="text" id="' + def.key + '" value="' + value + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" />';
               }
 
               return '<div style="margin-bottom:16px;">' +
-                '<label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">' + def.label + '</label>' +
+                '<label style="display:block;font-weight:500;margin-bottom:4px;font-size:14px;">' + def.label + ' ' + requiredMark + '</label>' +
                 '<p style="color:#6b7280;font-size:12px;margin:0 0 8px 0;">' + def.description + '</p>' +
                 inputHtml +
                 '</div>';
