@@ -3,6 +3,15 @@
 import type { D1Database } from '@cloudflare/workers-types';
 
 /**
+ * User session data stored in context
+ */
+export interface UserSession {
+  userId: string;
+  username: string;
+  roles: string[];
+}
+
+/**
  * Cloudflare Workers environment bindings
  *
  * This interface defines all environment variables and resource bindings
@@ -37,4 +46,11 @@ export interface Env {
    * Should be a cryptographically random string (32+ characters)
    */
   OAUTH_STATE_SECRET: string;
+}
+
+/**
+ * Hono context variables
+ */
+export interface ContextVariables {
+  userSession: UserSession;
 }

@@ -107,12 +107,14 @@ describe('UI Routes', () => {
       expect(html).toContain('System Settings');
     });
 
-    it('should include placeholder content for Task 2.2', async () => {
+    it('should include settings configuration functionality', async () => {
       const testEnv = await getTestEnv();
       const res = await app.request('/settings', {}, testEnv);
       const html = await res.text();
 
-      expect(html).toContain('Task 2.2');
+      expect(html).toContain('System Settings');
+      expect(html).toContain('settings-container');
+      expect(html).toContain('loadSettings');
     });
   });
 

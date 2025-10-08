@@ -66,16 +66,69 @@ export async function postComplete(c: Context<{ Bindings: Env }>) {
     // Hash password using PBKDF2 with salt
     const passwordHash = await hashPassword(body.adminUser.password);
 
-    // Add admin user to _Users sheet (using correct column structure)
-    await sheetsService.appendRow(body.sheetId, '_Users', [
-      crypto.randomUUID(), // object_id
-      body.adminUser.userId, // username
-      passwordHash, // _password_hash (salt:hash format)
-      '', // email (empty for now)
-      'Administrator', // name
-      'active', // status
-      new Date().toISOString(), // created_at
-    ]);
+    // Generate user ID
+    const userId = crypto.randomUUID();
+
+    // Task 2.2: Create Administrator role if it doesn't exist
+    // Check if Administrator role exists in _Roles sheet
+    const rolesData = await sheetsService.getSheetData(body.sheetId, '_Roles');
+    const adminRole = rolesData.find((row) => row.name === 'Administrator');
+
+    // Create Administrator role if it doesn't exist
+    if (!adminRole) {
+      const administratorRoleId = crypto.randomUUID();
+      await sheetsService.appendRow(body.sheetId, '_Roles', {
+        object_id: administratorRoleId,
+        name: 'Administrator',
+        description: 'System administrator with full access',
+        users: `["${userId}"]`,
+        created_at: new Date().toISOString(),
+      });
+      console.log('[Setup] Created Administrator role');
+
+      // Add admin user to _Users sheet
+      await sheetsService.appendRow(body.sheetId, '_Users', {
+        object_id: userId,
+        username: body.adminUser.userId,
+        _password_hash: passwordHash,
+        email: '',
+        name: 'Administrator',
+        status: 'active',
+        created_at: new Date().toISOString(),
+      });
+      console.log('[Setup] Created initial admin user with Administrator role');
+
+      // Mark setup as completed
+      await configRepo.markSetupCompleted();
+      return c.json({ success: true });
+    }
+
+    // Administrator role exists - add user to it
+    const administratorRoleId = adminRole.object_id as string;
+    const existingUsersRaw = adminRole.users as string | undefined;
+    const existingUsers = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
+
+    // Add new user if not already present
+    if (!existingUsers.includes(userId)) {
+      existingUsers.push(userId);
+      await sheetsService.updateRow(body.sheetId, '_Roles', administratorRoleId, {
+        users: JSON.stringify(existingUsers),
+      });
+      console.log('[Setup] Added user to existing Administrator role');
+    }
+
+    // Add admin user to _Users sheet
+    await sheetsService.appendRow(body.sheetId, '_Users', {
+      object_id: userId,
+      username: body.adminUser.userId,
+      _password_hash: passwordHash,
+      email: '',
+      name: 'Administrator',
+      status: 'active',
+      created_at: new Date().toISOString(),
+    });
+
+    console.log('[Setup] Created initial admin user with Administrator role');
 
     // 5. Mark setup as completed
     await configRepo.markSetupCompleted();

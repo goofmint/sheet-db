@@ -49,10 +49,11 @@ export const requiredSheets: RequiredSheet[] = [
   },
   {
     title: '_Roles',
-    headers: ['object_id', 'name', 'users', 'created_at'],
+    headers: ['object_id', 'name', 'description', 'users', 'created_at'],
     columnDefs: [
       { type: 'string', unique: true },
       { type: 'string', unique: true, required: true },
+      { type: 'string' },
       { type: 'array' },
       { type: 'date' },
     ],

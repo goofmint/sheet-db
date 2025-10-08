@@ -21,13 +21,11 @@ if (!existsSync(srcDir)) {
   mkdirSync(srcDir, { recursive: true });
 }
 
-// Build the bundle
-await build({
-  entryPoints: ['src/client/setup.tsx'],
+// Build options
+const buildOptions = {
   bundle: true,
   format: 'esm',
   target: 'es2022',
-  outfile: 'public/setup.js',
   minify: false,
   sourcemap: false,
   jsxFactory: 'jsx',
@@ -35,6 +33,27 @@ await build({
   jsx: 'automatic',
   jsxImportSource: 'hono/jsx/dom',
   logLevel: 'info',
+};
+
+// Build setup bundle
+await build({
+  ...buildOptions,
+  entryPoints: ['src/client/setup.tsx'],
+  outfile: 'public/setup.js',
 });
 
-console.log('✓ Client bundle built successfully');
+// Build login bundle
+await build({
+  ...buildOptions,
+  entryPoints: ['src/client/login.tsx'],
+  outfile: 'public/login.js',
+});
+
+// Build settings bundle
+await build({
+  ...buildOptions,
+  entryPoints: ['src/client/settings.tsx'],
+  outfile: 'public/settings.js',
+});
+
+console.log('✓ Client bundles built successfully');

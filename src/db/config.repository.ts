@@ -178,9 +178,87 @@ export class ConfigRepository {
 
   /**
    * Get Google access token
+   * Automatically refreshes the token if it has expired
    */
   async getGoogleAccessToken(): Promise<string | null> {
+    const expiresAtStr = await this.get('google_token_expires_at');
+
+    if (!expiresAtStr) {
+      return this.getDecrypted('google_access_token');
+    }
+
+    const expiresAt = new Date(expiresAtStr);
+    const now = new Date();
+
+    // Check if token is expired or will expire in the next 5 minutes
+    if (expiresAt <= new Date(now.getTime() + 5 * 60 * 1000)) {
+      // Token is expired or expiring soon, refresh it
+      const refreshed = await this.refreshGoogleAccessToken();
+      if (refreshed) {
+        return this.getDecrypted('google_access_token');
+      }
+    }
+
     return this.getDecrypted('google_access_token');
+  }
+
+  /**
+   * Refresh Google access token using refresh token
+   * @returns true if refresh was successful
+   */
+  private async refreshGoogleAccessToken(): Promise<boolean> {
+    try {
+      const credentials = await this.getGoogleCredentials();
+      const refreshToken = await this.getGoogleRefreshToken();
+
+      if (!credentials || !refreshToken) {
+        console.error('[ConfigRepository] Missing credentials or refresh token');
+        return false;
+      }
+
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: credentials.clientId,
+          client_secret: credentials.clientSecret,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('[ConfigRepository] Failed to refresh token:', error);
+        return false;
+      }
+
+      const data = (await response.json()) as {
+        access_token: string;
+        expires_in: number;
+      };
+
+      const expiresAt = new Date(Date.now() + data.expires_in * 1000);
+
+      await this.setEncrypted(
+        'google_access_token',
+        data.access_token,
+        'Google OAuth2 Access Token (encrypted)'
+      );
+      await this.set(
+        'google_token_expires_at',
+        expiresAt.toISOString(),
+        'Google OAuth2 Token Expiry Time'
+      );
+
+      console.log('[ConfigRepository] Successfully refreshed Google access token');
+      return true;
+    } catch (error) {
+      console.error('[ConfigRepository] Error refreshing token:', error);
+      return false;
+    }
   }
 
   /**
@@ -268,5 +346,74 @@ export class ConfigRepository {
   async isSetupComplete(): Promise<boolean> {
     const value = await this.get('setup_completed');
     return value === 'true';
+  }
+
+  /**
+   * Get all configuration settings as key-value pairs
+   * Used by settings management UI
+   *
+   * @returns Record of all configuration keys and their values
+   */
+  async getAllSettings(): Promise<Record<string, string>> {
+    const results = await this.db.select().from(config);
+
+    const settings: Record<string, string> = {};
+    for (const row of results) {
+      settings[row.key] = row.value;
+    }
+
+    return settings;
+  }
+
+  /**
+   * Get specific setting by key (alias for get method)
+   * Provided for consistency with Task 2.2 API specification
+   *
+   * @param key - Configuration key
+   * @returns Configuration value or null if not found
+   */
+  async getSetting(key: string): Promise<string | null> {
+    return this.get(key);
+  }
+
+  /**
+   * Update a single setting
+   * Alias for set method, provided for API consistency
+   *
+   * @param key - Configuration key
+   * @param value - Configuration value
+   */
+  async updateSetting(key: string, value: string): Promise<void> {
+    await this.set(key, value);
+  }
+
+  /**
+   * Update multiple settings in bulk
+   * Each setting is updated sequentially to avoid D1 transaction issues
+   *
+   * @param settings - Record of configuration keys and values
+   */
+  async updateSettings(settings: Record<string, string>): Promise<void> {
+    // Execute sequentially to avoid database locks in D1
+    for (const [key, value] of Object.entries(settings)) {
+      await this.set(key, value);
+    }
+  }
+
+  /**
+   * Delete a configuration setting
+   * Alias for delete method, provided for API consistency
+   *
+   * @param key - Configuration key to delete
+   */
+  async deleteSetting(key: string): Promise<void> {
+    await this.delete(key);
+  }
+
+  /**
+   * Get sheet ID (alias for getSelectedSheetId for consistency)
+   */
+  async getSheetId(): Promise<string | null> {
+    return this.getSelectedSheetId();
   }
 }
