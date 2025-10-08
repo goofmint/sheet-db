@@ -139,6 +139,9 @@ settings.get('/', requireAuth, requireAdministrator, (c) => {
               const required = def.validation?.required ? 'required' : '';
               const requiredMark = def.validation?.required ? '<span style="color:#ef4444;">*</span>' : '';
 
+              // For sensitive fields, add placeholder text
+              const sensitivePlaceholder = def.sensitive ? 'Enter to change current value' : '';
+
               switch (def.type) {
                 case 'boolean':
                   inputHtml = '<input type="checkbox" id="' + def.key + '" ' + (value ? 'checked' : '') + ' onchange="markDirty()" style="width:20px;height:20px;cursor:pointer;" />';
@@ -147,16 +150,18 @@ settings.get('/', requireAuth, requireAdministrator, (c) => {
                   inputHtml = '<input type="number" id="' + def.key + '" value="' + escapeHtml(value) + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" ';
                   if (def.validation?.min !== undefined) inputHtml += 'min="' + def.validation.min + '" ';
                   if (def.validation?.max !== undefined) inputHtml += 'max="' + def.validation.max + '" ';
+                  if (sensitivePlaceholder) inputHtml += 'placeholder="' + sensitivePlaceholder + '" ';
                   inputHtml += '/>';
                   break;
                 case 'password':
-                  inputHtml = '<input type="password" id="' + def.key + '" value="' + escapeHtml(value) + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" />';
+                  inputHtml = '<input type="password" id="' + def.key + '" value="' + escapeHtml(value) + '" onchange="markDirty()" ' + required + ' placeholder="' + sensitivePlaceholder + '" style="' + inputStyle + '" />';
                   break;
                 case 'array':
-                  inputHtml = '<input type="text" id="' + def.key + '" value="' + escapeHtml(Array.isArray(value) ? value.join(',') : '') + '" onchange="markDirty()" ' + required + ' placeholder="Comma-separated values" style="' + inputStyle + '" />';
+                  const arrayPlaceholder = sensitivePlaceholder || 'Comma-separated values';
+                  inputHtml = '<input type="text" id="' + def.key + '" value="' + escapeHtml(Array.isArray(value) ? value.join(',') : '') + '" onchange="markDirty()" ' + required + ' placeholder="' + arrayPlaceholder + '" style="' + inputStyle + '" />';
                   break;
                 default:
-                  inputHtml = '<input type="text" id="' + def.key + '" value="' + escapeHtml(value) + '" onchange="markDirty()" ' + required + ' style="' + inputStyle + '" />';
+                  inputHtml = '<input type="text" id="' + def.key + '" value="' + escapeHtml(value) + '" onchange="markDirty()" ' + required + ' placeholder="' + sensitivePlaceholder + '" style="' + inputStyle + '" />';
               }
 
               return '<div style="margin-bottom:16px;">' +
