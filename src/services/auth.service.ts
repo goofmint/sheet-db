@@ -75,9 +75,24 @@ export class AuthService {
       };
     }
 
+    // Validate password hash exists and is a string
+    if (
+      !user._password_hash ||
+      typeof user._password_hash !== 'string' ||
+      user._password_hash.trim() === ''
+    ) {
+      console.error(
+        '[AuthService] Missing or invalid password hash for user:',
+        username
+      );
+      return {
+        success: false,
+        message: 'Invalid username or password',
+      };
+    }
+
     // Verify password
-    const passwordHash = user._password_hash as string;
-    const isValid = await verifyPassword(password, passwordHash);
+    const isValid = await verifyPassword(password, user._password_hash);
 
     if (!isValid) {
       return {

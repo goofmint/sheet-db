@@ -151,8 +151,21 @@ export async function requireAdministrator(
   }
 
   // Check if user is in Administrator role
-  const adminUsersRaw = adminRole.users as string;
-  const adminUsers = adminUsersRaw ? JSON.parse(adminUsersRaw) : [];
+  let adminUsers: string[] = [];
+  const adminUsersRaw = adminRole.users;
+
+  if (adminUsersRaw && typeof adminUsersRaw === 'string') {
+    try {
+      const parsed = JSON.parse(adminUsersRaw);
+      if (Array.isArray(parsed)) {
+        adminUsers = parsed;
+      } else {
+        console.error('[requireAdministrator] Parsed users is not an array:', parsed);
+      }
+    } catch (error) {
+      console.error('[requireAdministrator] Failed to parse adminRole.users:', error);
+    }
+  }
 
   if (!adminUsers.includes(userSession.userId)) {
     const acceptHeader = c.req.header('accept') || '';
