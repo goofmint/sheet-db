@@ -412,6 +412,87 @@ export class GoogleSheetsService {
   }
 
   /**
+   * Get all data from a sheet (excluding header rows)
+   *
+   * @param spreadsheetId - Spreadsheet ID
+   * @param sheetTitle - Sheet title
+   * @returns Array of row data (each row is an array of cell values)
+   */
+  async getSheetData(
+    spreadsheetId: string,
+    sheetTitle: string
+  ): Promise<Array<Array<string | number | boolean>>> {
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A3:Z`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          Accept: 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to get sheet data: ${response.status} ${error}`);
+    }
+
+    const data = (await response.json()) as {
+      values?: Array<Array<string | number | boolean>>;
+    };
+
+    return data.values || [];
+  }
+
+  /**
+   * Update a specific row in a sheet by object_id
+   *
+   * @param spreadsheetId - Spreadsheet ID
+   * @param sheetTitle - Sheet title
+   * @param objectId - The object_id to find and update
+   * @param values - New values for the row
+   */
+  async updateRow(
+    spreadsheetId: string,
+    sheetTitle: string,
+    objectId: string,
+    values: Array<string | number | boolean>
+  ): Promise<void> {
+    // Get all data to find the row with matching object_id
+    const allData = await this.getSheetData(spreadsheetId, sheetTitle);
+
+    // Find row index (add 3 to account for header rows and 0-based indexing)
+    const rowIndex = allData.findIndex((row) => row[0] === objectId);
+
+    if (rowIndex === -1) {
+      throw new Error(`Row with object_id "${objectId}" not found in sheet "${sheetTitle}"`);
+    }
+
+    // Calculate actual row number (add 3: 1 for header, 1 for column defs, 1 for 1-based indexing)
+    const actualRowNumber = rowIndex + 3;
+
+    const columnLetter = columnIndexToLetter(values.length);
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A${actualRowNumber}:${columnLetter}${actualRowNumber}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          values: [values],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to update row: ${response.status} ${error}`);
+    }
+  }
+
+  /**
    * Add a row to a sheet
    *
    * @param spreadsheetId - Spreadsheet ID

@@ -66,9 +66,68 @@ export async function postComplete(c: Context<{ Bindings: Env }>) {
     // Hash password using PBKDF2 with salt
     const passwordHash = await hashPassword(body.adminUser.password);
 
+    // Generate user ID
+    const userId = crypto.randomUUID();
+
+    // Task 2.2: Create Administrator role if it doesn't exist
+    // Check if Administrator role exists in _Roles sheet
+    const rolesData = await sheetsService.getSheetData(body.sheetId, '_Roles');
+    const administratorExists = rolesData.some(
+      (row: Array<string | number | boolean>) => row[1] === 'Administrator' // Check 'name' column
+    );
+
+    let administratorRoleId: string;
+    if (!administratorExists) {
+      // Create Administrator role
+      administratorRoleId = crypto.randomUUID();
+      await sheetsService.appendRow(body.sheetId, '_Roles', [
+        administratorRoleId, // object_id
+        'Administrator', // name
+        'System administrator with full access', // description
+        `["${userId}"]`, // users array with initial admin user
+        new Date().toISOString(), // created_at
+      ]);
+      console.log('[Setup] Created Administrator role');
+    } else {
+      // Get existing Administrator role and add user to it
+      const adminRole = rolesData.find(
+        (row: Array<string | number | boolean>) => row[1] === 'Administrator'
+      );
+      if (adminRole) {
+        administratorRoleId = adminRole[0] as string;
+
+        // Parse existing users array
+        const existingUsers = adminRole[3]
+          ? JSON.parse(adminRole[3] as string)
+          : [];
+
+        // Add new user if not already present
+        if (!existingUsers.includes(userId)) {
+          existingUsers.push(userId);
+
+          // Update the role's users column
+          await sheetsService.updateRow(
+            body.sheetId,
+            '_Roles',
+            administratorRoleId,
+            [
+              administratorRoleId,
+              adminRole[1], // name
+              adminRole[2], // description
+              JSON.stringify(existingUsers), // updated users array
+              adminRole[4], // created_at
+            ]
+          );
+          console.log('[Setup] Added user to existing Administrator role');
+        }
+      } else {
+        throw new Error('Administrator role not found despite existence check');
+      }
+    }
+
     // Add admin user to _Users sheet (using correct column structure)
     await sheetsService.appendRow(body.sheetId, '_Users', [
-      crypto.randomUUID(), // object_id
+      userId, // object_id
       body.adminUser.userId, // username
       passwordHash, // _password_hash (salt:hash format)
       '', // email (empty for now)
@@ -76,6 +135,8 @@ export async function postComplete(c: Context<{ Bindings: Env }>) {
       'active', // status
       new Date().toISOString(), // created_at
     ]);
+
+    console.log('[Setup] Created initial admin user with Administrator role');
 
     // 5. Mark setup as completed
     await configRepo.markSetupCompleted();
