@@ -7,6 +7,7 @@ import { Hono } from 'hono';
 import { setCookie, deleteCookie } from 'hono/cookie';
 import type { Env, ContextVariables } from '../../types/env';
 import { ConfigRepository } from '../../db/config.repository';
+import { SessionRepository } from '../../db/session.repository';
 import { GoogleSheetsService } from '../../services/google-sheets.service';
 import { verifyPassword } from '../../utils/password';
 import { requireAuth } from '../../middleware/auth';
@@ -124,21 +125,14 @@ auth.post('/login', async (c) => {
     }
 
     // Create session
+    const sessionRepo = new SessionRepository(c.env);
     const sessionId = crypto.randomUUID();
     const sessionTimeout = await configRepo.getSetting('session_timeout');
     const parsedTimeout = sessionTimeout ? Number(sessionTimeout) : NaN;
     const timeoutSeconds = Number.isFinite(parsedTimeout) ? parsedTimeout : 3600; // Default 1 hour
     const expiresAt = new Date(Date.now() + timeoutSeconds * 1000);
 
-    await configRepo.saveSession(
-      sessionId,
-      {
-        userId,
-        username: username,
-        roles: userRoles,
-      },
-      expiresAt
-    );
+    await sessionRepo.createSession(sessionId, userId, expiresAt);
 
     // Set session cookie
     setCookie(c, 'session_id', sessionId, {
@@ -181,11 +175,11 @@ auth.post('/login', async (c) => {
  */
 auth.post('/logout', requireAuth, async (c) => {
   try {
-    const configRepo = new ConfigRepository(c.env);
+    const sessionRepo = new SessionRepository(c.env);
     const sessionId = c.req.header('cookie')?.match(/session_id=([^;]+)/)?.[1];
 
     if (sessionId) {
-      await configRepo.deleteSession(sessionId);
+      await sessionRepo.deleteSession(sessionId);
     }
 
     // Delete session cookie

@@ -7,6 +7,7 @@ import type { Context, Next } from 'hono';
 import { getCookie } from 'hono/cookie';
 import type { Env, ContextVariables, UserSession } from '../types/env';
 import { ConfigRepository } from '../db/config.repository';
+import { SessionRepository } from '../db/session.repository';
 import { GoogleSheetsService } from '../services/google-sheets.service';
 
 // Re-export UserSession for convenience
@@ -36,11 +37,11 @@ export async function requireAuth(
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  // Get session from D1 database
-  const configRepo = new ConfigRepository(c.env);
-  const sessionData = await configRepo.getSession(sessionId);
+  // Get session from user_sessions table
+  const sessionRepo = new SessionRepository(c.env);
+  const session = await sessionRepo.getSession(sessionId);
 
-  if (!sessionData) {
+  if (!session) {
     // Check if this is an HTML page request or API request
     const acceptHeader = c.req.header('accept') || '';
     const isHtmlRequest = acceptHeader.includes('text/html');
@@ -53,8 +54,57 @@ export async function requireAuth(
     return c.json({ error: 'Invalid or expired session' }, 401);
   }
 
+  // Fetch user details from Google Sheets
+  const configRepo = new ConfigRepository(c.env);
+  const accessToken = await configRepo.getGoogleAccessToken();
+  const sheetId = await configRepo.getSheetId();
+
+  if (!accessToken || !sheetId) {
+    return c.json({ error: 'System not configured' }, 500);
+  }
+
+  const sheetsService = new GoogleSheetsService(accessToken);
+
+  // Get user from _Users sheet
+  const usersData = await sheetsService.getSheetData(sheetId, '_Users');
+  const user = usersData.find((row) => row.object_id === session.userId);
+
+  if (!user) {
+    return c.json({ error: 'User not found' }, 404);
+  }
+
+  const username = user.username as string;
+
+  // Get user roles from _Roles sheet
+  const rolesData = await sheetsService.getSheetData(sheetId, '_Roles');
+  const userRoles: string[] = [];
+
+  for (const role of rolesData) {
+    const usersInRole = role.users as string;
+    let userIds: string[] = [];
+    if (usersInRole) {
+      try {
+        const parsed = JSON.parse(usersInRole);
+        if (Array.isArray(parsed)) {
+          userIds = parsed;
+        }
+      } catch (err) {
+        console.warn('[auth middleware] Failed to parse role users JSON:', err);
+        continue;
+      }
+    }
+    if (userIds.includes(session.userId)) {
+      userRoles.push(role.name as string);
+    }
+  }
+
   // Store user session in context for downstream handlers
-  c.set('userSession', sessionData as UserSession);
+  const userSession: UserSession = {
+    userId: session.userId,
+    username,
+    roles: userRoles,
+  };
+  c.set('userSession', userSession);
 
   await next();
 }
