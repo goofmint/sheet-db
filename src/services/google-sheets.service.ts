@@ -412,18 +412,19 @@ export class GoogleSheetsService {
   }
 
   /**
-   * Get all data from a sheet (excluding header rows)
+   * Get all data from a sheet as an array of objects with column names as keys
    *
    * @param spreadsheetId - Spreadsheet ID
    * @param sheetTitle - Sheet title
-   * @returns Array of row data (each row is an array of cell values)
+   * @returns Array of row objects (columns starting with _ are excluded)
    */
   async getSheetData(
     spreadsheetId: string,
     sheetTitle: string
-  ): Promise<Array<Array<string | number | boolean>>> {
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A3:Z`,
+  ): Promise<Array<Record<string, string | number | boolean>>> {
+    // Get headers (row 1) and all data (from row 3 onwards)
+    const headersResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!1:1`,
       {
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -432,16 +433,49 @@ export class GoogleSheetsService {
       }
     );
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to get sheet data: ${response.status} ${error}`);
+    if (!headersResponse.ok) {
+      const error = await headersResponse.text();
+      throw new Error(`Failed to get sheet headers: ${headersResponse.status} ${error}`);
     }
 
-    const data = (await response.json()) as {
+    const headersData = (await headersResponse.json()) as {
+      values?: Array<Array<string>>;
+    };
+
+    const headers = headersData.values?.[0] || [];
+
+    // Get all data rows (starting from row 3 to skip header and column definition rows)
+    const dataResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A3:${columnIndexToLetter(headers.length)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          Accept: 'application/json',
+        },
+      }
+    );
+
+    if (!dataResponse.ok) {
+      const error = await dataResponse.text();
+      throw new Error(`Failed to get sheet data: ${dataResponse.status} ${error}`);
+    }
+
+    const data = (await dataResponse.json()) as {
       values?: Array<Array<string | number | boolean>>;
     };
 
-    return data.values || [];
+    const rows = data.values || [];
+
+    // Convert rows to objects using headers as keys, excluding columns starting with _
+    return rows.map((row) => {
+      const rowObject: Record<string, string | number | boolean> = {};
+      headers.forEach((header, index) => {
+        if (!header.startsWith('_')) {
+          rowObject[header] = row[index] ?? '';
+        }
+      });
+      return rowObject;
+    });
   }
 
   /**
@@ -450,19 +484,60 @@ export class GoogleSheetsService {
    * @param spreadsheetId - Spreadsheet ID
    * @param sheetTitle - Sheet title
    * @param objectId - The object_id to find and update
-   * @param values - New values for the row
+   * @param rowData - Object with column names as keys and new values
    */
   async updateRow(
     spreadsheetId: string,
     sheetTitle: string,
     objectId: string,
-    values: Array<string | number | boolean>
+    rowData: Record<string, string | number | boolean>
   ): Promise<void> {
-    // Get all data to find the row with matching object_id
-    const allData = await this.getSheetData(spreadsheetId, sheetTitle);
+    // Get headers to know column order
+    const headersResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!1:1`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          Accept: 'application/json',
+        },
+      }
+    );
 
-    // Find row index (add 3 to account for header rows and 0-based indexing)
-    const rowIndex = allData.findIndex((row) => row[0] === objectId);
+    if (!headersResponse.ok) {
+      const error = await headersResponse.text();
+      throw new Error(`Failed to get sheet headers: ${headersResponse.status} ${error}`);
+    }
+
+    const headersData = (await headersResponse.json()) as {
+      values?: Array<Array<string>>;
+    };
+
+    const headers = headersData.values?.[0] || [];
+
+    // Get all data to find the row with matching object_id
+    const allDataResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A3:${columnIndexToLetter(headers.length)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          Accept: 'application/json',
+        },
+      }
+    );
+
+    if (!allDataResponse.ok) {
+      const error = await allDataResponse.text();
+      throw new Error(`Failed to get sheet data: ${allDataResponse.status} ${error}`);
+    }
+
+    const allData = (await allDataResponse.json()) as {
+      values?: Array<Array<string | number | boolean>>;
+    };
+
+    const rows = allData.values || [];
+
+    // Find row index by object_id (first column)
+    const rowIndex = rows.findIndex((row) => row[0] === objectId);
 
     if (rowIndex === -1) {
       throw new Error(`Row with object_id "${objectId}" not found in sheet "${sheetTitle}"`);
@@ -470,6 +545,17 @@ export class GoogleSheetsService {
 
     // Calculate actual row number (add 3: 1 for header, 1 for column defs, 1 for 1-based indexing)
     const actualRowNumber = rowIndex + 3;
+
+    // Build values array in the correct column order
+    const values = headers.map((header) => {
+      if (header in rowData) {
+        return rowData[header];
+      }
+      // Keep existing value if not provided in rowData
+      const existingRow = rows[rowIndex];
+      const columnIndex = headers.indexOf(header);
+      return existingRow[columnIndex] ?? '';
+    });
 
     const columnLetter = columnIndexToLetter(values.length);
     const response = await fetch(
