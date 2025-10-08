@@ -3,21 +3,23 @@
  *
  * Provides UI for managing system configuration settings
  * Dynamically displays settings based on definitions
- * Requires Administrator role (authentication check to be implemented)
+ * Requires Administrator role
  */
 
 import { Hono } from 'hono';
-import type { Env } from '../../types/env';
+import type { Env, ContextVariables } from '../../types/env';
 import { Layout } from '../../components/Layout';
 import { raw } from 'hono/html';
+import { requireAuth, requireAdministrator } from '../../middleware/auth';
 
-const settings = new Hono<{ Bindings: Env }>();
+const settings = new Hono<{ Bindings: Env; Variables: ContextVariables }>();
 
 /**
  * GET /settings - System settings page
  * Displays configuration interface for system administrators
+ * Requires authentication and Administrator role
  */
-settings.get('/', (c) => {
+settings.get('/', requireAuth, requireAdministrator, (c) => {
   const environment = c.env.ENVIRONMENT || 'development';
 
   return c.html(

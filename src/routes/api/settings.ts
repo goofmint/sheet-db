@@ -5,25 +5,31 @@
  */
 
 import { Hono } from 'hono';
-import type { Env } from '../../types/env';
+import type { Env, ContextVariables } from '../../types/env';
 import { ConfigRepository } from '../../db/config.repository';
 import { AuditLogRepository } from '../../db/audit-log.repository';
 import { SettingDefinitionService } from '../../services/setting-definition.service';
 import { SettingValidator } from '../../services/setting-validator';
 import type { SettingValue } from '../../types/settings';
+import {
+  requireAuth,
+  requireAdministrator,
+  type UserSession,
+} from '../../middleware/auth';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: ContextVariables }>();
 
 /**
  * GET /api/settings
  * Get all settings with their definitions
+ * Requires Administrator role
  *
  * Response: {
  *   settings: Record<string, SettingValue>,
  *   definitions: SettingDefinition[]
  * }
  */
-app.get('/', async (c) => {
+app.get('/', requireAuth, requireAdministrator, async (c) => {
   try {
     const configRepo = new ConfigRepository(c.env);
     const definitionService = new SettingDefinitionService();
@@ -60,6 +66,7 @@ app.get('/', async (c) => {
 /**
  * PUT /api/settings
  * Update a single setting value
+ * Requires Administrator role
  *
  * Request: {
  *   key: string,
@@ -71,7 +78,7 @@ app.get('/', async (c) => {
  *   message: string
  * }
  */
-app.put('/', async (c) => {
+app.put('/', requireAuth, requireAdministrator, async (c) => {
   try {
     const body = await c.req.json();
     const { key, value } = body;
@@ -121,8 +128,9 @@ app.put('/', async (c) => {
     await configRepo.updateSetting(key, normalizedValue);
 
     // Log the change
+    const userSession = c.get('userSession') as UserSession;
     await auditRepo.logChange({
-      userId: 'system', // TODO: Get from authentication context
+      userId: userSession.userId,
       action: oldValue ? 'update' : 'create',
       targetType: 'config',
       targetKey: key,
@@ -151,6 +159,7 @@ app.put('/', async (c) => {
 /**
  * PUT /api/settings/bulk
  * Update multiple settings at once
+ * Requires Administrator role
  *
  * Request: {
  *   settings: Record<string, string | number | boolean | string[]>
@@ -162,7 +171,7 @@ app.put('/', async (c) => {
  *   updated: number
  * }
  */
-app.put('/bulk', async (c) => {
+app.put('/bulk', requireAuth, requireAdministrator, async (c) => {
   try {
     const body = await c.req.json();
     const { settings } = body;
@@ -214,6 +223,7 @@ app.put('/bulk', async (c) => {
     }
 
     // Update all settings and create audit logs
+    const userSession = c.get('userSession') as UserSession;
     for (const [key, normalizedValue] of Object.entries(normalizedSettings)) {
       const oldValue = await configRepo.getSetting(key);
 
@@ -222,7 +232,7 @@ app.put('/bulk', async (c) => {
 
       // Log each change
       await auditRepo.logChange({
-        userId: 'system', // TODO: Get from authentication context
+        userId: userSession.userId,
         action: oldValue ? 'update' : 'create',
         targetType: 'config',
         targetKey: key,
