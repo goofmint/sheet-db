@@ -183,7 +183,7 @@ export class SettingDefinitionService {
       {
         key: 'master_key',
         label: 'Master Key',
-        description: 'Master encryption key for sensitive data',
+        description: 'Master key for ACL bypass and administrative access',
         category: 'security',
         type: 'password',
         defaultValue: '',
