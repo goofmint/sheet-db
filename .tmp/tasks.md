@@ -83,21 +83,23 @@
 
 ### Phase 2: 初期設定・Google連携
 
-#### Task 2.1: Google認証・シート選択機能実装
+#### Task 2.1: Google認証・シート選択機能実装 ✅
 
-- [ ] Google OAuth2 設定（開発・本番環境）
-- [ ] 初期設定画面UI実装
-- [ ] シート選択UI実装
-- [ ] `/api/setup/google-auth` エンドポイント
-- [ ] `/api/setup/sheets` エンドポイント（シート一覧）
-- [ ] `/api/setup/select-sheet` エンドポイント
-- [ ] Google API クライアント設定
-- [ ] 設定保存機能（D1 configテーブル）
-- [ ] 画面での初期設定動作確認
-- [ ] **本番環境デプロイ・動作確認**
-- **完了条件**: 管理画面でGoogle認証・シート選択が実環境で完全動作 + **本番環境で動作**
+- [x] ドキュメント作成完了（.tmp/tasks/2.1-google-auth-sheet-selection.md）
+- [x] Google OAuth2 設定（開発・本番環境）
+- [x] 初期設定画面UI実装
+- [x] シート選択UI実装
+- [x] `/api/setup/google-auth` エンドポイント
+- [x] `/api/setup/sheets` エンドポイント（シート一覧）
+- [x] `/api/setup/select-sheet` エンドポイント
+- [x] Google API クライアント設定
+- [x] 設定保存機能（D1 configテーブル）
+- [x] 画面での初期設定動作確認
+- [x] **本番環境デプロイ・動作確認**
+- **完了条件**: 管理画面でGoogle認証・シート選択が実環境で完全動作 + **本番環境で動作** ✅
 - **依存**: Task 1.3
 - **推定時間**: 9時間
+- **実績**: 完了
 
 #### Task 2.2: システム設定管理機能実装
 
