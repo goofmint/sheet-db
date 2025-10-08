@@ -77,25 +77,25 @@ export async function postComplete(c: Context<{ Bindings: Env }>) {
     // Create Administrator role if it doesn't exist
     if (!adminRole) {
       const administratorRoleId = crypto.randomUUID();
-      await sheetsService.appendRow(body.sheetId, '_Roles', [
-        administratorRoleId,
-        'Administrator',
-        'System administrator with full access',
-        `["${userId}"]`,
-        new Date().toISOString(),
-      ]);
+      await sheetsService.appendRow(body.sheetId, '_Roles', {
+        object_id: administratorRoleId,
+        name: 'Administrator',
+        description: 'System administrator with full access',
+        users: `["${userId}"]`,
+        created_at: new Date().toISOString(),
+      });
       console.log('[Setup] Created Administrator role');
 
       // Add admin user to _Users sheet
-      await sheetsService.appendRow(body.sheetId, '_Users', [
-        userId,
-        body.adminUser.userId,
-        passwordHash,
-        '',
-        'Administrator',
-        'active',
-        new Date().toISOString(),
-      ]);
+      await sheetsService.appendRow(body.sheetId, '_Users', {
+        object_id: userId,
+        username: body.adminUser.userId,
+        _password_hash: passwordHash,
+        email: '',
+        name: 'Administrator',
+        status: 'active',
+        created_at: new Date().toISOString(),
+      });
       console.log('[Setup] Created initial admin user with Administrator role');
 
       // Mark setup as completed
@@ -117,16 +117,16 @@ export async function postComplete(c: Context<{ Bindings: Env }>) {
       console.log('[Setup] Added user to existing Administrator role');
     }
 
-    // Add admin user to _Users sheet (using correct column structure)
-    await sheetsService.appendRow(body.sheetId, '_Users', [
-      userId, // object_id
-      body.adminUser.userId, // username
-      passwordHash, // _password_hash (salt:hash format)
-      '', // email (empty for now)
-      'Administrator', // name
-      'active', // status
-      new Date().toISOString(), // created_at
-    ]);
+    // Add admin user to _Users sheet
+    await sheetsService.appendRow(body.sheetId, '_Users', {
+      object_id: userId,
+      username: body.adminUser.userId,
+      _password_hash: passwordHash,
+      email: '',
+      name: 'Administrator',
+      status: 'active',
+      created_at: new Date().toISOString(),
+    });
 
     console.log('[Setup] Created initial admin user with Administrator role');
 

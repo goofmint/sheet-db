@@ -583,15 +583,46 @@ export class GoogleSheetsService {
    *
    * @param spreadsheetId - Spreadsheet ID
    * @param sheetTitle - Sheet title
-   * @param values - Array of cell values
+   * @param rowData - Object with column names as keys and values
    */
   async appendRow(
     spreadsheetId: string,
     sheetTitle: string,
-    values: Array<string | number | boolean>
+    rowData: Record<string, string | number | boolean>
   ): Promise<void> {
+    // Get headers to know column order
+    const headersResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!1:1`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          Accept: 'application/json',
+        },
+      }
+    );
+
+    if (!headersResponse.ok) {
+      const error = await headersResponse.text();
+      throw new Error(`Failed to get sheet headers: ${headersResponse.status} ${error}`);
+    }
+
+    const headersData = (await headersResponse.json()) as {
+      values?: Array<Array<string>>;
+    };
+
+    const headers = headersData.values?.[0] || [];
+
+    // Build values array in the correct column order
+    const values = headers.map((header) => {
+      if (header in rowData) {
+        return rowData[header];
+      }
+      // Return empty string for missing columns
+      return '';
+    });
+
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A:Z:append?valueInputOption=RAW`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${sheetTitle}!A:${columnIndexToLetter(headers.length)}:append?valueInputOption=RAW`,
       {
         method: 'POST',
         headers: {
