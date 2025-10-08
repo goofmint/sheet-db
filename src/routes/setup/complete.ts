@@ -74,36 +74,47 @@ export async function postComplete(c: Context<{ Bindings: Env }>) {
     const rolesData = await sheetsService.getSheetData(body.sheetId, '_Roles');
     const adminRole = rolesData.find((row) => row.name === 'Administrator');
 
-    let administratorRoleId: string;
+    // Create Administrator role if it doesn't exist
     if (!adminRole) {
-      // Create Administrator role
-      administratorRoleId = crypto.randomUUID();
+      const administratorRoleId = crypto.randomUUID();
       await sheetsService.appendRow(body.sheetId, '_Roles', [
-        administratorRoleId, // object_id
-        'Administrator', // name
-        'System administrator with full access', // description
-        `["${userId}"]`, // users array with initial admin user
-        new Date().toISOString(), // created_at
+        administratorRoleId,
+        'Administrator',
+        'System administrator with full access',
+        `["${userId}"]`,
+        new Date().toISOString(),
       ]);
       console.log('[Setup] Created Administrator role');
-    } else {
-      // Get existing Administrator role and add user to it
-      administratorRoleId = adminRole.object_id as string;
 
-      // Parse existing users array (users column is not excluded from response as it doesn't start with _)
-      const existingUsersRaw = adminRole.users as string | undefined;
-      const existingUsers = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
+      // Add admin user to _Users sheet
+      await sheetsService.appendRow(body.sheetId, '_Users', [
+        userId,
+        body.adminUser.userId,
+        passwordHash,
+        '',
+        'Administrator',
+        'active',
+        new Date().toISOString(),
+      ]);
+      console.log('[Setup] Created initial admin user with Administrator role');
 
-      // Add new user if not already present
-      if (!existingUsers.includes(userId)) {
-        existingUsers.push(userId);
+      // Mark setup as completed
+      await configRepo.markSetupCompleted();
+      return c.json({ success: true });
+    }
 
-        // Update the role's users column
-        await sheetsService.updateRow(body.sheetId, '_Roles', administratorRoleId, {
-          users: JSON.stringify(existingUsers),
-        });
-        console.log('[Setup] Added user to existing Administrator role');
-      }
+    // Administrator role exists - add user to it
+    const administratorRoleId = adminRole.object_id as string;
+    const existingUsersRaw = adminRole.users as string | undefined;
+    const existingUsers = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
+
+    // Add new user if not already present
+    if (!existingUsers.includes(userId)) {
+      existingUsers.push(userId);
+      await sheetsService.updateRow(body.sheetId, '_Roles', administratorRoleId, {
+        users: JSON.stringify(existingUsers),
+      });
+      console.log('[Setup] Added user to existing Administrator role');
     }
 
     // Add admin user to _Users sheet (using correct column structure)
