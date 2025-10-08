@@ -15,6 +15,7 @@ export type { UserSession };
 /**
  * Middleware to require authentication
  * Verifies session cookie and loads user data
+ * Redirects to login page for HTML requests, returns 401 for API requests
  */
 export async function requireAuth(
   c: Context<{ Bindings: Env; Variables: ContextVariables }>,
@@ -23,6 +24,15 @@ export async function requireAuth(
   const sessionId = getCookie(c, 'session_id');
 
   if (!sessionId) {
+    // Check if this is an HTML page request or API request
+    const acceptHeader = c.req.header('accept') || '';
+    const isHtmlRequest = acceptHeader.includes('text/html');
+
+    if (isHtmlRequest) {
+      const currentPath = c.req.path;
+      return c.redirect(`/login?error=unauthorized&redirect=${encodeURIComponent(currentPath)}`);
+    }
+
     return c.json({ error: 'Authentication required' }, 401);
   }
 
@@ -31,6 +41,15 @@ export async function requireAuth(
   const sessionData = await configRepo.getSession(sessionId);
 
   if (!sessionData) {
+    // Check if this is an HTML page request or API request
+    const acceptHeader = c.req.header('accept') || '';
+    const isHtmlRequest = acceptHeader.includes('text/html');
+
+    if (isHtmlRequest) {
+      const currentPath = c.req.path;
+      return c.redirect(`/login?error=unauthorized&redirect=${encodeURIComponent(currentPath)}`);
+    }
+
     return c.json({ error: 'Invalid or expired session' }, 401);
   }
 
@@ -43,6 +62,7 @@ export async function requireAuth(
 /**
  * Middleware to require Administrator role
  * Must be used after requireAuth middleware
+ * Redirects to login page with error for HTML requests, returns 403 for API requests
  */
 export async function requireAdministrator(
   c: Context<{ Bindings: Env; Variables: ContextVariables }>,
@@ -51,6 +71,13 @@ export async function requireAdministrator(
   const userSession = c.get('userSession') as UserSession | undefined;
 
   if (!userSession) {
+    const acceptHeader = c.req.header('accept') || '';
+    const isHtmlRequest = acceptHeader.includes('text/html');
+
+    if (isHtmlRequest) {
+      return c.redirect('/login?error=unauthorized');
+    }
+
     return c.json({ error: 'Authentication required' }, 401);
   }
 
@@ -78,6 +105,13 @@ export async function requireAdministrator(
   const adminUsers = adminUsersRaw ? JSON.parse(adminUsersRaw) : [];
 
   if (!adminUsers.includes(userSession.userId)) {
+    const acceptHeader = c.req.header('accept') || '';
+    const isHtmlRequest = acceptHeader.includes('text/html');
+
+    if (isHtmlRequest) {
+      return c.redirect('/login?error=forbidden');
+    }
+
     return c.json(
       { error: 'Administrator role required for this operation' },
       403
