@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "sheet-db",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -10,6 +10,6 @@
     "hono": "^4.11.3"
   },
   "devDependencies": {
-    "wrangler": "^4.4.0"
+    "wrangler": "^4.30.0"
   }
 }
