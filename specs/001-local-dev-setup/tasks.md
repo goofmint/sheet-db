@@ -5,7 +5,7 @@ description: "Task list for Local Development Setup"
 
 # Tasks: Local Development Setup
 
-**Input**: Design documents from `/Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/001-local-dev-setup/`
+**Input**: Design documents from `./specs/001-local-dev-setup/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Not requested for this feature. Only add tests if later required by scope changes.
@@ -29,9 +29,9 @@ description: "Task list for Local Development Setup"
 
 **Purpose**: Project initialization and baseline assets
 
-- [X] T001 Create local tooling directories in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/dev and /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/seed-data
-- [X] T002 Add local setup guide in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/local-setup.md
-- [X] T003 Add baseline dataset fixture in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/seed-data/baseline.json
+- [X] T001 Create local tooling directories in ./src/dev and ./scripts/seed-data
+- [X] T002 Add local setup guide in ./scripts/local-setup.md
+- [X] T003 Add baseline dataset fixture in ./scripts/seed-data/baseline.json
 
 ---
 
@@ -41,10 +41,10 @@ description: "Task list for Local Development Setup"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T004 Implement local-only guard helper in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/dev/local-guard.ts
-- [X] T005 Implement local configuration inventory in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/dev/local-config.ts
-- [X] T006 Implement baseline dataset loader in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/dev/baseline-loader.ts
-- [X] T007 Wire local-only router and errors into /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/index.tsx
+- [X] T004 Implement local-only guard helper in ./src/dev/local-guard.ts
+- [X] T005 Implement local configuration inventory in ./src/dev/local-config.ts
+- [X] T006 Implement baseline dataset loader in ./src/dev/baseline-loader.ts
+- [X] T007 Wire local-only router and errors into ./src/index.tsx
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -56,9 +56,9 @@ description: "Task list for Local Development Setup"
 
 **Independent Test**: Follow local setup and run the smoke check to receive pass statuses.
 
-- [X] T008 [P] [US1] Implement smoke check logic in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/dev/smoke-check.ts
-- [X] T009 [US1] Add /_local/smoke-check handler wiring in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/index.tsx
-- [X] T010 [US1] Document smoke check usage in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/local-setup.md
+- [X] T008 [P] [US1] Implement smoke check logic in ./src/dev/smoke-check.ts
+- [X] T009 [US1] Add /_local/smoke-check handler wiring in ./src/index.tsx
+- [X] T010 [US1] Document smoke check usage in ./scripts/local-setup.md
 
 **Checkpoint**: User Story 1 should be fully functional and independently testable
 
@@ -70,10 +70,10 @@ description: "Task list for Local Development Setup"
 
 **Independent Test**: Run parity checklist and see pass/fail status for each constraint.
 
-- [X] T011 [P] [US2] Define parity constraint list in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/dev/parity-constraints.ts
-- [X] T012 [US2] Implement parity check logic in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/dev/parity-check.ts
-- [X] T013 [US2] Add /_local/parity handler wiring in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/index.tsx
-- [X] T014 [US2] Document parity checklist outputs in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/local-setup.md
+- [X] T011 [P] [US2] Define parity constraint list in ./src/dev/parity-constraints.ts
+- [X] T012 [US2] Implement parity check logic in ./src/dev/parity-check.ts
+- [X] T013 [US2] Add /_local/parity handler wiring in ./src/index.tsx
+- [X] T014 [US2] Document parity checklist outputs in ./scripts/local-setup.md
 
 **Checkpoint**: User Story 2 should be independently testable with clear pass/fail output
 
@@ -85,9 +85,9 @@ description: "Task list for Local Development Setup"
 
 **Independent Test**: Modify local data, run reset, confirm baseline is restored.
 
-- [X] T015 [P] [US3] Implement reset logic in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/dev/reset.ts
-- [X] T016 [US3] Add /_local/reset handler wiring in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/index.tsx
-- [X] T017 [US3] Document reset usage in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/local-setup.md
+- [X] T015 [P] [US3] Implement reset logic in ./src/dev/reset.ts
+- [X] T016 [US3] Add /_local/reset handler wiring in ./src/index.tsx
+- [X] T017 [US3] Document reset usage in ./scripts/local-setup.md
 
 **Checkpoint**: User Story 3 should be independently testable with a clean reset
 
@@ -97,8 +97,8 @@ description: "Task list for Local Development Setup"
 
 **Purpose**: Documentation alignment and developer experience polish
 
-- [X] T018 Update local development overview in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/README.md
-- [X] T019 Add troubleshooting guidance in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/local-setup.md
+- [X] T018 Update local development overview in ./README.md
+- [X] T019 Add troubleshooting guidance in ./scripts/local-setup.md
 
 ---
 
@@ -136,7 +136,7 @@ description: "Task list for Local Development Setup"
 
 ```bash
 # Parallelizable tasks for US1:
-Task: "Implement smoke check logic in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/src/dev/smoke-check.ts"
+Task: "Implement smoke check logic in ./src/dev/smoke-check.ts"
 ```
 
 ---

@@ -1,7 +1,7 @@
 # Implementation Plan: Local Development Setup
 
-**Branch**: `001-local-dev-setup` | **Date**: 2025-12-29 | **Spec**: /Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/001-local-dev-setup/spec.md
-**Input**: Feature specification from `/Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/001-local-dev-setup/spec.md`
+**Branch**: `001-local-dev-setup` | **Date**: 2025-12-29 | **Spec**: specs/001-local-dev-setup/spec.md
+**Input**: Feature specification from `specs/001-local-dev-setup/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
@@ -43,7 +43,7 @@ non-portable APIs, and keep local behavior aligned with production limits
 ### Documentation (this feature)
 
 ```text
-/Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/001-local-dev-setup/
+specs/001-local-dev-setup/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
@@ -55,7 +55,7 @@ non-portable APIs, and keep local behavior aligned with production limits
 ### Source Code (repository root)
 
 ```text
-/Users/nakatsugawa/Code/MOONGIFT/sheet-db/
+./
 ├── src/
 │   ├── index.tsx
 │   ├── db/

@@ -1,6 +1,6 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "my-app",
+  "$schema": "https://wrangler.cloudflare.com/schema/wrangler.json",
+  "name": "sheet-db",
   "main": "src/index.ts",
   "compatibility_date": "2025-12-29"
   // "compatibility_flags": [
