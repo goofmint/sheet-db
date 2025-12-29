@@ -1,0 +1,11 @@
+{
+  "sheets": {
+    "Example": {
+      "columns": ["name", "value"],
+      "rows": [
+        {"name": "alpha", "value": "one"},
+        {"name": "beta", "value": "two"}
+      ]
+    }
+  }
+}
