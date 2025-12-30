@@ -1,0 +1,106 @@
+openapi: 3.0.3
+info:
+  title: SheetDB Deployment Operations
+  version: 1.0.0
+  description: Endpoints for deployment reporting, validation, and rollback.
+servers:
+  - url: http://localhost:8787
+paths:
+  /deployments/report:
+    get:
+      summary: Get deployment report for target sites
+      responses:
+        "200":
+          description: Deployment report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeploymentReport"
+  /deployments/validate:
+    post:
+      summary: Run deployment validation checklist
+      responses:
+        "200":
+          description: Validation results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationSummary"
+  /deployments/rollback:
+    post:
+      summary: Trigger rollback for failed sites
+      responses:
+        "200":
+          description: Rollback status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RollbackSummary"
+components:
+  schemas:
+    DeploymentReport:
+      type: object
+      required:
+        - sites
+      properties:
+        sites:
+          type: array
+          items:
+            $ref: "#/components/schemas/SiteDeploymentStatus"
+    SiteDeploymentStatus:
+      type: object
+      required:
+        - siteId
+        - status
+      properties:
+        siteId:
+          type: string
+        status:
+          type: string
+          enum: [success, failed, rolled_back]
+        completedAt:
+          type: string
+    ValidationSummary:
+      type: object
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationResult"
+    ValidationResult:
+      type: object
+      required:
+        - siteId
+        - status
+      properties:
+        siteId:
+          type: string
+        status:
+          type: string
+          enum: [pass, fail, skipped]
+        details:
+          type: string
+    RollbackSummary:
+      type: object
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/RollbackResult"
+    RollbackResult:
+      type: object
+      required:
+        - siteId
+        - status
+      properties:
+        siteId:
+          type: string
+        status:
+          type: string
+          enum: [success, failed]
+        details:
+          type: string
