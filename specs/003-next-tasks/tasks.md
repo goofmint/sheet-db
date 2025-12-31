@@ -26,8 +26,8 @@ description: "Task list for executing next tasks from specs/tasks.md"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Confirm `specs/tasks.md` exists and is readable
-- [ ] T002 Confirm `BASIC.md` is accessible for section references
+- [x] T001 Confirm `specs/tasks.md` exists and is readable
+- [x] T002 Confirm `BASIC.md` is accessible for section references
 
 ---
 
@@ -37,8 +37,8 @@ description: "Task list for executing next tasks from specs/tasks.md"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Define the priority order to use when selecting tasks in `specs/tasks.md`
-- [ ] T004 Define the status update convention (checkbox + optional note) for `specs/tasks.md`
+- [x] T003 Define the priority order to use when selecting tasks in `specs/tasks.md`
+- [x] T004 Define the status update convention (checkbox + optional note) for `specs/tasks.md`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -52,8 +52,8 @@ description: "Task list for executing next tasks from specs/tasks.md"
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] Review `specs/tasks.md` and select the next unchecked task
-- [ ] T006 [US1] Add a short note in `specs/tasks.md` indicating this task is next
+- [x] T005 [US1] Review `specs/tasks.md` and select the next unchecked task
+- [x] T006 [US1] Add a short note in `specs/tasks.md` indicating this task is next
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -67,8 +67,8 @@ description: "Task list for executing next tasks from specs/tasks.md"
 
 ### Implementation for User Story 2
 
-- [ ] T007 [US2] Execute the selected task and mark it complete in `specs/tasks.md`
-- [ ] T008 [US2] Add a brief completion note in `specs/tasks.md` if needed for context
+- [x] T007 [US2] Execute the selected task and mark it complete in `specs/tasks.md`
+- [x] T008 [US2] Add a brief completion note in `specs/tasks.md` if needed for context
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -82,7 +82,7 @@ description: "Task list for executing next tasks from specs/tasks.md"
 
 ### Implementation for User Story 3
 
-- [ ] T009 [US3] Map the selected task to a BASIC.md section and record the section title in `specs/tasks.md`
+- [x] T009 [US3] Map the selected task to a BASIC.md section and record the section title in `specs/tasks.md`
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -92,8 +92,8 @@ description: "Task list for executing next tasks from specs/tasks.md"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T010 [P] Scan `specs/tasks.md` for absolute paths and remove any that appear
-- [ ] T011 [P] Ensure all added notes in `specs/tasks.md` remain concise and portable
+- [x] T010 [P] Scan `specs/tasks.md` for absolute paths and remove any that appear
+- [x] T011 [P] Ensure all added notes in `specs/tasks.md` remain concise and portable
 
 ---
 
