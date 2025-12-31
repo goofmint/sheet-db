@@ -2,7 +2,7 @@
 
 ## Decision: Single source of truth in specs/tasks.md
 
-**Decision**: Use `/Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/tasks.md` as
+**Decision**: Use `specs/tasks.md` as
  the single task list and update it directly when selecting or completing
  tasks.
 

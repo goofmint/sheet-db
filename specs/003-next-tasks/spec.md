@@ -60,9 +60,14 @@ implementation matches the design intent.
 
 ### Edge Cases
 
-- What if multiple tasks are equally eligible to run next?
-- How do we proceed if the next task depends on missing prerequisites?
-- What if BASIC.md changes before the task is completed?
+- **同順位タスクの扱い**: 優先度→`specs/tasks.md`内の上から順で決定する。
+  選ばれたタスクは`Pending → In Progress`に移行し、他は`Pending`のまま。
+  決定理由をタスク横の注記で通知する。
+- **前提条件不足**: 依存が満たされない場合は`Blocked`へ遷移し、理由と再確認日
+  を記録する。次の候補へ進み、週次で再評価する。
+- **BASIC.md変更の影響**: 影響範囲を洗い出し、担当者に通知する。
+  影響が大きい場合は`In Progress → Blocked`へ遷移し、更新反映後に再開、
+  軽微なら継続する。
 
 ## Requirements *(mandatory)*
 
@@ -72,13 +77,23 @@ implementation matches the design intent.
   `specs/tasks.md`.
 - **FR-002**: Task execution updates MUST be recorded in `specs/tasks.md`.
 - **FR-003**: Task selection MUST reference the relevant BASIC.md section.
-- **FR-004**: Task updates MUST avoid absolute filesystem paths.
+- **FR-004**: Task updates MUST avoid absolute filesystem paths to keep
+  portability across developers/CI. Forbidden forms include absolute paths
+  starting with `/` (e.g., `/Users/alice/...`, `/home/bob/...`). Use repository
+  root-relative paths such as `specs/tasks.md` or `BASIC.md`. Example:
+  `/specs/003-next-tasks/` → `specs/003-next-tasks/`. This aligns with SC-004 and
+  the cleanup requirements in tasks.md (T010: absolute paths removal, T011:
+  keep notes concise/portable).
 - **FR-005**: Task status MUST remain clear to future maintainers.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Task**: An actionable item from `specs/tasks.md`.
-- **Task Status**: The completion state recorded in the task list.
+- **Task**: Required fields are id (unique), description, priority
+  (numeric or enum), and basic_section (BASIC.md section link).
+- **Task Status**: Valid values are `Pending`, `In Progress`, `Completed`,
+  `Blocked`. Allowed transitions: `Pending → In Progress → Completed`,
+  `Pending → Blocked`, `In Progress → Blocked`, `Blocked → In Progress`.
+  See `specs/003-next-tasks/data-model.md` for the full model.
 
 ## Assumptions
 

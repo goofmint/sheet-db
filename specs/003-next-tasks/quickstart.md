@@ -2,12 +2,12 @@
 
 ## Prerequisites
 
-- Access to `/Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/tasks.md`
+- Access to `specs/tasks.md`
 - BASIC.md available for section references
 
 ## Steps
 
-1) Open `/Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/tasks.md`
+1) Open `specs/tasks.md`
 2) Identify the next unchecked task in priority order
 3) Confirm the task maps to a BASIC.md section
 4) Record any prerequisite notes next to the task if needed

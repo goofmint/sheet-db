@@ -1,7 +1,7 @@
 # Implementation Plan: Next Tasks Execution
 
-**Branch**: `003-next-tasks` | **Date**: 2025-12-31 | **Spec**: /Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/003-next-tasks/spec.md
-**Input**: Feature specification from `/specs/003-next-tasks/spec.md`
+**Branch**: `003-next-tasks` | **Date**: 2025-12-31 | **Spec**: specs/003-next-tasks/spec.md
+**Input**: Feature specification from `specs/003-next-tasks/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
