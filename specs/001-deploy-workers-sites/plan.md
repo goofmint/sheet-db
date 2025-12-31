@@ -1,7 +1,7 @@
 # Implementation Plan: Deploy Target Sites to Cloudflare Workers
 
-**Branch**: `001-deploy-workers-sites` | **Date**: 2025-12-30 | **Spec**: /Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/001-deploy-workers-sites/spec.md
-**Input**: Feature specification from `/Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/001-deploy-workers-sites/spec.md`
+**Branch**: `001-deploy-workers-sites` | **Date**: 2025-12-30 | **Spec**: specs/001-deploy-workers-sites/spec.md
+**Input**: Feature specification from `specs/001-deploy-workers-sites/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
@@ -43,7 +43,7 @@ breaking existing Worker configuration
 ### Documentation (this feature)
 
 ```text
-/Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/001-deploy-workers-sites/
+specs/001-deploy-workers-sites/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
@@ -55,7 +55,7 @@ breaking existing Worker configuration
 ### Source Code (repository root)
 
 ```text
-/Users/nakatsugawa/Code/MOONGIFT/sheet-db/
+./
 ├── src/
 │   └── index.ts
 ├── public/

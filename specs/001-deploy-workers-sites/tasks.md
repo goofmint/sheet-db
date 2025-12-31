@@ -5,10 +5,10 @@ description: "Task list for deploying target sites to Cloudflare Workers"
 
 # Tasks: Deploy Target Sites to Cloudflare Workers
 
-**Input**: Design documents from `/Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/001-deploy-workers-sites/`
+**Input**: Design documents from `specs/001-deploy-workers-sites/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
-**Tests**: Not requested for this feature. Only include tests if later required by scope changes.
+**Tests**: See `specs/001-deploy-workers-sites/spec.md` (User Scenarios & Testing, US1-US3) and `specs/001-deploy-workers-sites/plan.md` for the deployment checklist and manual validation steps.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -29,9 +29,9 @@ description: "Task list for deploying target sites to Cloudflare Workers"
 
 **Purpose**: Project initialization and shared deployment assets
 
-- [ ] T001 Create deployment inventory file in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/targets.json
-- [ ] T002 Create deployment checklist template in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/checklist.md
-- [ ] T003 Add deployment report template in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/report.md
+- [ ] T001 Create deployment inventory file in scripts/deploy/targets.json
+- [ ] T002 Create deployment checklist template in scripts/deploy/checklist.md
+- [ ] T003 Add deployment report template in scripts/deploy/report.md
 
 ---
 
@@ -41,10 +41,10 @@ description: "Task list for deploying target sites to Cloudflare Workers"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Implement deployment inventory loader in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/load-targets.ts
-- [ ] T005 Implement validation checklist runner in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/run-validation.ts
-- [ ] T006 Implement rollback helper in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/run-rollback.ts
-- [ ] T007 Implement deployment report generator in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/generate-report.ts
+- [ ] T004 Implement deployment inventory loader in scripts/deploy/load-targets.ts
+- [ ] T005 Implement validation checklist runner in scripts/deploy/run-validation.ts
+- [ ] T006 Implement rollback helper in scripts/deploy/run-rollback.ts
+- [ ] T007 Implement deployment report generator in scripts/deploy/generate-report.ts
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -57,9 +57,9 @@ description: "Task list for deploying target sites to Cloudflare Workers"
 **Independent Test**: Deploy each target site and confirm the expected URL responds with
 primary content.
 
-- [ ] T008 [P] [US1] Implement deployment orchestrator in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/deploy-sites.ts
-- [ ] T009 [US1] Add deployment execution guide in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/README.md
-- [ ] T010 [US1] Document expected URLs per target in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/targets.json
+- [ ] T008 [P] [US1] Implement deployment orchestrator in scripts/deploy/deploy-sites.ts
+- [ ] T009 [US1] Add deployment execution guide in scripts/deploy/README.md
+- [ ] T010 [US1] Document expected URLs per target in scripts/deploy/targets.json
 
 **Checkpoint**: User Story 1 should be fully functional and independently testable
 
@@ -71,9 +71,9 @@ primary content.
 
 **Independent Test**: Simulate a failed validation and confirm rollback restores service.
 
-- [ ] T011 [P] [US2] Implement validation status output in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/run-validation.ts
-- [ ] T012 [US2] Implement rollback execution path in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/run-rollback.ts
-- [ ] T013 [US2] Document rollback steps in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/README.md
+- [ ] T011 [P] [US2] Implement validation status output in scripts/deploy/run-validation.ts
+- [ ] T012 [US2] Implement rollback execution path in scripts/deploy/run-rollback.ts
+- [ ] T013 [US2] Document rollback steps in scripts/deploy/README.md
 
 **Checkpoint**: User Story 2 should be independently testable with clear rollback steps
 
@@ -85,8 +85,8 @@ primary content.
 
 **Independent Test**: Generate a deployment report and verify it lists all target sites.
 
-- [ ] T014 [P] [US3] Implement report formatting in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/generate-report.ts
-- [ ] T015 [US3] Add report output location to /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/report.md
+- [ ] T014 [P] [US3] Implement report formatting in scripts/deploy/generate-report.ts
+- [ ] T015 [US3] Add report output location to scripts/deploy/report.md
 
 **Checkpoint**: User Story 3 should be independently testable with a complete report
 
@@ -96,8 +96,8 @@ primary content.
 
 **Purpose**: Documentation alignment and release readiness
 
-- [ ] T016 Update deployment overview in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/README.md
-- [ ] T017 Add troubleshooting guidance in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/README.md
+- [ ] T016 Update deployment overview in README.md
+- [ ] T017 Add troubleshooting guidance in scripts/deploy/README.md
 
 ---
 
@@ -135,7 +135,7 @@ primary content.
 
 ```bash
 # Parallelizable tasks for US1:
-Task: "Implement deployment orchestrator in /Users/nakatsugawa/Code/MOONGIFT/sheet-db/scripts/deploy/deploy-sites.ts"
+Task: "Implement deployment orchestrator in scripts/deploy/deploy-sites.ts"
 ```
 
 ---

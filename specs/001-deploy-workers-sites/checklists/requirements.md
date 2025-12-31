@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2025-12-30
-**Feature**: /Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/001-deploy-workers-sites/spec.md
+**Feature**: specs/001-deploy-workers-sites/spec.md
 
 ## Content Quality
 
