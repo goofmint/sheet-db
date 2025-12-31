@@ -40,8 +40,8 @@ description: "Task list for local dev setup implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T006 Document local prerequisites and required credentials in `BASIC.md`
-- [ ] T007 Document command-only bootstrap steps for both surfaces in `BASIC.md` (no version pinning)
+- [ ] T006 Review `BASIC.md` for local prerequisites/credentials; add only missing items for this feature
+- [ ] T007 Review `BASIC.md` for command-only bootstrap steps; update only if missing or inconsistent (no version pinning)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 

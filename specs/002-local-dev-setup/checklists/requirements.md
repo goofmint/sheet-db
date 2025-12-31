@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2025-12-31
-**Feature**: /Users/nakatsugawa/Code/MOONGIFT/sheet-db/specs/002-local-dev-setup/spec.md
+**Feature**: specs/002-local-dev-setup/spec.md
 
 ## Content Quality
 

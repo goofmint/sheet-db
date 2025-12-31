@@ -21,7 +21,7 @@ manually create files.
 ### 2) Create the demo server (Cloudflare Workers)
 
 ```sh
-cd /Users/nakatsugawa/Code/MOONGIFT/sheet-db/apps
+cd apps
 npm create hono@latest demo
 ```
 
@@ -31,22 +31,22 @@ Cloudflare Workers guide.
 ### 3) Install dependencies
 
 ```sh
-cd /Users/nakatsugawa/Code/MOONGIFT/sheet-db/apps/main-ui
+cd apps/main-ui
 npm install
 
-cd /Users/nakatsugawa/Code/MOONGIFT/sheet-db/apps/demo
+cd ../demo
 npm install
 ```
 
 ### 4) Start local servers
 
 ```sh
-cd /Users/nakatsugawa/Code/MOONGIFT/sheet-db/apps/main-ui
+cd apps/main-ui
 npm run dev
 ```
 
 ```sh
-cd /Users/nakatsugawa/Code/MOONGIFT/sheet-db/apps/demo
+cd ../demo
 npm run dev
 ```
 
