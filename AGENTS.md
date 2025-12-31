@@ -1,12 +1,12 @@
 # sheet-db Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2025-12-29
+Auto-generated from all feature plans. Last updated: 2025-12-31
 
 ## Active Technologies
 - TypeScript (Cloudflare Workers runtime); Node.js LTS for tooling + Hono, Wrangler CLI (001-deploy-workers-sites)
 - Repository-managed configuration files; no runtime storage required for deployment metadata (001-deploy-workers-sites)
 
-- TypeScript (Cloudflare Workers runtime); Node.js LTS for local tooling + Cloudflare Workers, Hono, Wrangler CLI, D1, KV (001-local-dev-setup)
+- TypeScript/JavaScript (no version pinning) + Hono, React Router, Wrangler, UI build tooling (no version pinning) (002-local-dev-setup)
 
 ## Project Structure
 
@@ -21,12 +21,12 @@ npm test && npm run lint
 
 ## Code Style
 
-TypeScript (Cloudflare Workers runtime); Node.js LTS for local tooling: Follow standard conventions
+TypeScript/JavaScript (no version pinning): Follow standard conventions
 
 ## Recent Changes
 - 001-deploy-workers-sites: Added TypeScript (Cloudflare Workers runtime); Node.js LTS for tooling + Hono, Wrangler CLI
 
-- 001-local-dev-setup: Added TypeScript (Cloudflare Workers runtime); Node.js LTS for local tooling + Cloudflare Workers, Hono, Wrangler CLI, D1, KV
+- 002-local-dev-setup: Added TypeScript/JavaScript (no version pinning) + Hono, React Router, Wrangler, UI build tooling (no version pinning)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

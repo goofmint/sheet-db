@@ -31,11 +31,16 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- API contract remains Parse-compatible; contract changes include docs + versioning note.
-- Google Sheets data model rules preserved (row 1 headers, row 2 metadata, row 3+ data).
-- Auth and row-level access control behavior preserved; changes include automated tests.
-- Cloudflare Workers + Hono architecture maintained; KV/D1/R2 usage consistent.
-- 1000-row limit, cache TTL (60 min), and cache refresh behavior honored.
+- Confirm the feature adheres to the SheetDB schema contract (row 1 headers,
+  row 2 JSON metadata, row 3+ data) and uses row 2 metadata for validation.
+- Confirm row-level ACL fields and evaluation order (public → role → user) are
+  enforced, with master key handling documented.
+- Confirm Cloudflare Workers + Hono runtime assumptions and domain split
+  (`sheetdb.app` vs `demo.sheetdb.app`) are respected.
+- Confirm read/write API flows, KV TTL expectations, and cache regeneration
+  behavior are preserved.
+- Confirm setup wizard/system sheets requirements are accounted for when
+  configuration or bootstrapping is involved.
 
 ## Project Structure
 

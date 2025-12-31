@@ -100,6 +100,18 @@
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+## Constitution Alignment *(mandatory)*
+
+<!--
+  ACTION REQUIRED: Confirm whether the feature touches or depends on these
+  constitution rules. Mark N/A only with justification.
+-->
+
+- **Sheet schema rules**: [Impact on row 1/2/3 structure or metadata usage]
+- **Row-level ACL**: [Impact on ACL fields, evaluation order, or master key]
+- **Platform constraints**: [Cloudflare Workers/Hono, domain split impacts]
+- **Setup/system sheets**: [Any changes to setup wizard or system sheets]
+
 ## Success Criteria *(mandatory)*
 
 <!--
