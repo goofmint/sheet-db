@@ -5,6 +5,9 @@ SheetDB設計書
   •  メインサイト: sheetdb.app（LP、ドキュメント）
   •  デモ/プレイグラウンド: demo.sheetdb.app（API動作確認、Playground、初期設定ウィザード）
   •  セットアップウィザード（設定がない場合のみ）: demo.sheetdb.app/setup
+  •  役割分担:
+  •  sheetdb.app は公開情報とドキュメントに限定する
+  •  demo.sheetdb.app はデモ、Playground、初期設定の実行に限定する
 
 2. デプロイ構成
   •  Cloudflare Workers + Hono
