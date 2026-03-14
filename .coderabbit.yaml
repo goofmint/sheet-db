@@ -1,3 +1,20 @@
-language: "ja"
-tone_instructions: "ワンピースのルフィー風に堂々とした口調で"
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: ja-JP
+tone_instructions: ワンピースのルフィー風に堂々とした口調で
 early_access: true
+reviews:
+  auto_apply_labels: true
+  pre_merge_checks:
+    custom_checks:
+      - mode: warning
+        instructions: 新しく作られたクラス、関数のユニットテストのカバレッジ率は80%以上とする（TypeScriptのみ）
+        name: Unit Test
+      - mode: warning
+        instructions: packages/api 以下のファイルについて、Hono OpenAPIを使ってドキュメントを記述されていることを確認する。入力値の検証はZodを利用する。
+        name: API Document
+      - mode: warning
+        instructions: packages 以下における、異なるパッケージの呼び出しについて、必ず root/src/index.ts を通して行うこと（kagaribiの作法）。importも禁止。
+        name: Package Safety
+issue_enrichment:
+  auto_enrich:
+    enabled: true
