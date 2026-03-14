@@ -1,0 +1,12 @@
+# Google OAuth credentials
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+
+# Master key for API authentication
+MASTER_KEY=your-master-key
+
+# Google Drive folder ID for spreadsheet storage
+GOOGLE_DRIVE_ID=your-drive-folder-id
+
+# API password (if needed)
+PASSWORD=your-password
