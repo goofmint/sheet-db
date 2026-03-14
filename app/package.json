@@ -1,0 +1,30 @@
+{
+  "name": "app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm run build:db && kagaribi dev",
+    "build": "pnpm run build:db",
+    "deploy": "pnpm run build && wrangler deploy",
+    "deploy:db": "wrangler d1 migrations apply sheet-db --remote",
+    "build:db": "tsc db/index.ts db/schema.ts --outDir dist --rootDir . --module ES2022 --target ES2022 --moduleResolution bundler --skipLibCheck",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.0.0",
+    "@kagaribi/cli": "^0.2.0",
+    "@kagaribi/core": "^0.2.0",
+    "drizzle-orm": "^0.38.0",
+    "hono": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260313.1",
+    "drizzle-kit": "^0.30.0",
+    "typescript": "^5.5.0"
+  }
+}

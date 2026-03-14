@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.kagaribi/
+.env
+.dev.vars
+drizzle/
+db/*.js
+.wrangler/
